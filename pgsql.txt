@@ -1,0 +1,8 @@
+CREATE USER cofound WITH PASSWORD '<password>';
+GRANT ALL PRIVILEGES ON DATABASE cofound TO cofound;
+GRANT ALL PRIVILEGES ON SCHEMA cofound TO cofound;
+ALTER USER cofound CREATEDB;
+
+
+
+DATABASE_URL="postgresql://cofound:<password>@localhost:5432/cofound?schema=cofound"
