@@ -1,1 +1,1 @@
-// App
+console.log('App called !');
