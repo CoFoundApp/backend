@@ -27,7 +27,6 @@ lerna-debug.log*
 
 # Docker
 docker-compose.override.yml
-docker-compose.yml
 .dockerignore
 postgres_data/
 
