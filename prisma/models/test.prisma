@@ -1,4 +1,0 @@
-model test {
-  id      Int      @id @default(autoincrement())
-  description    String?
-}
