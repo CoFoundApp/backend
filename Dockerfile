@@ -9,6 +9,7 @@ RUN npm install
 
 # Install nodemon globally for development
 RUN npm install -g nodemon
+RUN apk add --no-cache openssl
 
 # Copy application code
 COPY . .

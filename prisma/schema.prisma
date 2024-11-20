@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -7,9 +8,122 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model ExperienceSkill {
+  skill_id      Int
+  experience_id Int
+  @@id([skill_id, experience_id])
+}
+
+model Skill {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model ProjectSkill {
+  project_id Int
+  skill_id   Int
+  @@id([project_id, skill_id])
+}
+
+model Contributor {
+  id            Int       @id @default(autoincrement())
+  ending_date   DateTime?
+  role          String
+  project_id    Int
+  mission       String
+  user_id       Int
+  starting_date DateTime
+}
+
+model Experience {
+  id            Int       @id @default(autoincrement())
+  user_id       Int
+  description   String
+  ending_date   DateTime?
+  starting_date DateTime
+  title         String
+  location      String
+  role          String
+}
+
+model Favorites {
+  project_id Int
+  user_id    Int
+  @@id([project_id, user_id])
+}
+
+model Messages {
+  id               Int       @id @default(autoincrement())
+  receiver_user_id Int
+  sent_date        DateTime
+  message          String
+  sender_user_id   Int
+  seen_date        DateTime?
+}
+
+model UserSkill {
+  user_id Int
+  skil_id Int
+  @@id([user_id, skil_id])
+}
+
+model Project {
+  id            Int       @id @default(autoincrement())
+  user_id       Int
+  ending_date   DateTime?
+  starting_date DateTime
+  description   String
+  title         String
+}
+
+model TopicProject {
+  project_id Int
+  topic_id   Int
+  @@id([project_id, topic_id])
+}
+
+model Application {
+  id          Int    @id @default(autoincrement())
+  is_refused  Boolean
+  is_accepted Boolean
+  description String
+  user_id     Int
+  project_id  Int
+}
+
+model Topic {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model Profil {
+  id           Int     @id @default(autoincrement())
+  notif_email  Boolean
+  notif_phone  Boolean
+  availability String
+  location     String
+  user_id      Int
+  topic_id     Int?
+  notif_push   Boolean
+}
+
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
+  id           Int    @id @default(autoincrement())
+  is_admin     Boolean
+  email        String  @unique
+  last_name    String
+  first_name   String
+  password     String
+  phone_number Int?
+  username     String  @unique
+}
+
+model Notification {
+  id                 Int     @id @default(autoincrement())
+  user_id            Int
+  emitter_projet_id  Int?
+  emitter_user_id    Int?
+  link               String?
+  seen               Boolean
+  description        String
 }
