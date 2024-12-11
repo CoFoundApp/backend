@@ -1,27 +1,27 @@
 import express from 'express';
-import prisma from '../prisma/client';
+import {
+  getUsers,
+  createUser,
+  getUserById,
+  updateUser,
+  deleteUser,
+  loginUser,
+} from '../controllers/user.controller';
+import { validateUser, validateLogin } from '../validators/user.validator';
+import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = express.Router();
 
-router.post('/', async (req, res) => {
-  try {
-    const { email, username, first_name, last_name, password } = req.body;
+router.get('/', authMiddleware, getUsers);
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        username,
-        first_name,
-        last_name,
-        password,
-        is_admin: false,
-      },
-    });
+router.post('/', validateUser, createUser);
 
-    res.status(201).json(user);
-  } catch (error) {
-    res.status(400).json({ message: (error as any).message });
-  }
-});
+router.get('/:id', authMiddleware, getUserById);
+
+router.put('/:id', authMiddleware, validateUser, updateUser);
+
+router.delete('/:id', authMiddleware, deleteUser);
+
+router.post('/login', validateLogin, loginUser);
 
 export default router;

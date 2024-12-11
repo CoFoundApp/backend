@@ -12,6 +12,10 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
 app.use('/api/users', userRoutes);
 // app.use('/api/projects', projectRoutes);
 
