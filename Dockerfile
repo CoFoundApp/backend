@@ -14,6 +14,9 @@ RUN apk add --no-cache openssl
 # Copy application code
 COPY . .
 
+# Prisma generate
+RUN npx prisma generate
+
 # Expose port and run in dev mode
 EXPOSE 3000
 CMD ["npm", "run", "dev"]
