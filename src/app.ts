@@ -1,10 +1,9 @@
-import express, { Application, Request, Response, NextFunction } from 'express';
+import express, { Application, Request, Response } from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 
-import userRoutes from './routes/user.route';
+import userRoutes from './routes/user.routes';
 import { errorHandler } from './middlewares/erroHandler.middleware';
-// import projectRoutes from './routes/project.routes';
 
 const app: Application = express();
 
@@ -12,16 +11,11 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-(BigInt.prototype as any).toJSON = function () {
-  return this.toString();
-};
-
 app.use('/api/users', userRoutes);
-// app.use('/api/projects', projectRoutes);
 
 app.use(errorHandler);
 
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, req: Request, res: Response) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Internal Server Error' });
 });

@@ -1,5 +1,7 @@
+/*
 import { User as PrismaUser } from '@prisma/client';
 import { User } from '../models/user.model';
+
 
 export const mapPrismaUserToInterface = (prismaUser: PrismaUser): User => ({
   id: BigInt(prismaUser.id),
@@ -11,3 +13,4 @@ export const mapPrismaUserToInterface = (prismaUser: PrismaUser): User => ({
   phoneNumber: prismaUser.phoneNumber ?? undefined,
   username: prismaUser.username,
 });
+*/
