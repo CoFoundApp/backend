@@ -1,0 +1,21 @@
+{
+  "name": "template",
+  "version": "1.0.0",
+  "main": "src/app.js",
+  "scripts": {
+    "dev": "nodemon src/app.js",
+    "prestart": "npm install",
+    "preprisma": "npx prisma migrate dev --name init",
+    "prisma": "npx prisma generate",
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "prisma": "^5.22.0",
+    "@prisma/client": "^5.22.0",
+    "sqlite3": "^5.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.21"
+  }
+}
