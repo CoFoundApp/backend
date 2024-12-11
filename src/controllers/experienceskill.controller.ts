@@ -24,7 +24,7 @@ export const getAll: RequestHandler = async (req, res) => {
 export const getSkill: RequestHandler = async (req, res) => {
   try {
     const experienceSkill = await prismaClient.experienceSkill.findMany({
-      where: { experience_id: parseInt(req.params.id, 10) }
+      where: { experienceId: parseInt(req.params.id, 10) }
     });
     if (!experienceSkill) {
       res.status(404).json({ error: 'Experience skill not found' });
@@ -38,7 +38,7 @@ export const getSkill: RequestHandler = async (req, res) => {
 export const getExperience: RequestHandler = async (req, res) => {
   try {
     const experienceSkill = await prismaClient.experienceSkill.findMany({
-      where: { skill_id: parseInt(req.params.id, 10) }
+      where: { skillId: parseInt(req.params.id, 10) }
     });
     if (!experienceSkill) {
       res.status(404).json({ error: 'Experience skill not found' });
@@ -54,9 +54,9 @@ export const deleteExperienceSkill: RequestHandler = async (req, res) => {
   try {
     await prismaClient.experienceSkill.delete({
       where: {
-        skill_id_experience_id: {
-          experience_id: parseInt(req.params.experienceId, 10),
-          skill_id: parseInt(req.params.skillId, 10),
+        skillId_experienceId: {
+          experienceId: parseInt(req.params.experienceId, 10),
+          skillId: parseInt(req.params.skillId, 10),
         }
       }
     });

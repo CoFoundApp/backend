@@ -26,7 +26,7 @@ export const getAll: RequestHandler = async (req, res) => {
 export const getByUser: RequestHandler = async (req, res) => {
   try {
     const favorites = await prismaClient.favorites.findMany({
-      where: { user_id: parseInt(req.params.userId, 10) },
+      where: { userId: parseInt(req.params.userId, 10) },
     });
     if (!favorites) {
       res.status(404).json({ error: 'Favorites not found' });
@@ -41,9 +41,9 @@ export const deleteFavorite: RequestHandler = async (req, res) => {
   try {
     await prismaClient.favorites.delete({
       where: {
-        project_id_user_id: {
-          project_id: parseInt(req.params.projectId, 10),
-          user_id: parseInt(req.params.userId, 10),
+        projectId_userId: {
+          projectId: parseInt(req.params.projectId, 10),
+          userId: parseInt(req.params.userId, 10),
         }
       }
     });

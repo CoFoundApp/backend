@@ -3,8 +3,6 @@ import { RequestHandler } from 'express';
 
 const prismaClient = new PrismaClient();
 
-// Controller Methods
-
 export const create: RequestHandler = async (req, res) => {
   try {
     const contributor = await prismaClient.contributor.create({

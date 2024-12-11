@@ -17,12 +17,12 @@ export const getByUser: RequestHandler = async (req, res) => {
     const messages = await prismaClient.messages.findMany({
       where: {
         OR: [
-          { sender_user_id: parseInt(req.params.userId, 10) },
-          { receiver_user_id: parseInt(req.params.userId, 10) },
+          { senderUserId: parseInt(req.params.userId, 10) },
+          { receiverUserId: parseInt(req.params.userId, 10) },
         ],
       },
       orderBy: {
-        sent_date: 'asc',
+        sentDate: 'asc',
       },
     });
 
@@ -38,8 +38,8 @@ export const getByUsers: RequestHandler = async (req, res) => {
   try {
     const message = await prismaClient.messages.findMany({
       where: {
-        sender_user_id: parseInt(req.params.senderUserId, 10),
-        receiver_user_id: parseInt(req.params.receiverUserId, 10),
+        senderUserId: parseInt(req.params.senderUserId, 10),
+        receiverUserId: parseInt(req.params.receiverUserId, 10),
       }
     });
     if (!message) {

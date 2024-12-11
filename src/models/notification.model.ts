@@ -1,9 +1,10 @@
 export interface Notification {
     id: bigint;
     userId: bigint;
-    emitterProjetId?: bigint;
+    emitterProjectId?: bigint;
     emitterUserId?: bigint;
     link?: string;
     seen: boolean;
     description: string;
+    emissionDate: Date;
   }
