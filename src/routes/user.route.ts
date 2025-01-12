@@ -1,27 +1,16 @@
-import express from 'express';
-import prisma from '../prisma/client';
+import { Router } from 'express';
+import { UserController } from '../controllers/user.controller';
+import { validateUser } from '../validators/user.validator';
 
-const router = express.Router();
+const router = Router();
 
-router.post('/', async (req, res) => {
-  try {
-    const { email, username, first_name, last_name, password } = req.body;
+const userController = new UserController();
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        username,
-        first_name,
-        last_name,
-        password,
-        is_admin: false,
-      },
-    });
-
-    res.status(201).json(user);
-  } catch (error) {
-    res.status(400).json({ message: (error as any).message });
-  }
-});
+router.get('/', userController.getAll);
+router.get('/:id', userController.getByParams);
+router.post('/', validateUser, userController.create);
+router.put('/:id', validateUser, userController.updateByParams);
+router.delete('/:id', userController.deleteByParams);
+router.delete('/', userController.deleteAll);
 
 export default router;

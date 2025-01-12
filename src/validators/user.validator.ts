@@ -1,8 +1,21 @@
 import Joi from 'joi';
+import { Request, Response, NextFunction } from 'express';
 
-export const userSchema = Joi.object({
+const userSchema = Joi.object({
+  isAdmin: Joi.boolean().optional(),
   email: Joi.string().email().required(),
-  first_name: Joi.string().min(2).required(),
-  last_name: Joi.string().min(2).required(),
+  lastName: Joi.string().min(2).required(),
+  firstName: Joi.string().min(2).required(),
   password: Joi.string().min(6).required(),
+  phoneNumber: Joi.number().optional(),
+  username: Joi.string().min(3).required(),
 });
+
+export const validateUser = (req: Request, res: Response, next: NextFunction): void => {
+  const { error } = userSchema.validate(req.body);
+  if (error) {
+    res.status(400).json({ message: error.details[0].message });
+    return;
+  }
+  next();
+};

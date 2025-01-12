@@ -1,17 +1,18 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model ExperienceSkill {
-  skill_id      Int
-  experience_id Int
-  @@id([skill_id, experience_id])
+  skillId      Int @map("skill_id")
+  experienceId Int @map("experience_id")
+
+  @@id([skillId, experienceId])
 }
 
 model Skill {
@@ -20,75 +21,79 @@ model Skill {
 }
 
 model ProjectSkill {
-  project_id Int
-  skill_id   Int
-  @@id([project_id, skill_id])
+  projectId Int @map("project_id")
+  skillId   Int @map("skill_id")
+
+  @@id([projectId, skillId])
 }
 
 model Contributor {
-  id            Int       @id @default(autoincrement())
-  ending_date   DateTime?
-  role          String
-  project_id    Int
-  mission       String
-  user_id       Int
-  starting_date DateTime
+  id           Int       @id @default(autoincrement())
+  endingDate   DateTime? @map("ending_date")
+  role         String
+  projectId    Int       @map("project_id")
+  mission      String
+  userId       Int       @map("user_id")
+  startingDate DateTime  @map("starting_date")
 }
 
 model Experience {
-  id            Int       @id @default(autoincrement())
-  user_id       Int
-  description   String
-  ending_date   DateTime?
-  starting_date DateTime
-  title         String
-  location      String
-  role          String
+  id           Int       @id @default(autoincrement())
+  userId       Int       @map("user_id")
+  description  String
+  endingDate   DateTime? @map("ending_date")
+  startingDate DateTime  @map("starting_date")
+  title        String
+  location     String
+  role         String
 }
 
 model Favorites {
-  project_id Int
-  user_id    Int
-  @@id([project_id, user_id])
+  projectId Int @map("project_id")
+  userId    Int @map("user_id")
+
+  @@id([projectId, userId])
 }
 
 model Messages {
-  id               Int       @id @default(autoincrement())
-  receiver_user_id Int
-  sent_date        DateTime
-  message          String
-  sender_user_id   Int
-  seen_date        DateTime?
+  id             Int       @id @default(autoincrement())
+  receiverUserId Int       @map("receiver_user_id")
+  sentDate       DateTime  @map("sent_date")
+  message        String
+  senderUserId   Int       @map("sender_user_id")
+  seenDate       DateTime? @map("seen_date")
 }
 
 model UserSkill {
-  user_id Int
-  skil_id Int
-  @@id([user_id, skil_id])
+  userId  Int @map("user_id")
+  skillId Int @map("skil_id")
+
+  @@id([userId, skillId])
 }
 
 model Project {
-  id            Int       @id @default(autoincrement())
-  user_id       Int
-  ending_date   DateTime?
-  starting_date DateTime
-  description   String
-  title         String
+  id           Int       @id @default(autoincrement())
+  userId       Int       @map("user_id")
+  endingDate   DateTime? @map("ending_date")
+  startingDate DateTime  @map("starting_date")
+  description  String
+  title        String
 }
 
 model TopicProject {
-  project_id Int
-  topic_id   Int
-  @@id([project_id, topic_id])
+  projectId Int @map("project_id")
+  topicId   Int @map("topic_id")
+
+  @@id([projectId, topicId])
 }
 
 model Application {
-  id          Int    @id @default(autoincrement())
-  is_refused  Boolean
-  is_accepted Boolean
+  id          Int     @id @default(autoincrement())
+  isRefused   Boolean @map("is_refused")
+  isAccepted  Boolean @map("is_accepted")
   description String
-  user_id     Int
-  project_id  Int
+  userId      Int     @map("user_id")
+  projectId   Int     @map("project_id")
 }
 
 model Topic {
@@ -98,32 +103,33 @@ model Topic {
 
 model Profil {
   id           Int     @id @default(autoincrement())
-  notif_email  Boolean
-  notif_phone  Boolean
+  notifEmail   Boolean @map("notif_email")
+  notifPhone   Boolean @map("notif_phone")
   availability String
   location     String
-  user_id      Int
-  topic_id     Int?
-  notif_push   Boolean
+  userId       Int     @map("user_id")
+  topicId      Int?    @map("topic_id")
+  notifPush    Boolean @map("notif_push")
 }
 
 model User {
-  id           Int    @id @default(autoincrement())
-  is_admin     Boolean
-  email        String  @unique
-  last_name    String
-  first_name   String
-  password     String
-  phone_number Int?
-  username     String  @unique
+  id          Int     @id @default(autoincrement())
+  isAdmin     Boolean @map("is_admin")
+  email       String  @unique
+  lastName    String  @map("last_name")
+  firstName   String  @map("first_name")
+  password    String
+  phoneNumber Int?    @map("phone_number")
+  username    String  @unique
 }
 
 model Notification {
-  id                 Int     @id @default(autoincrement())
-  user_id            Int
-  emitter_projet_id  Int?
-  emitter_user_id    Int?
-  link               String?
-  seen               Boolean
-  description        String
+  id               Int      @id @default(autoincrement())
+  userId           Int      @map("user_id")
+  emitterProjectId Int?     @map("emitter_projet_id")
+  emitterUserId    Int?     @map("emitter_user_id")
+  link             String?
+  seen             Boolean
+  description      String
+  emissionDate     DateTime @map("emission_date")
 }
