@@ -1,58 +1,143 @@
-import { PrismaClient } from '@prisma/client';
-import { RequestHandler } from 'express';
+import { Request, Response } from 'express';
+import { UserService } from '../services/user.service';
+import { logger } from '../utils/logger';
+import { validateUser } from '../validators/user.validator';
 
-const prismaClient = new PrismaClient();
+const userService = new UserService();
 
-export const create: RequestHandler = async (req, res) => {
-  try {
-    const user = await prismaClient.user.create({ data: req.body });
-    res.status(201).json(user); // Don't return the response
-  } catch (error) {
-    res.status(400).json({ error: (error as Error).message });
-  }
-};
-
-export const getAll: RequestHandler = async (req, res) => {
-  try {
-    const users = await prismaClient.user.findMany();
-    res.status(200).json(users);
-  } catch (error) {
-    res.status(400).json({ error: (error as Error).message });
-  }
-};
-
-export const getOne: RequestHandler = async (req, res) => {
-  try {
-    const user = await prismaClient.user.findUnique({
-      where: { id: parseInt(req.params.id, 10) },
-    });
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-    } else {
-      res.status(200).json(user);
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: API for managing users
+ */
+export class UserController {
+  /**
+   * Retrieve all users
+   */
+  async getAll(req: Request, res: Response): Promise<void> {
+    try {
+      const users = await userService.getAllUsers();
+      if (!users.length) {
+        res.status(404).json({ message: 'No users found' });
+        return;
+      }
+      res.status(200).json(users);
+    } catch (error) {
+      logger(`Error in getAll: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      res.status(500).json({ message: 'Internal Server Error' });
     }
-  } catch (error) {
-    res.status(400).json({ error: (error as Error).message });
   }
-};
 
-export const update: RequestHandler = async (req, res) => {
-  try {
-    const user = await prismaClient.user.update({
-      where: { id: parseInt(req.params.id, 10) },
-      data: req.body,
-    });
-    res.status(200).json(user);
-  } catch (error) {
-    res.status(400).json({ error: (error as Error).message });
+  /**
+   * Get user by ID
+   */
+  async getByParams(req: Request, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        res.status(400).json({ message: 'Invalid ID format' });
+        return;
+      }
+      const user = await userService.getUserByParams({ id });
+      if (!user) {
+        res.status(404).json({ message: 'User not found' });
+        return;
+      }
+      res.status(200).json(user);
+    } catch (error) {
+      logger(`Error in getByParams: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
   }
-};
 
-export const deleteUser: RequestHandler = async (req, res) => {
-  try {
-    await prismaClient.user.delete({ where: { id: parseInt(req.params.id, 10) } });
-    res.status(204).send();
-  } catch (error) {
-    res.status(400).json({ error: (error as Error).message });
+  /**
+   * Create a new user
+   */
+  async create(req: Request, res: Response): Promise<void> {
+    try {
+      validateUser(req, res, () => {}); // Validation middleware
+      const newUser = await userService.createUser(req.body);
+      if (!newUser) {
+        res.status(400).json({ message: 'User not created' });
+        return;
+      }
+      res.status(201).json(newUser);
+    } catch (error) {
+      logger(`Error in create: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
   }
-};
+
+  /**
+   * Update a user by ID
+   */
+  async updateByParams(req: Request, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        res.status(400).json({ message: 'Invalid ID format' });
+        return;
+      }
+      const userToUpdate = await userService.getUserByParams({ id });
+      if (!userToUpdate) {
+        res.status(404).json({ message: 'User not found' });
+        return;
+      }
+      const updatedUser = await userService.updateUserByParams({ id }, req.body);
+      if (!updatedUser) {
+        res.status(400).json({ message: 'User not updated' });
+        return;
+      }
+      res.status(200).json(updatedUser);
+    } catch (error) {
+      logger(`Error in updateByParams: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+
+  /**
+   * Delete all users
+   */
+  async deleteAll(req: Request, res: Response): Promise<void> {
+    try {
+      const deletedUsers = await userService.deleteAllUsers();
+      const getAllUsers = await userService.getAllUsers();
+      if (getAllUsers.length) {
+        res.status(400).json({ message: 'Users not deleted' });
+        return;
+      }
+      res.status(200).json({ message: `${deletedUsers} users deleted` });
+    } catch (error) {
+      logger(`Error in deleteAll: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+
+  /**
+   * Delete a user by ID
+   */
+  async deleteByParams(req: Request, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        res.status(400).json({ message: 'Invalid ID format' });
+        return;
+      }
+      const userToDelete = await userService.getUserByParams({ id });
+      if (!userToDelete) {
+        res.status(404).json({ message: 'User not found' });
+        return;
+      }
+      const deletedUser = await userService.deleteUserByParams({ id });
+      if (!deletedUser) {
+        res.status(400).json({ message: 'User not deleted' });
+        return;
+      }
+      res.status(200).json({ message: `User with ID ${id} deleted successfully` });
+    } catch (error) {
+      logger(`Error in deleteByParams: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+}
