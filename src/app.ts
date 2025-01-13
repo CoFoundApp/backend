@@ -9,6 +9,7 @@ import profileRoute from './routes/profile.route';
 import topicRoute from './routes/topic.route';
 import notificationRouter from './routes/notification.router';
 import skillRoute from './routes/skill.route';
+import projectRoute from './routes/project.route';
 
 const app: Application = express();
 
@@ -30,6 +31,7 @@ app.use('/api/profiles', profileRoute);
 app.use('/api/topics', topicRoute);
 app.use('/api/notifications', notificationRouter);
 app.use('/api/skills', skillRoute);
+app.use('/api/projects', projectRoute);
 
 // Default route
 app.get('/', (req, res) => {

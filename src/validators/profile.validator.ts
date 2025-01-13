@@ -2,7 +2,6 @@ import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
 
 const profileSchema = Joi.object({
-  id: Joi.number().optional(),
   notifEmail: Joi.boolean().required(),
   notifPhone: Joi.boolean().required(),
   availability: Joi.string().required(),

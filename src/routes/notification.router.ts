@@ -1,7 +1,6 @@
-// notification router
 import { Router } from 'express';
-import { NotificationController } from '../controllers/notification.controller';
 import { validateNotification } from '../validators/notification.validator';
+import { NotificationController } from '../controllers/notification.controller';
 
 const router = Router();
 
