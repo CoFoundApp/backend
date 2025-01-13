@@ -10,6 +10,7 @@ import topicRoute from './routes/topic.route';
 import notificationRouter from './routes/notification.router';
 import skillRoute from './routes/skill.route';
 import projectRoute from './routes/project.route';
+import contributorRoute from './routes/contributor.route';
 
 const app: Application = express();
 
@@ -32,6 +33,7 @@ app.use('/api/topics', topicRoute);
 app.use('/api/notifications', notificationRouter);
 app.use('/api/skills', skillRoute);
 app.use('/api/projects', projectRoute);
+app.use('/api/contributors', contributorRoute);
 
 // Default route
 app.get('/', (req, res) => {

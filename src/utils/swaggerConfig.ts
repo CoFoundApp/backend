@@ -181,6 +181,32 @@ export const swaggerConfig = {
             },
           },
         },
+        Contributor: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'integer',
+            },
+            endingDate: {
+              type: 'string',
+            },
+            role: {
+              type: 'string',
+            },
+            projectId: {
+              type: 'integer',
+            },
+            mission: {
+              type: 'string',
+            },
+            userId: {
+              type: 'integer',
+            },
+            startingDate: {
+              type: 'string',
+            },
+          },
+        }
       }
     },
   },
