@@ -6,6 +6,7 @@ import swaggerUi from 'swagger-ui-express';
 import { swaggerConfig } from './utils/swaggerConfig';
 import userRoutes from './routes/user.route';
 import profileRoute from './routes/profile.route';
+import topicRoute from './routes/topic.route';
 
 const app: Application = express();
 
@@ -24,6 +25,7 @@ app.get('/api-docs-json', (req, res) => {
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/profiles', profileRoute);
+app.use('/api/topics', topicRoute);
 
 // Default route
 app.get('/', (req, res) => {

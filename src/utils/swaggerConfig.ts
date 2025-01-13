@@ -106,7 +106,18 @@ export const swaggerConfig = {
               type: 'integer',
             },
           },
-        }
+        },
+        Topic: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'integer',
+            },
+            title: {
+              type: 'string',
+            },
+          },
+        },
       }
     },
   },
