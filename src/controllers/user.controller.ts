@@ -12,8 +12,26 @@ const userService = new UserService();
  *   description: API for managing users
  */
 export class UserController {
+
   /**
-   * Retrieve all users
+   * @swagger
+   * /users:
+   *   get:
+   *     summary: Retrieve all users
+   *     tags: [Users]
+   *     responses:
+   *       200:
+   *         description: A list of users
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/UserResponse'
+   *       404:
+   *         description: No users found
+   *       500:
+   *         description: Internal Server Error
    */
   async getAll(req: Request, res: Response): Promise<void> {
     try {
@@ -30,7 +48,28 @@ export class UserController {
   }
 
   /**
-   * Get user by ID
+   * @swagger
+   * /users/{id}:
+   *   get:
+   *     summary: Get user by ID
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         schema:
+   *           type: integer
+   *         required: true
+   *     responses:
+   *       200:
+   *         description: A user
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/UserResponse'
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Internal Server Error
    */
   async getByParams(req: Request, res: Response): Promise<void> {
     try {
@@ -52,7 +91,28 @@ export class UserController {
   }
 
   /**
-   * Create a new user
+   * @swagger
+   * /users:
+   *   post:
+   *     summary: Create a new user
+   *     tags: [Users]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/User'
+   *     responses:
+   *       201:
+   *         description: User created
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/UserResponse'
+   *       400:
+   *         description: User not created
+   *       500:
+   *         description: Internal Server Error
    */
   async create(req: Request, res: Response): Promise<void> {
     try {
@@ -70,7 +130,36 @@ export class UserController {
   }
 
   /**
-   * Update a user by ID
+   * @swagger
+   * /users/{id}:
+   *   put:
+   *     summary: Update user by ID
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         schema:
+   *           type: integer
+   *         required: true
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/User'
+   *     responses:
+   *       200:
+   *         description: User updated
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/UserResponse'
+   *       400:
+   *         description: User not updated
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Internal Server Error
    */
   async updateByParams(req: Request, res: Response): Promise<void> {
     try {
@@ -97,7 +186,26 @@ export class UserController {
   }
 
   /**
-   * Delete all users
+   * @swagger
+   * /users/{id}:
+   *   delete:
+   *     summary: Delete user by ID
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         schema:
+   *           type: integer
+   *         required: true
+   *     responses:
+   *       200:
+   *         description: User deleted
+   *       400:
+   *         description: User not deleted
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Internal Server Error
    */
   async deleteAll(req: Request, res: Response): Promise<void> {
     try {
@@ -115,7 +223,25 @@ export class UserController {
   }
 
   /**
-   * Delete a user by ID
+   * @swagger
+   * /users/{id}:
+   *   delete:
+   *     summary: Delete user by ID
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         schema:
+   *           type: integer
+   *         required: true
+   *         description: User ID
+   *     responses:
+   *       200:
+   *         description: User with ID deleted successfully
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Internal Server Error
    */
   async deleteByParams(req: Request, res: Response): Promise<void> {
     try {
