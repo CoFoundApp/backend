@@ -11,6 +11,7 @@ import notificationRouter from './routes/notification.router';
 import skillRoute from './routes/skill.route';
 import projectRoute from './routes/project.route';
 import contributorRoute from './routes/contributor.route';
+import experienceRouter from './routes/experience.router';
 
 const app: Application = express();
 
@@ -34,6 +35,7 @@ app.use('/api/notifications', notificationRouter);
 app.use('/api/skills', skillRoute);
 app.use('/api/projects', projectRoute);
 app.use('/api/contributors', contributorRoute);
+app.use('/api/experiences', experienceRouter);
 
 // Default route
 app.get('/', (req, res) => {

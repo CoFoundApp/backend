@@ -206,7 +206,39 @@ export const swaggerConfig = {
               type: 'string',
             },
           },
-        }
+        },
+        Experience: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'integer',
+            },
+            userId: {
+              type: 'integer',
+            },
+            description: {
+              type: 'string',
+            },
+            endingDate: {
+              type: 'string',
+            },
+            startingDate: {
+              type: 'string',
+            },
+            title: {
+              type: 'string',
+            },
+            location: {
+              type: 'string',
+            },
+            role: {
+              type: 'string',
+            },
+            mission: {
+              type: 'string',
+            }
+          },
+        },
       }
     },
   },

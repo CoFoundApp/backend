@@ -1,4 +1,3 @@
-// contributor.route.ts
 import { Router } from 'express';
 import { validateContributor} from '../validators/contributor.validator';
 import { ContributorController } from '../controllers/contributor.controller';
