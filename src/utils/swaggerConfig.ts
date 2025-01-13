@@ -146,6 +146,17 @@ export const swaggerConfig = {
               type: 'string',
             },
           },
+        },
+        Skill: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'integer',
+            },
+            name: {
+              type: 'string',
+            },
+          },
         }
       }
     },

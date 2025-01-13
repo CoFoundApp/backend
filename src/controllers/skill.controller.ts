@@ -1,44 +1,44 @@
 import { Request, Response } from 'express';
 import { logger } from '../utils/logger';
-import { NotificationService } from '../services/notification.service';
+import { SkillService } from '../services/skill.service';
 
-const notificationService = new NotificationService();
+const skillService = new SkillService();
 
 /**
  * @swagger
  * tags:
- *   name: Notifications
- *   description: API for managing notifications
+ *   name: Skills
+ *   description: API for managing skills
  */
-export class NotificationController {
+export class SkillController {
   /**
    * @swagger
-   * /notifications:
+   * /skills:
    *   get:
-   *     summary: Retrieve all notifications
-   *     tags: [Notifications]
+   *     summary: Retrieve all skills
+   *     tags: [Skills]
    *     responses:
    *       200:
-   *         description: A list of notifications
+   *         description: A list of skills
    *         content:
    *           application/json:
    *             schema:
    *               type: array
    *               items:
-   *                 $ref: '#/components/schemas/Notification'
+   *                 $ref: '#/components/schemas/Skill'
    *       404:
-   *         description: No notifications found
+   *         description: No skills found
    *       500:
    *         description: Internal Server Error
    */
   async getAll(req: Request, res: Response): Promise<void> {
     try {
-      const notifications = await notificationService.getAllNotifications();
-      if (!notifications.length) {
-        res.status(404).json({ message: 'No notifications found' });
+      const skills = await skillService.getAllSkills();
+      if (!skills.length) {
+        res.status(404).json({ message: 'No skills found' });
         return;
       }
-      res.status(200).json(notifications);
+      res.status(200).json(skills);
     } catch (error) {
       logger(`Error in getAll: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
@@ -47,10 +47,10 @@ export class NotificationController {
 
   /**
    * @swagger
-   * /notifications/{id}:
+   * /skills/{id}:
    *   get:
-   *     summary: Get notification by ID
-   *     tags: [Notifications]
+   *     summary: Get skill by ID
+   *     tags: [Skills]
    *     parameters:
    *       - in: path
    *         name: id
@@ -59,24 +59,24 @@ export class NotificationController {
    *         required: true
    *     responses:
    *       200:
-   *         description: A notification
+   *         description: A skill object
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/Notification'
+   *               $ref: '#/components/schemas/Skill'
    *       404:
-   *         description: Notification not found
+   *         description: Skill not found
    *       500:
    *         description: Internal Server Error
    */
   async getByParams(req: Request, res: Response): Promise<void> {
     try {
-      const notification = await notificationService.getNotificationByParams({ id: Number(req.params.id) });
-      if (!notification) {
-        res.status(404).json({ message: 'Notification not found' });
+      const skill = await skillService.getSkillByParams({ id: Number(req.params.id) });
+      if (!skill) {
+        res.status(404).json({ message: 'Skill not found' });
         return;
       }
-      res.status(200).json(notification);
+      res.status(200).json(skill);
     } catch (error) {
       logger(`Error in getById: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
@@ -85,34 +85,34 @@ export class NotificationController {
 
   /**
    * @swagger
-   * /notifications:
+   * /skills:
    *   post:
-   *     summary: Create a notification
-   *     tags: [Notifications]
+   *     summary: Create a new skill
+   *     tags: [Skills]
    *     requestBody:
    *       required: true
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/Notification'
+   *             $ref: '#/components/schemas/Skill'
    *     responses:
    *       201:
-   *         description: Notification created
+   *         description: Skill created
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/Notification'
+   *               $ref: '#/components/schemas/Skill'
    *       500:
    *         description: Internal Server Error
    */
   async create(req: Request, res: Response): Promise<void> {
     try {
-      const notification = await notificationService.createNotification(req.body);
-      if (!notification) {
+      const skill = await skillService.createSkill(req.body);
+      if (!skill) {
         res.status(500).json({ message: 'Internal Server Error' });
         return;
       }
-      res.status(201).json(notification);
+      res.status(201).json(skill);
     } catch (error) {
       logger(`Error in create: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
@@ -121,10 +121,10 @@ export class NotificationController {
 
   /**
    * @swagger
-   * /notifications/{id}:
+   * /skills/{id}:
    *   put:
-   *     summary: Update a notification by ID
-   *     tags: [Notifications]
+   *     summary: Update a skill by ID
+   *     tags: [Skills]
    *     parameters:
    *       - in: path
    *         name: id
@@ -136,27 +136,27 @@ export class NotificationController {
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/Notification'
+   *             $ref: '#/components/schemas/Skill'
    *     responses:
    *       200:
-   *         description: Notification updated
+   *         description: Skill updated
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/Notification'
+   *               $ref: '#/components/schemas/Skill'
    *       404:
-   *         description: Notification not found
+   *         description: Skill not found
    *       500:
    *         description: Internal Server Error
    */
   async updateByParams(req: Request, res: Response): Promise<void> {
     try {
-      const notification = await notificationService.updateNotificationByParams({ id: Number(req.params.id) }, req.body);
-      if (!notification) {
-        res.status(404).json({ message: 'Notification not found' });
+      const skill = await skillService.updateSkill({ id: Number(req.params.id) }, req.body);
+      if (!skill) {
+        res.status(404).json({ message: 'Skill not found' });
         return;
       }
-      res.status(200).json(notification);
+      res.status(200).json(skill);
     } catch (error) {
       logger(`Error in update: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
@@ -165,10 +165,10 @@ export class NotificationController {
 
   /**
    * @swagger
-   * /notifications/{id}:
+   * /skills/{id}:
    *   delete:
-   *     summary: Delete a notification by ID
-   *     tags: [Notifications]
+   *     summary: Delete a skill by ID
+   *     tags: [Skills]
    *     parameters:
    *       - in: path
    *         name: id
@@ -177,20 +177,20 @@ export class NotificationController {
    *         required: true
    *     responses:
    *       204:
-   *         description: Notification deleted
+   *         description: Skill deleted
    *       404:
-   *         description: Notification not found
+   *         description: Skill not found
    *       500:
    *         description: Internal Server Error
    */
   async deleteByParams(req: Request, res: Response): Promise<void> {
     try {
-      const isDeleted = await notificationService.deleteNotificationByParams({ id: Number(req.params.id) });
-      if (!isDeleted) {
-        res.status(404).json({ message: 'Notification not found' });
+      const deleted = await skillService.deleteSkillByParams({ id: Number(req.params.id) });
+      if (!deleted) {
+        res.status(404).json({ message: 'Skill not found' });
         return;
       }
-      res.sendStatus(204);
+      res.status(204).send();
     } catch (error) {
       logger(`Error in delete: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
@@ -199,26 +199,26 @@ export class NotificationController {
 
   /**
    * @swagger
-   * /notifications:
+   * /skills:
    *   delete:
-   *     summary: Delete all notifications
-   *     tags: [Notifications]
+   *     summary: Delete all skills
+   *     tags: [Skills]
    *     responses:
    *       204:
-   *         description: Notifications deleted
+   *         description: Skills deleted
    *       404:
-   *         description: No notifications found
+   *         description: No skills found
    *       500:
    *         description: Internal Server Error
    */
   async deleteAll(req: Request, res: Response): Promise<void> {
     try {
-      const isDeleted = await notificationService.deleteAllNotifications();
-      if (!isDeleted) {
-        res.status(404).json({ message: 'No notifications found' });
+      const deleted = await skillService.deleteAllSkills();
+      if (!deleted) {
+        res.status(404).json({ message: 'No skills found' });
         return;
       }
-      res.sendStatus(204);
+      res.status(204).send();
     } catch (error) {
       logger(`Error in deleteAll: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });

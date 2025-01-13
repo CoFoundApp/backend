@@ -1,4 +1,9 @@
-export interface Skill {
-    id: bigint;
+export class Skill {
+    id: number;
     name: string;
+
+  constructor(id: number, name: string) {
+    this.id = id;
+    this.name = name;
   }
+}
