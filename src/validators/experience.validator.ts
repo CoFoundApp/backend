@@ -1,15 +1,15 @@
 import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
 
-export const validateContributor = (req: Request, res: Response, next: NextFunction): void => {
+export const validateExperience = (req: Request, res: Response, next: NextFunction): void => {
   const schema = Joi.object({
-    endingDate: Joi.date().optional(),
-    role: Joi.string().required(),
-    projectId: Joi.number().required(),
-    mission: Joi.string().required(),
     userId: Joi.number().required(),
+    description: Joi.string().required(),
+    endingDate: Joi.date().optional(),
     startingDate: Joi.date().required(),
+    title: Joi.string().required(),
     location: Joi.string().required(),
+    role: Joi.string().required(),
   });
 
   const { error } = schema.validate(req.body);
@@ -20,3 +20,4 @@ export const validateContributor = (req: Request, res: Response, next: NextFunct
 
   next();
 };
+
