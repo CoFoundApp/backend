@@ -101,7 +101,7 @@ model Topic {
   name String
 }
 
-model Profil {
+model Profile {
   id           Int     @id @default(autoincrement())
   notifEmail   Boolean @map("notif_email")
   notifPhone   Boolean @map("notif_phone")
