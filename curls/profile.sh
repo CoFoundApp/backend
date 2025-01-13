@@ -13,7 +13,6 @@ echo "Creating a new profile..."
 CREATE_PROFILE_RESPONSE=$(curl -X POST "$BASE_URL/profiles" \
     -H "Content-Type: application/json" \
     -d '{
-        "id": 1,
         "notifEmail": true,
         "notifPhone": false,
         "availability": "full-time",

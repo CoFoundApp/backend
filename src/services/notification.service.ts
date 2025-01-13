@@ -1,6 +1,6 @@
 import { logger } from '../utils/logger';
-import { Notification } from '../models/notification.model';
 import { PrismaClient } from '@prisma/client';
+import { Notification } from '../models/notification.model';
 
 const prisma = new PrismaClient();
 

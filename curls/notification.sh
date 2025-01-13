@@ -13,7 +13,6 @@ echo "Creating a new notification..."
 CREATE_NOTIFICATION_RESPONSE=$(curl -X POST "$BASE_URL/notifications" \
     -H "Content-Type: application/json" \
     -d '{
-        "id": 1,
         "userId": 123,
         "emitterProjectId": 456,
         "emitterUserId": 789,

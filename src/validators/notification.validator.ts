@@ -2,7 +2,6 @@ import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
 
 const notificationValidator = Joi.object({
-  id: Joi.number().optional(),
   userId: Joi.number().required(),
   emitterProjectId: Joi.number().optional(),
   emitterUserId: Joi.number().optional(),
