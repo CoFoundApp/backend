@@ -110,7 +110,7 @@ export class UserController {
    *             schema:
    *               $ref: '#/components/schemas/UserResponse'
    *       400:
-   *         description: User not created
+   *         description: User not created, email or username already exist
    *       500:
    *         description: Internal Server Error
    */
@@ -119,7 +119,7 @@ export class UserController {
       validateUser(req, res, () => {}); // Validation middleware
       const newUser = await userService.createUser(req.body);
       if (!newUser) {
-        res.status(400).json({ message: 'User not created' });
+        res.status(400).json({ message: 'User not created, email or username already exist' });
         return;
       }
       res.status(201).json(newUser);
