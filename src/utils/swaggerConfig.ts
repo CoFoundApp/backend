@@ -118,6 +118,35 @@ export const swaggerConfig = {
             },
           },
         },
+        Notification: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'integer',
+            },
+            userId: {
+              type: 'integer',
+            },
+            emitterProjectId: {
+              type: 'integer',
+            },
+            emitterUserId: {
+              type: 'integer',
+            },
+            link: {
+              type: 'string',
+            },
+            seen: {
+              type: 'boolean',
+            },
+            description: {
+              type: 'string',
+            },
+            emissionDate: {
+              type: 'string',
+            },
+          },
+        }
       }
     },
   },

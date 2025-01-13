@@ -7,6 +7,7 @@ import { swaggerConfig } from './utils/swaggerConfig';
 import userRoutes from './routes/user.route';
 import profileRoute from './routes/profile.route';
 import topicRoute from './routes/topic.route';
+import notificationRouter from './routes/notification.router';
 
 const app: Application = express();
 
@@ -26,6 +27,7 @@ app.get('/api-docs-json', (req, res) => {
 app.use('/api/users', userRoutes);
 app.use('/api/profiles', profileRoute);
 app.use('/api/topics', topicRoute);
+app.use('/api/notifications', notificationRouter);
 
 // Default route
 app.get('/', (req, res) => {
@@ -33,10 +35,17 @@ app.get('/', (req, res) => {
 });
 
 // error handler
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use(
+  (
+    err: Error,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
     console.error(err.stack);
     res.status(500).send('Something broke!');
     next();
-});
+  }
+);
 
 export default app;
