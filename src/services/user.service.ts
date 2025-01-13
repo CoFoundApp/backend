@@ -1,8 +1,10 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
 import { User, UserResponse } from '../models/user.model';
+import { LoginService } from './login.service';
 
 const prisma = new PrismaClient();
+const loginService = new LoginService();
 
 export class UserService {
   async getAllUsers(): Promise<UserResponse[]> {
@@ -35,7 +37,20 @@ export class UserService {
 
   async createUser(data: Omit<User, 'id'>): Promise<UserResponse | null> {
     try {
-      const user = await prisma.user.create({ data: data as Prisma.UserCreateInput });
+      const userToCheck = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: data.email },
+            { username: data.username },
+          ],
+        },
+      });
+      if (userToCheck) {
+        return null;
+      }
+      const userData = data as Prisma.UserCreateInput;
+      userData.password = loginService.encryptPassword(data.password);
+      const user = await prisma.user.create({ data: userData });
       return new UserResponse(user);
     } catch (error) {
       logger(`Error in createUser: ${error instanceof Error ? error.message : 'Unknown error'}`);
