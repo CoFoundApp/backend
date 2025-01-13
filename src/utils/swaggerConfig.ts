@@ -60,6 +60,52 @@ export const swaggerConfig = {
               type: 'string',
             },
           },
+        },
+        Profile: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'integer',
+            },
+            notifEmail: {
+              type: 'boolean',
+            },
+            notifPhone: {
+              type: 'boolean',
+            },
+            availability: {
+              type: 'string',
+            },
+            location: {
+              type: 'string',
+            },
+            userId: {
+              type: 'integer',
+            },
+            topicId: {
+              type: 'integer',
+            },
+            notifPush: {
+              type: 'boolean',
+            },
+          },
+        },
+        ProfileResponse: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'integer',
+            },
+            availability: {
+              type: 'string',
+            },
+            location: {
+              type: 'string',
+            },
+            userId: {
+              type: 'integer',
+            },
+          },
         }
       }
     },
