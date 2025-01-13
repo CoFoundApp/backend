@@ -8,6 +8,7 @@ import userRoutes from './routes/user.route';
 import profileRoute from './routes/profile.route';
 import topicRoute from './routes/topic.route';
 import notificationRouter from './routes/notification.router';
+import skillRoute from './routes/skill.route';
 
 const app: Application = express();
 
@@ -28,6 +29,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/profiles', profileRoute);
 app.use('/api/topics', topicRoute);
 app.use('/api/notifications', notificationRouter);
+app.use('/api/skills', skillRoute);
 
 // Default route
 app.get('/', (req, res) => {
