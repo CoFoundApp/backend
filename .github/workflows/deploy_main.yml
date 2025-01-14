@@ -25,16 +25,27 @@ jobs:
       run: |
         sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no $VPS_USERNAME@$VPS_HOST << 'EOF'
           cd ~/project/COFOUND/backend || exit 1
-          
+
+          echo "Checking if PM2 is installed..."
+          if ! command -v pm2 >/dev/null 2>&1; then
+            echo "PM2 is not installed. Installing PM2 globally..."
+            sudo npm install -g pm2
+          else
+            echo "PM2 is already installed."
+          fi
+
           echo "Checking if port 3000 is in use..."
           PID=$(sudo lsof -t -i:3000 2>/dev/null) || true
           if [ -n "$PID" ]; then
-            echo "Port 3000 is in use. Killing process $PID..."
+            echo "Port 3000 is in use. Terminating process $PID..."
             sudo kill -9 $PID
             echo "Freed port 3000."
           else
             echo "Port 3000 is free."
           fi
+
+          echo "Stopping previous PM2 processes..."
+          pm2 delete all || echo "No PM2 processes to stop."
 
           echo "Pulling latest code..."
           git pull origin main
@@ -45,21 +56,9 @@ jobs:
           echo "Building the application..."
           npm run build
 
-          echo "Restarting the application if running..."
-          if command -v pm2 >/dev/null 2>&1; then
-            # Gracefully reload the application with PM2
-            pm2 reload "cofound-api" || pm2 start npm --name "cofound-api" -- start
-            pm2 save
-          else
-            echo "PM2 is not installed. Please manage the application manually."
-          fi
-
-          echo "Checking application status..."
-          STATUS=$(pm2 status "cofound-api" | grep "errored" || true)
-          if [ -n "$STATUS" ]; then
-            echo "Application is in an error state. Exiting with failure."
-            exit 1
-          fi
+          echo "Starting the application with PM2..."
+          pm2 start npm --name "cofound-api" -- start
+          pm2 save
 
           echo "Deployment complete!"
         EOF
