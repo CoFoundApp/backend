@@ -15,6 +15,7 @@ import experienceRouter from './routes/experience.router';
 import loginRoute from './routes/login.route';
 import applicationRoute from './routes/application.route';
 import favoriteRoute from './routes/favorite.route';
+import messageRoute from './routes/message.route';
 
 const app: Application = express();
 
@@ -41,6 +42,7 @@ app.use('/api/experiences', experienceRouter);
 app.use('/api/login', loginRoute);
 app.use('/api/applications', applicationRoute);
 app.use('/api/favorites', favoriteRoute);
+app.use('/api/messages', messageRoute);
 
 // Default route
 app.get('/', (req, res) => {

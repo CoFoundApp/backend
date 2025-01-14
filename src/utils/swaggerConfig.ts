@@ -300,7 +300,47 @@ export const swaggerConfig = {
               type: 'integer',
             },
           },
-        }
+        },
+        Message: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'integer',
+            },
+            receiverUserId: {
+              type: 'integer',
+            },
+            sentDate: {
+              type: 'string',
+            },
+            message: {
+              type: 'string',
+            },
+            senderUserId: {
+              type: 'integer',
+            },
+            seenDate: {
+              type: 'string',
+            },
+          },
+        },
+        Conversation: {
+          type: 'object',
+          properties: {
+            receiverUserId: {
+              type: 'integer',
+            },
+            senderUserId: {
+              type: 'integer',
+            },
+            message: {
+              type: 'string',
+            },
+            sentDate: {
+              type: 'string',
+            },
+          },
+        },
       }
     },
   },
