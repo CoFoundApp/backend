@@ -27,10 +27,10 @@ jobs:
           cd ~/project/COFOUND/backend || exit 1
           
           echo "Checking if port 3000 is in use..."
-          PID=\$(sudo lsof -t -i:3000) || true
-          if [ -n "\$PID" ]; then
-            echo "Port 3000 is in use. Killing process \$PID..."
-            sudo kill -9 \$PID
+          PID=$(sudo lsof -t -i:3000 2>/dev/null) || true
+          if [ -n "$PID" ]; then
+            echo "Port 3000 is in use. Killing process $PID..."
+            sudo kill -9 $PID
             echo "Freed port 3000."
           else
             echo "Port 3000 is free."
@@ -55,8 +55,8 @@ jobs:
           fi
 
           echo "Checking application status..."
-          STATUS=\$(pm2 status "cofound-api" | grep "errored" || true)
-          if [ -n "\$STATUS" ]; then
+          STATUS=$(pm2 status "cofound-api" | grep "errored" || true)
+          if [ -n "$STATUS" ]; then
             echo "Application is in an error state. Exiting with failure."
             exit 1
           fi
