@@ -187,23 +187,15 @@ export class UserController {
 
   /**
    * @swagger
-   * /users/{id}:
+   * /users:
    *   delete:
-   *     summary: Delete user by ID
+   *     summary: Delete all users
    *     tags: [Users]
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         schema:
-   *           type: integer
-   *         required: true
    *     responses:
    *       200:
-   *         description: User deleted
+   *         description: All users deleted
    *       400:
-   *         description: User not deleted
-   *       404:
-   *         description: User not found
+   *         description: Users not deleted
    *       500:
    *         description: Internal Server Error
    */
