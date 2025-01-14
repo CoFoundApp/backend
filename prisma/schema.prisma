@@ -4,13 +4,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model ExperienceSkill {
   skillId      Int @map("skill_id")
   experienceId Int @map("experience_id")
+
   @@id([skillId, experienceId])
 }
 
@@ -22,6 +23,7 @@ model Skill {
 model ProjectSkill {
   projectId Int @map("project_id")
   skillId   Int @map("skill_id")
+
   @@id([projectId, skillId])
 }
 
@@ -49,21 +51,23 @@ model Experience {
 model Favorites {
   projectId Int @map("project_id")
   userId    Int @map("user_id")
+
   @@id([projectId, userId])
 }
 
 model Messages {
-  id              Int       @id @default(autoincrement())
-  receiverUserId  Int       @map("receiver_user_id")
-  sentDate        DateTime  @map("sent_date")
-  message         String
-  senderUserId    Int       @map("sender_user_id")
-  seenDate        DateTime? @map("seen_date")
+  id             Int       @id @default(autoincrement())
+  receiverUserId Int       @map("receiver_user_id")
+  sentDate       DateTime  @map("sent_date")
+  message        String
+  senderUserId   Int       @map("sender_user_id")
+  seenDate       DateTime? @map("seen_date")
 }
 
 model UserSkill {
-  userId Int @map("user_id")
+  userId  Int @map("user_id")
   skillId Int @map("skil_id")
+
   @@id([userId, skillId])
 }
 
@@ -79,16 +83,17 @@ model Project {
 model TopicProject {
   projectId Int @map("project_id")
   topicId   Int @map("topic_id")
+
   @@id([projectId, topicId])
 }
 
 model Application {
-  id         Int     @id @default(autoincrement())
-  isRefused  Boolean @map("is_refused")
-  isAccepted Boolean @map("is_accepted")
+  id          Int     @id @default(autoincrement())
+  isRefused   Boolean @map("is_refused")
+  isAccepted  Boolean @map("is_accepted")
   description String
-  userId     Int     @map("user_id")
-  projectId  Int     @map("project_id")
+  userId      Int     @map("user_id")
+  projectId   Int     @map("project_id")
 }
 
 model Topic {
@@ -96,15 +101,15 @@ model Topic {
   name String
 }
 
-model Profil {
-  id          Int     @id @default(autoincrement())
-  notifEmail  Boolean @map("notif_email")
-  notifPhone  Boolean @map("notif_phone")
+model Profile {
+  id           Int     @id @default(autoincrement())
+  notifEmail   Boolean @map("notif_email")
+  notifPhone   Boolean @map("notif_phone")
   availability String
-  location    String
-  userId      Int     @map("user_id")
-  topicId     Int?    @map("topic_id")
-  notifPush   Boolean @map("notif_push")
+  location     String
+  userId       Int     @map("user_id")
+  topicId      Int?    @map("topic_id")
+  notifPush    Boolean @map("notif_push")
 }
 
 model User {
@@ -119,11 +124,12 @@ model User {
 }
 
 model Notification {
-  id                Int     @id @default(autoincrement())
-  userId            Int     @map("user_id")
-  emitterProjectId  Int?    @map("emitter_projet_id")
-  emitterUserId     Int?    @map("emitter_user_id")
-  link              String?
-  seen              Boolean
-  description       String
+  id               Int      @id @default(autoincrement())
+  userId           Int      @map("user_id")
+  emitterProjectId Int?     @map("emitter_projet_id")
+  emitterUserId    Int?     @map("emitter_user_id")
+  link             String?
+  seen             Boolean
+  description      String
+  emissionDate     DateTime @map("emission_date")
 }

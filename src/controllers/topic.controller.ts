@@ -1,46 +1,45 @@
 import { Request, Response } from 'express';
 import { logger } from '../utils/logger';
-import { UserService } from '../services/user.service';
-import { validateUser } from '../validators/user.validator';
+import { TopicService } from '../services/topic.service';
+import { validateTopic } from '../validators/topic.validator';
 
-const userService = new UserService();
+const topicService = new TopicService();
 
 /**
  * @swagger
  * tags:
- *   name: Users
- *   description: API for managing users
+ *   name: Topics
+ *   description: API for managing topics
  */
-export class UserController {
-
+export class TopicController {
   /**
    * @swagger
-   * /users:
+   * /topics:
    *   get:
-   *     summary: Retrieve all users
-   *     tags: [Users]
+   *     summary: Retrieve all topics
+   *     tags: [Topics]
    *     responses:
    *       200:
-   *         description: A list of users
+   *         description: A list of topics
    *         content:
    *           application/json:
    *             schema:
    *               type: array
    *               items:
-   *                 $ref: '#/components/schemas/UserResponse'
+   *                 $ref: '#/components/schemas/Topic'
    *       404:
-   *         description: No users found
+   *         description: No topics found
    *       500:
    *         description: Internal Server Error
    */
   async getAll(req: Request, res: Response): Promise<void> {
     try {
-      const users = await userService.getAllUsers();
-      if (!users.length) {
-        res.status(404).json({ message: 'No users found' });
+      const topics = await topicService.getAllTopics();
+      if (!topics.length) {
+        res.status(404).json({ message: 'No topics found' });
         return;
       }
-      res.status(200).json(users);
+      res.status(200).json(topics);
     } catch (error) {
       logger(`Error in getAll: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
@@ -49,25 +48,26 @@ export class UserController {
 
   /**
    * @swagger
-   * /users/{id}:
+   * /topics/{id}:
    *   get:
-   *     summary: Get user by ID
-   *     tags: [Users]
+   *     summary: Get topic by ID
+   *     tags: [Topics]
    *     parameters:
    *       - in: path
    *         name: id
    *         schema:
    *           type: integer
    *         required: true
+   *         description: Topic ID
    *     responses:
    *       200:
-   *         description: A user
+   *         description: A topic object
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/UserResponse'
+   *               $ref: '#/components/schemas/Topic'
    *       404:
-   *         description: User not found
+   *         description: Topic not found
    *       500:
    *         description: Internal Server Error
    */
@@ -78,12 +78,12 @@ export class UserController {
         res.status(400).json({ message: 'Invalid ID format' });
         return;
       }
-      const user = await userService.getUserByParams({ id });
-      if (!user) {
-        res.status(404).json({ message: 'User not found' });
+      const topic = await topicService.getTopicByParams({ id });
+      if (!topic) {
+        res.status(404).json({ message: 'Topic not found' });
         return;
       }
-      res.status(200).json(user);
+      res.status(200).json(topic);
     } catch (error) {
       logger(`Error in getByParams: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
@@ -92,37 +92,38 @@ export class UserController {
 
   /**
    * @swagger
-   * /users:
+   * /topics:
    *   post:
-   *     summary: Create a new user
-   *     tags: [Users]
+   *     summary: Create a new topic
+   *     tags: [Topics]
    *     requestBody:
    *       required: true
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/User'
+   *             $ref: '#/components/schemas/Topic'
    *     responses:
    *       201:
-   *         description: User created
+   *         description: Topic created
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/UserResponse'
+   *               $ref: '#/components/schemas/Topic'
    *       400:
-   *         description: User not created, email or username already exist
+   *         description: Failed to create topic
    *       500:
    *         description: Internal Server Error
    */
   async create(req: Request, res: Response): Promise<void> {
     try {
-      validateUser(req, res, () => {}); // Validation middleware
-      const newUser = await userService.createUser(req.body);
-      if (!newUser) {
-        res.status(400).json({ message: 'User not created, email or username already exist' });
+      validateTopic(req, res, () => {
+      }); // Validation middleware
+      const newTopic = await topicService.createTopic(req.body);
+      if (!newTopic) {
+        res.status(400).json({ message: 'Failed to create topic' });
         return;
       }
-      res.status(201).json(newUser);
+      res.status(201).json(newTopic);
     } catch (error) {
       logger(`Error in create: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
@@ -131,33 +132,32 @@ export class UserController {
 
   /**
    * @swagger
-   * /users/{id}:
+   * /topics/{id}:
    *   put:
-   *     summary: Update user by ID
-   *     tags: [Users]
+   *     summary: Update a topic by ID
+   *     tags: [Topics]
    *     parameters:
    *       - in: path
    *         name: id
    *         schema:
    *           type: integer
    *         required: true
+   *         description: Topic ID
    *     requestBody:
    *       required: true
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/User'
+   *             $ref: '#/components/schemas/Topic'
    *     responses:
    *       200:
-   *         description: User updated
+   *         description: Topic updated
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/UserResponse'
+   *               $ref: '#/components/schemas/Topic'
    *       400:
-   *         description: User not updated
-   *       404:
-   *         description: User not found
+   *         description: Failed to update topic
    *       500:
    *         description: Internal Server Error
    */
@@ -168,17 +168,19 @@ export class UserController {
         res.status(400).json({ message: 'Invalid ID format' });
         return;
       }
-      const userToUpdate = await userService.getUserByParams({ id });
-      if (!userToUpdate) {
-        res.status(404).json({ message: 'User not found' });
+      const topicToUpdate = await topicService.getTopicByParams({ id });
+      if (!topicToUpdate) {
+        res.status(404).json({ message: 'Topic not found' });
         return;
       }
-      const updatedUser = await userService.updateUserByParams({ id }, req.body);
-      if (!updatedUser) {
-        res.status(400).json({ message: 'User not updated' });
+      validateTopic(req, res, () => {
+      }); // Validation middleware
+      const updatedTopic = await topicService.updateTopicByParams({ id }, req.body);
+      if (!updatedTopic) {
+        res.status(400).json({ message: 'Failed to update topic' });
         return;
       }
-      res.status(200).json(updatedUser);
+      res.status(200).json(updatedTopic);
     } catch (error) {
       logger(`Error in updateByParams: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
@@ -187,35 +189,24 @@ export class UserController {
 
   /**
    * @swagger
-   * /users/{id}:
+   * /topics:
    *   delete:
-   *     summary: Delete user by ID
-   *     tags: [Users]
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         schema:
-   *           type: integer
-   *         required: true
+   *     summary: Delete all topics
+   *     tags: [Topics]
    *     responses:
    *       200:
-   *         description: User deleted
-   *       400:
-   *         description: User not deleted
-   *       404:
-   *         description: User not found
+   *         description: Topics deleted
    *       500:
    *         description: Internal Server Error
    */
   async deleteAll(req: Request, res: Response): Promise<void> {
     try {
-      const deletedUsers = await userService.deleteAllUsers();
-      const getAllUsers = await userService.getAllUsers();
-      if (getAllUsers.length) {
-        res.status(400).json({ message: 'Users not deleted' });
+      const deletedTopics = await topicService.deleteAllTopics();
+      if (!deletedTopics) {
+        res.status(404).json({ message: 'No topics found' });
         return;
       }
-      res.status(200).json({ message: `${deletedUsers} users deleted` });
+      res.status(200).json({ message: 'Topics deleted' });
     } catch (error) {
       logger(`Error in deleteAll: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
@@ -224,22 +215,22 @@ export class UserController {
 
   /**
    * @swagger
-   * /users/{id}:
+   * /topics/{id}:
    *   delete:
-   *     summary: Delete user by ID
-   *     tags: [Users]
+   *     summary: Delete topic by ID
+   *     tags: [Topics]
    *     parameters:
    *       - in: path
    *         name: id
    *         schema:
    *           type: integer
    *         required: true
-   *         description: User ID
+   *         description: Topic ID
    *     responses:
    *       200:
-   *         description: User with ID deleted successfully
+   *         description: Topic deleted
    *       404:
-   *         description: User not found
+   *         description: Topic not found
    *       500:
    *         description: Internal Server Error
    */
@@ -250,17 +241,12 @@ export class UserController {
         res.status(400).json({ message: 'Invalid ID format' });
         return;
       }
-      const userToDelete = await userService.getUserByParams({ id });
-      if (!userToDelete) {
-        res.status(404).json({ message: 'User not found' });
+      const deletedTopic = await topicService.deleteTopicByParams({ id });
+      if (!deletedTopic) {
+        res.status(404).json({ message: 'Topic not found' });
         return;
       }
-      const deletedUser = await userService.deleteUserByParams({ id });
-      if (!deletedUser) {
-        res.status(400).json({ message: 'User not deleted' });
-        return;
-      }
-      res.status(200).json({ message: `User with ID ${id} deleted successfully` });
+      res.status(200).json({ message: 'Topic deleted' });
     } catch (error) {
       logger(`Error in deleteByParams: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });

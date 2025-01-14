@@ -1,63 +1,98 @@
-import prisma from '../prisma/client';
-import { User } from '../models/user.model';
-import { mapPrismaUserToInterface } from '../utils/mapping';
+import { Prisma, PrismaClient } from '@prisma/client';
+import { logger } from '../utils/logger';
+import { User, UserResponse } from '../models/user.model';
+import { LoginService } from './login.service';
 
-export const getAllUsers = async (): Promise<User[]> => {
-  const prismaUsers = await prisma.user.findMany();
-  return prismaUsers.map(mapPrismaUserToInterface);
-};
+const prisma = new PrismaClient();
+const loginService = new LoginService();
 
-export const createUser = async (data: Omit<User, 'id'>): Promise<User> => {
-  const prismaUser = await prisma.user.create({
-    data: {
-      isAdmin: false,
-      email: data.email,
-      lastName: data.lastName,
-      firstName: data.firstName,
-      password: data.password,
-      phoneNumber: data.phoneNumber,
-      username: data.username,
-    },
-  });
-  return mapPrismaUserToInterface(prismaUser);
-};
+export class UserService {
+  async getAllUsers(): Promise<UserResponse[]> {
+    try {
+      const users = await prisma.user.findMany(); // Removed unnecessary Promise.all
+      if (!users.length) {
+        return [];
+      }
+      return users.map((user) => new UserResponse(user));
+    } catch (error) {
+      logger(`Error in getAllUsers: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return [];
+    }
+  }
 
-export const getUserById = async (id: number): Promise<User | null> => {
-  const prismaUser = await prisma.user.findUnique({
-    where: { id },
-  });
-  return prismaUser ? mapPrismaUserToInterface(prismaUser) : null;
-};
+  async getUserByParams(params: { id: number }): Promise<UserResponse | null> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: params.id }, // Ensure `id` is a number
+      });
+      if (!user) {
+        return null;
+      }
+      return new UserResponse(user);
+    } catch (error) {
+      logger(`Error in getUserByParams: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return null;
+    }
+  }
 
-export const updateUser = async (
-  id: number,
-  data: Partial<Omit<User, 'id'>>
-): Promise<User> => {
-  const prismaUser = await prisma.user.update({
-    where: { id },
-    data: {
-      isAdmin: data.isAdmin,
-      email: data.email,
-      lastName: data.lastName,
-      firstName: data.firstName,
-      password: data.password,
-      phoneNumber: data.phoneNumber,
-      username: data.username,
-    },
-  });
-  return mapPrismaUserToInterface(prismaUser);
-};
+  async createUser(data: Omit<User, 'id'>): Promise<UserResponse | null> {
+    try {
+      const userToCheck = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: data.email },
+            { username: data.username },
+          ],
+        },
+      });
+      if (userToCheck) {
+        return null;
+      }
+      const userData = data as Prisma.UserCreateInput;
+      userData.password = loginService.encryptPassword(data.password);
+      const user = await prisma.user.create({ data: userData });
+      return new UserResponse(user);
+    } catch (error) {
+      logger(`Error in createUser: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return null;
+    }
+  }
 
-export const deleteUser = async (id: number): Promise<User> => {
-  const prismaUser = await prisma.user.delete({
-    where: { id },
-  });
-  return mapPrismaUserToInterface(prismaUser);
-};
+  async updateUserByParams(
+    params: { id: number },
+    data: Partial<User>
+  ): Promise<UserResponse | null> {
+    try {
+      const user = await prisma.user.update({
+        where: { id: params.id }, // Ensure `id` is a number
+        data: data as Prisma.UserUpdateInput,
+      });
+      return new UserResponse(user);
+    } catch (error) {
+      logger(`Error in updateUserByParams: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return null;
+    }
+  }
 
-export const getUserByEmail = async (email: string): Promise<User | null> => {
-  const prismaUser = await prisma.user.findUnique({
-    where: { email },
-  });
-  return prismaUser ? mapPrismaUserToInterface(prismaUser) : null;
-};
+  async deleteAllUsers(): Promise<number> {
+    try {
+      const result = await prisma.user.deleteMany();
+      return result.count;
+    } catch (error) {
+      logger(`Error in deleteAllUsers: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return 0;
+    }
+  }
+
+  async deleteUserByParams(params: { id: number }): Promise<number | null> {
+    try {
+      const user = await prisma.user.delete({
+        where: { id: params.id }, // Ensure `id` is a number
+      });
+      return user ? 1 : null;
+    } catch (error) {
+      logger(`Error in deleteUserByParams: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return null;
+    }
+  }
+}

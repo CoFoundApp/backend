@@ -1,27 +1,16 @@
-import express from 'express';
-import {
-  getUsers,
-  createUser,
-  getUserById,
-  updateUser,
-  deleteUser,
-  loginUser,
-} from '../controllers/user.controller';
-import { validateUser, validateLogin } from '../validators/user.validator';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { Router } from 'express';
+import { UserController } from '../controllers/user.controller';
+import { validateUser } from '../validators/user.validator';
 
-const router = express.Router();
+const router = Router();
 
-router.get('/', authMiddleware, getUsers);
+const userController = new UserController();
 
-router.post('/', validateUser, createUser);
-
-router.get('/:id', authMiddleware, getUserById);
-
-router.put('/:id', authMiddleware, validateUser, updateUser);
-
-router.delete('/:id', authMiddleware, deleteUser);
-
-router.post('/login', validateLogin, loginUser);
+router.get('/', userController.getAll);
+router.get('/:id', userController.getByParams);
+router.post('/', validateUser, userController.create);
+router.put('/:id', validateUser, userController.updateByParams);
+router.delete('/:id', userController.deleteByParams);
+router.delete('/', userController.deleteAll);
 
 export default router;
