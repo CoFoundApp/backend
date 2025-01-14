@@ -17,5 +17,7 @@ router.post('/', validateProject, projectController.create);
 router.put('/:id', validateProject, projectController.updateByParams);
 router.delete('/:id', projectController.deleteByParams);
 router.delete('/', projectController.deleteAll);
+router.get('/:projectId/favorites', projectController.getAllFavoritesByProjectId);
+router.delete('/:projectId/favorites', projectController.deleteFavoriteByProjectId);
 
 export default router;

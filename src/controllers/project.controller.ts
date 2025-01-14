@@ -2,8 +2,10 @@
 import { Request, Response } from 'express';
 import { logger } from '../utils/logger';
 import { ProjectService } from '../services/project.services';
+import { FavoriteService } from '../services/favorite.service';
 
 const projectService = new ProjectService();
+const favoriteService = new FavoriteService();
 
 /**
  * @swagger
@@ -14,7 +16,7 @@ const projectService = new ProjectService();
 export class ProjectController {
   /**
    * @swagger
-   * /projects:
+   * /api/projects:
    *   get:
    *     summary: Retrieve all projects
    *     tags: [Projects]
@@ -48,7 +50,7 @@ export class ProjectController {
 
   /**
    * @swagger
-   * /projects/{id}:
+   * /api/projects/{id}:
    *   get:
    *     summary: Get project by ID
    *     tags: [Projects]
@@ -86,7 +88,7 @@ export class ProjectController {
 
   /**
    * @swagger
-   * /projects:
+   * /api/projects:
    *   post:
    *     summary: Create a new project
    *     tags: [Projects]
@@ -122,7 +124,7 @@ export class ProjectController {
 
   /**
    * @swagger
-   * /projects/{id}:
+   * /api/projects/{id}:
    *   put:
    *     summary: Update a project by ID
    *     tags: [Projects]
@@ -166,7 +168,7 @@ export class ProjectController {
 
   /**
    * @swagger
-   * /projects/{id}:
+   * /api/projects/{id}:
    *   delete:
    *     summary: Delete a project by ID
    *     tags: [Projects]
@@ -200,7 +202,7 @@ export class ProjectController {
 
   /**
    * @swagger
-   * /projects:
+   * /api/projects:
    *   delete:
    *     summary: Delete all projects
    *     tags: [Projects]
@@ -220,6 +222,82 @@ export class ProjectController {
       res.status(200).json({ message: 'Projects deleted' });
     } catch (error) {
       logger(`Error in deleteAll: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/projects/{projectId}/favorites:
+   *   get:
+   *     summary: Retrieve all favorites by project id
+   *     tags: [Projects]
+   *     parameters:
+   *       - in: path
+   *         name: projectId
+   *         schema:
+   *           type: integer
+   *         required: true
+   *     responses:
+   *       200:
+   *         description: A list of favorites
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/FavoriteByProject'
+   *       404:
+   *         description: No favorites found
+   *       500:
+   *         description: Internal Server Error
+   */
+  async getAllFavoritesByProjectId(req: Request, res: Response): Promise<void> {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const favorites = await favoriteService.getFavoritesByProjectId(projectId);
+      if (!favorites) {
+        res.status(404).json({ message: 'No favorites found' });
+        return;
+      }
+      res.status(200).json(favorites);
+    } catch (error) {
+      logger(`Error in getAllFavoritesByProject: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/projects/{projectId}/favorites:
+   *   delete:
+   *     summary: Delete a favorite by project id
+   *     tags: [Projects]
+   *     parameters:
+   *       - in: path
+   *         name: projectId
+   *         schema:
+   *           type: integer
+   *         required: true
+   *     responses:
+   *       200:
+   *         description: Favorite deleted
+   *       404:
+   *         description: Favorite not found
+   *       500:
+   *         description: Internal Server Error
+   */
+  async deleteFavoriteByProjectId(req: Request, res: Response): Promise<void> {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const favorite = await favoriteService.deleteAllFavoritesByProjectId(projectId);
+      if (!favorite) {
+        res.status(404).json({ message: 'Favorite not found' });
+        return;
+      }
+      res.status(200).json({ message: 'Favorite deleted' });
+    } catch (error) {
+      logger(`Error in deleteFavoriteByProject: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
     }
   }

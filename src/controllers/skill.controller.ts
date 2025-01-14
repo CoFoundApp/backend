@@ -13,7 +13,7 @@ const skillService = new SkillService();
 export class SkillController {
   /**
    * @swagger
-   * /skills:
+   * /api/skills:
    *   get:
    *     summary: Retrieve all skills
    *     tags: [Skills]
@@ -47,7 +47,7 @@ export class SkillController {
 
   /**
    * @swagger
-   * /skills/{id}:
+   * /api/skills/{id}:
    *   get:
    *     summary: Get skill by ID
    *     tags: [Skills]
@@ -85,7 +85,7 @@ export class SkillController {
 
   /**
    * @swagger
-   * /skills:
+   * /api/skills:
    *   post:
    *     summary: Create a new skill
    *     tags: [Skills]
@@ -121,7 +121,7 @@ export class SkillController {
 
   /**
    * @swagger
-   * /skills/{id}:
+   * /api/skills/{id}:
    *   put:
    *     summary: Update a skill by ID
    *     tags: [Skills]
@@ -165,7 +165,7 @@ export class SkillController {
 
   /**
    * @swagger
-   * /skills/{id}:
+   * /api/skills/{id}:
    *   delete:
    *     summary: Delete a skill by ID
    *     tags: [Skills]
@@ -199,7 +199,7 @@ export class SkillController {
 
   /**
    * @swagger
-   * /skills:
+   * /api/skills:
    *   delete:
    *     summary: Delete all skills
    *     tags: [Skills]

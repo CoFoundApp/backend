@@ -15,7 +15,7 @@ export class LoginController {
 
   /**
    * @swagger
-   * /login:
+   * /api/login:
    *   post:
    *     summary: Login
    *     tags: [Login]
@@ -62,7 +62,7 @@ export class LoginController {
 
   /**
    * @swagger
-   * /checkToken:
+   * /api/checkToken:
    *   post:
    *     summary: Check token
    *     tags: [Login]
@@ -99,7 +99,7 @@ export class LoginController {
 
   /**
    * @swagger
-   * /username:
+   * /api/username:
    *   post:
    *     summary: Login with username
    *     tags: [Login]

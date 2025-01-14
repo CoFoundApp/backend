@@ -2,6 +2,7 @@ import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
 
 const projectValidator = Joi.object({
+    id: Joi.number().optional(),
     userId: Joi.number().required(),
     endingDate: Joi.date().optional(),
     startingDate: Joi.date().required(),

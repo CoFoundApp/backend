@@ -13,7 +13,7 @@ const experienceService = new ExperienceService();
 export class ExperienceController {
   /**
    * @swagger
-   * /experiences:
+   * /api/experiences:
    *   get:
    *     summary: Retrieve all experiences
    *     tags: [Experiences]
@@ -47,7 +47,7 @@ export class ExperienceController {
 
   /**
    * @swagger
-   * /experiences/{id}:
+   * /api/experiences/{id}:
    *   get:
    *     summary: Get experience by ID
    *     tags: [Experiences]
@@ -85,7 +85,7 @@ export class ExperienceController {
 
   /**
    * @swagger
-   * /experiences:
+   * /api/experiences:
    *   post:
    *     summary: Create a new experience
    *     tags: [Experiences]
@@ -121,7 +121,7 @@ export class ExperienceController {
 
   /**
    * @swagger
-   * /experiences/{id}:
+   * /api/experiences/{id}:
    *   put:
    *     summary: Update experience by ID
    *     tags: [Experiences]
@@ -165,7 +165,7 @@ export class ExperienceController {
 
   /**
    * @swagger
-   * /experiences/{id}:
+   * /api/experiences/{id}:
    *   delete:
    *     summary: Delete experience by ID
    *     tags: [Experiences]
@@ -199,7 +199,7 @@ export class ExperienceController {
 
   /**
    * @swagger
-   * /experiences:
+   * /api/experiences:
    *   delete:
    *     summary: Delete all experiences
    *     tags: [Experiences]

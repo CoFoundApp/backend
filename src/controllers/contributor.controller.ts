@@ -14,7 +14,7 @@ export class ContributorController {
 
   /**
    * @swagger
-   * /projects/{projectId}/contributors:
+   * /api/projects/{projectId}/contributors:
    *   get:
    *     summary: Retrieve all contributors by project ID
    *     tags: [Contributors]
@@ -55,7 +55,7 @@ export class ContributorController {
 
   /**
    * @swagger
-   * /contributors/{id}:
+   * /api/contributors/{id}:
    *   get:
    *     summary: Get contributor by ID
    *     tags: [Contributors]
@@ -93,7 +93,7 @@ export class ContributorController {
 
   /**
    * @swagger
-   * /contributors:
+   * /api/contributors:
    *   post:
    *     summary: Create a new contributor
    *     tags: [Contributors]
@@ -129,7 +129,7 @@ export class ContributorController {
 
   /**
    * @swagger
-   * /contributors/{id}:
+   * /api/contributors/{id}:
    *   put:
    *     summary: Update a contributor by ID
    *     tags: [Contributors]
@@ -173,7 +173,7 @@ export class ContributorController {
 
   /**
    * @swagger
-   * /contributors/{id}:
+   * /api/contributors/{id}:
    *   delete:
    *     summary: Delete a contributor by ID
    *     tags: [Contributors]
@@ -207,7 +207,7 @@ export class ContributorController {
 
   /**
    * @swagger
-   * /contributors:
+   * /api/contributors:
    *   delete:
    *     summary: Delete all contributors
    *     tags: [Contributors]

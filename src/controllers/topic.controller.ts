@@ -14,7 +14,7 @@ const topicService = new TopicService();
 export class TopicController {
   /**
    * @swagger
-   * /topics:
+   * /api/topics:
    *   get:
    *     summary: Retrieve all topics
    *     tags: [Topics]
@@ -48,7 +48,7 @@ export class TopicController {
 
   /**
    * @swagger
-   * /topics/{id}:
+   * /api/topics/{id}:
    *   get:
    *     summary: Get topic by ID
    *     tags: [Topics]
@@ -92,7 +92,7 @@ export class TopicController {
 
   /**
    * @swagger
-   * /topics:
+   * /api/topics:
    *   post:
    *     summary: Create a new topic
    *     tags: [Topics]
@@ -132,7 +132,7 @@ export class TopicController {
 
   /**
    * @swagger
-   * /topics/{id}:
+   * /api/topics/{id}:
    *   put:
    *     summary: Update a topic by ID
    *     tags: [Topics]
@@ -189,7 +189,7 @@ export class TopicController {
 
   /**
    * @swagger
-   * /topics:
+   * /api/topics:
    *   delete:
    *     summary: Delete all topics
    *     tags: [Topics]
@@ -215,7 +215,7 @@ export class TopicController {
 
   /**
    * @swagger
-   * /topics/{id}:
+   * /api/topics/{id}:
    *   delete:
    *     summary: Delete topic by ID
    *     tags: [Topics]

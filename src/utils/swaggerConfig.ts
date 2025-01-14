@@ -261,6 +261,45 @@ export const swaggerConfig = {
               type: 'integer',
             },
           },
+        },
+        FavoritesByUser: {
+          type: 'object',
+          properties: {
+            userId: {
+              type: 'integer',
+            },
+            projects: {
+              type: 'array',
+              items: {
+                type: 'integer',
+              },
+            },
+          },
+        },
+        FavoritesByProject: {
+          type: 'object',
+          properties: {
+            projectId: {
+              type: 'integer',
+            },
+            users: {
+              type: 'array',
+              items: {
+                type: 'integer',
+              },
+            },
+          },
+        },
+        Favorite: {
+          type: 'object',
+          properties: {
+            projectId: {
+              type: 'integer',
+            },
+            userId: {
+              type: 'integer',
+            },
+          },
         }
       }
     },

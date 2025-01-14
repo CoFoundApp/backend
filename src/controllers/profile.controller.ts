@@ -16,7 +16,7 @@ export class ProfileController {
    /**
    * Retrieve all profiles
    * @swagger
-   * /profiles:
+   * /api/profiles:
    *   get:
    *     summary: Retrieve all profiles
    *     tags: [Profiles]
@@ -51,7 +51,7 @@ export class ProfileController {
    /**
    * Get profile by ID
    * @swagger
-   * /profiles/{id}:
+   * /api/profiles/{id}:
    *   get:
    *     summary: Get profile by ID
    *     tags: [Profiles]
@@ -138,7 +138,7 @@ export class ProfileController {
   /**
    * Update a profile by ID
    * @swagger
-   * /profiles/{id}:
+   * /api/profiles/{id}:
    *   put:
    *     summary: Update a profile by ID
    *     tags: [Profiles]
@@ -191,7 +191,7 @@ export class ProfileController {
   /**
    * Delete a profile by ID
    * @swagger
-   * /profiles/{id}:
+   * /api/profiles/{id}:
    *   delete:
    *     summary: Delete a profile by ID
    *     tags: [Profiles]
@@ -232,7 +232,7 @@ export class ProfileController {
   /**
    * Delete all profiles
    * @swagger
-   * /profiles:
+   * /api/profiles:
    *   delete:
    *     summary: Delete all profiles
    *     tags: [Profiles]

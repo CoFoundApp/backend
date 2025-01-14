@@ -12,5 +12,7 @@ router.post('/', validateUser, userController.create);
 router.put('/:id', validateUser, userController.updateByParams);
 router.delete('/:id', userController.deleteByParams);
 router.delete('/', userController.deleteAll);
+router.get('/:id/favorites', userController.getFavoritesByUserId);
+router.delete('/:id/favorites', userController.deleteFavoriteByUserId);
 
 export default router;

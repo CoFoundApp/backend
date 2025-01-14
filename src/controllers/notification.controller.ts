@@ -13,7 +13,7 @@ const notificationService = new NotificationService();
 export class NotificationController {
   /**
    * @swagger
-   * /notifications:
+   * /api/notifications:
    *   get:
    *     summary: Retrieve all notifications
    *     tags: [Notifications]
@@ -47,7 +47,7 @@ export class NotificationController {
 
   /**
    * @swagger
-   * /notifications/{id}:
+   * /api/notifications/{id}:
    *   get:
    *     summary: Get notification by ID
    *     tags: [Notifications]
@@ -85,7 +85,7 @@ export class NotificationController {
 
   /**
    * @swagger
-   * /notifications:
+   * /api/notifications:
    *   post:
    *     summary: Create a notification
    *     tags: [Notifications]
@@ -121,7 +121,7 @@ export class NotificationController {
 
   /**
    * @swagger
-   * /notifications/{id}:
+   * /api/notifications/{id}:
    *   put:
    *     summary: Update a notification by ID
    *     tags: [Notifications]
@@ -165,7 +165,7 @@ export class NotificationController {
 
   /**
    * @swagger
-   * /notifications/{id}:
+   * /api/notifications/{id}:
    *   delete:
    *     summary: Delete a notification by ID
    *     tags: [Notifications]
@@ -199,7 +199,7 @@ export class NotificationController {
 
   /**
    * @swagger
-   * /notifications:
+   * /api/notifications:
    *   delete:
    *     summary: Delete all notifications
    *     tags: [Notifications]

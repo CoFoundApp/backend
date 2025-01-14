@@ -2,6 +2,7 @@ import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
 
 const userSchema = Joi.object({
+  id: Joi.number().optional(),
   isAdmin: Joi.boolean().optional(),
   email: Joi.string().email().required(),
   lastName: Joi.string().min(2).required(),

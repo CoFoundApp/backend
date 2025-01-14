@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 
 export const validateContributor = (req: Request, res: Response, next: NextFunction): void => {
   const schema = Joi.object({
+    id: Joi.number().optional(),
     endingDate: Joi.date().optional(),
     role: Joi.string().required(),
     projectId: Joi.number().required(),

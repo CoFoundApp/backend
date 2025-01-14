@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 
 export const validateExperience = (req: Request, res: Response, next: NextFunction): void => {
   const schema = Joi.object({
+    id: Joi.number().optional(),
     userId: Joi.number().required(),
     description: Joi.string().required(),
     endingDate: Joi.date().optional(),

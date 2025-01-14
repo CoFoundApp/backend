@@ -15,7 +15,7 @@ export class ApplicationController {
   
   /**
    * @swagger
-   * /applications:
+   * /api/applications:
    *   get:
    *     summary: Retrieve all applications
    *     tags: [Applications]
@@ -49,7 +49,7 @@ export class ApplicationController {
   
   /**
    * @swagger
-   * /applications/{id}:
+   * /api/applications/{id}:
    *   get:
    *     summary: Get application by ID
    *     tags: [Applications]
@@ -88,7 +88,7 @@ export class ApplicationController {
   
   /**
    * @swagger
-   * /applications:
+   * /api/applications:
    *   post:
    *     summary: Create a new application
    *     tags: [Applications]
@@ -130,7 +130,7 @@ export class ApplicationController {
   
   /**
    * @swagger
-   * /applications/{id}:
+   * /api/applications/{id}:
    *   put:
    *     summary: Update an application
    *     tags: [Applications]
@@ -175,7 +175,7 @@ export class ApplicationController {
   
   /**
    * @swagger
-   * /applications/{id}:
+   * /api/applications/{id}:
    *   delete:
    *     summary: Delete an application
    *     tags: [Applications]
@@ -208,10 +208,9 @@ export class ApplicationController {
     }
   }
 
-  //delete all
   /**
    * @swagger
-   * /applications:
+   * /api/applications:
    *   delete:
    *     summary: Delete all applications
    *     tags: [Applications]

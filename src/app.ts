@@ -14,8 +14,15 @@ import contributorRoute from './routes/contributor.route';
 import experienceRouter from './routes/experience.router';
 import loginRoute from './routes/login.route';
 import applicationRoute from './routes/application.route';
+import favoriteRoute from './routes/favorite.route';
 
 const app: Application = express();
+
+app.use(cors({
+  origin: '*', // Replace '*' with specific allowed origins for production
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
 // Middleware
 app.use(cors());
@@ -33,6 +40,7 @@ app.use('/api/contributors', contributorRoute);
 app.use('/api/experiences', experienceRouter);
 app.use('/api/login', loginRoute);
 app.use('/api/applications', applicationRoute);
+app.use('/api/favorites', favoriteRoute);
 
 // Default route
 app.get('/', (req, res) => {

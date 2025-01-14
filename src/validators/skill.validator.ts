@@ -2,6 +2,7 @@ import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
 
 const skillSchema = Joi.object({
+  id: Joi.number().optional(),
   name: Joi.string().min(3).required(),
 });
 
