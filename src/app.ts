@@ -21,13 +21,6 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Swagger Setup
-const swaggerDocs = swaggerJsDoc(swaggerConfig);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-app.get('/api-docs-json', (req, res) => {
-  res.json(swaggerDocs);
-});
-
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/profiles', profileRoute);
@@ -44,7 +37,14 @@ app.get('/', (req, res) => {
   res.send('Welcome to the CoFound!');
 });
 
-// error handler
+// Swagger Setup (AFTER all routes)
+const swaggerDocs = swaggerJsDoc(swaggerConfig);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.get('/api-docs-json', (req, res) => {
+  res.json(swaggerDocs);
+});
+
+// Error handler
 app.use(
   (
     err: Error,

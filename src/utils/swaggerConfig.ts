@@ -242,6 +242,5 @@ export const swaggerConfig = {
       }
     },
   },
-  // Only include controllers for generating API paths
-  apis: [path.join(__dirname, '../controllers/*.ts')],
+  apis: [path.join(__dirname, '../controllers/*.ts'),path.join(__dirname, '../controllers/*.js')],
 };

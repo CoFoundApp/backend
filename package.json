@@ -1,7 +1,8 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "index.ts",
+  "description": "Backend application with TypeScript, Prisma, and Express.",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon",
     "build": "tsc",
@@ -12,9 +13,8 @@
     "format": "prettier --write 'src/**/*.{ts,js,json}'"
   },
   "keywords": [],
-  "author": "",
+  "author": "Your Name",
   "license": "ISC",
-  "description": "",
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
