@@ -26,6 +26,16 @@ jobs:
         sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no $VPS_USERNAME@$VPS_HOST << 'EOF'
           cd ~/project/COFOUND/backend || exit 1
           
+          echo "Checking if port 3000 is in use..."
+          PID=\$(sudo lsof -t -i:3000) || true
+          if [ -n "\$PID" ]; then
+            echo "Port 3000 is in use. Killing process \$PID..."
+            sudo kill -9 \$PID
+            echo "Freed port 3000."
+          else
+            echo "Port 3000 is free."
+          fi
+
           echo "Pulling latest code..."
           git pull origin main
 
@@ -42,6 +52,13 @@ jobs:
             pm2 save
           else
             echo "PM2 is not installed. Please manage the application manually."
+          fi
+
+          echo "Checking application status..."
+          STATUS=\$(pm2 status "cofound-api" | grep "errored" || true)
+          if [ -n "\$STATUS" ]; then
+            echo "Application is in an error state. Exiting with failure."
+            exit 1
           fi
 
           echo "Deployment complete!"
