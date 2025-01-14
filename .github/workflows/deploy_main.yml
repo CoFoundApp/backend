@@ -1,0 +1,62 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Install SSH Client
+      run: sudo apt-get install -y sshpass
+
+    - name: Execute Deployment Script on VPS
+      env:
+        VPS_HOST: ${{ secrets.VPS_HOST }}
+        VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+        VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+      run: |
+        sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no $VPS_USERNAME@$VPS_HOST << 'EOF'
+          cd ~/project/COFOUND/backend || exit 1
+          
+          echo "Stopping the current process if running..."
+          if command -v pm2 >/dev/null 2>&1; then
+            pm2 delete cofound-api || echo "No existing PM2 process found"
+          else
+            echo "PM2 is not installed, falling back to manual process termination."
+            PID=$(lsof -t -i:3000) || true
+            if [ -n "$PID" ]; then
+              kill -9 $PID
+              echo "Killed process running on port 3000"
+            else
+              echo "No process running on port 3000"
+            fi
+          fi
+
+          echo "Pulling latest code..."
+          git pull origin main
+
+          echo "Installing dependencies..."
+          npm install
+
+          echo "Building the application..."
+          npm run build
+
+          echo "Starting the application..."
+          if command -v pm2 >/dev/null 2>&1; then
+            pm2 start npm --name "cofound-api" -- start
+            pm2 save
+          else
+            npm start &
+            echo "Application started manually."
+          fi
+
+          echo "Deployment complete!"
+        EOF
