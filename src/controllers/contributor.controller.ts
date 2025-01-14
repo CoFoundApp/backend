@@ -1,7 +1,5 @@
-// contributors.controller.ts
 import { Request, Response } from 'express';
 import { logger } from '../utils/logger';
-
 import { ContributorService } from '../services/contributor.services';
 
 const contributorService = new ContributorService();

@@ -13,6 +13,7 @@ import projectRoute from './routes/project.route';
 import contributorRoute from './routes/contributor.route';
 import experienceRouter from './routes/experience.router';
 import loginRoute from './routes/login.route';
+import applicationRoute from './routes/application.route';
 
 const app: Application = express();
 
@@ -31,6 +32,7 @@ app.use('/api/projects', projectRoute);
 app.use('/api/contributors', contributorRoute);
 app.use('/api/experiences', experienceRouter);
 app.use('/api/login', loginRoute);
+app.use('/api/applications', applicationRoute);
 
 // Default route
 app.get('/', (req, res) => {

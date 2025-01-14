@@ -239,6 +239,29 @@ export const swaggerConfig = {
             }
           },
         },
+        Application: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'integer',
+            },
+            isRefused: {
+              type: 'boolean',
+            },
+            isAccepted: {
+              type: 'boolean',
+            },
+            description: {
+              type: 'string',
+            },
+            userId: {
+              type: 'integer',
+            },
+            projectId: {
+              type: 'integer',
+            },
+          },
+        }
       }
     },
   },
