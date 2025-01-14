@@ -1,5 +1,3 @@
-// login controller
-
 import { Request, Response } from 'express';
 import { logger } from '../utils/logger';
 import { LoginService } from '../services/login.service';
@@ -95,6 +93,53 @@ export class LoginController {
       res.status(200).json({ message: 'Token is valid' });
     } catch (error) {
       logger(`Error in checkToken: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+
+  /**
+   * @swagger
+   * /username:
+   *   post:
+   *     summary: Login with username
+   *     tags: [Login]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               username:
+   *                 type: string
+   *               password:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Login successful
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 token:
+   *                   type: string
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Internal Server Error
+   */
+  async loginWithUsername(req: Request, res: Response): Promise<void> {
+    try {
+      const { username, password } = req.body;
+      const token = await loginService.loginWithUsername({ username, password });
+      if (!token) {
+        res.status(404).json({ message: 'User not found' });
+        return;
+      }
+      res.status(200).json({ token });
+    } catch (error) {
+      logger(`Error in loginWithUsername: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
     }
   }

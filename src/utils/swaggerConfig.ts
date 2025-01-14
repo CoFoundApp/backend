@@ -6,7 +6,7 @@ export const swaggerConfig = {
     info: {
       title: 'CoFound API',
       version: '1.0.0',
-      description: 'API documentation for the Express application',
+      description: 'API documentation of the CoFound project',
     },
     servers: [
       {
