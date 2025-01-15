@@ -252,4 +252,49 @@ export class TopicController {
       res.status(500).json({ message: 'Internal Server Error' });
     }
   }
+
+  // get TopicWithProjects so return type is TopicWithProjects by topic id
+  /**
+   * @swagger
+   * /api/topics/{id}/projects:
+   *   get:
+   *     summary: Get topic with projects by ID
+   *     tags: [Topics]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         schema:
+   *           type: integer
+   *         required: true
+   *         description: Topic ID
+   *     responses:
+   *       200:
+   *         description: Topic with projects
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/TopicWithProjects'
+   *       404:
+   *         description: Topic with projects not found
+   *       500:
+   *         description: Internal Server Error
+   */
+  async getTopicWithProjects(req: Request, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        res.status(400).json({ message: 'Invalid ID format' });
+        return;
+      }
+      const topicWithProjects = await topicService.getTopicWithProjects(id);
+      if (!topicWithProjects) {
+        res.status(404).json({ message: 'Topic with projects not found' });
+        return;
+      }
+      res.status(200).json(topicWithProjects);
+    } catch (error) {
+      logger(`Error in getTopicWithProjects: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
 }

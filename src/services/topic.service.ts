@@ -1,5 +1,5 @@
 // topic service
-import { Topic } from '../models/topic.model';
+import { Topic, TopicWithProjects } from '../models/topic.model';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
 
@@ -99,5 +99,25 @@ export class TopicService {
       return 0; // Indicate failure due to an error
     }
   }
+
+  // get TopicWithProjects so return type is TopicWithProjects[]
+  async getTopicWithProjects(topicId: number): Promise<TopicWithProjects | null> {
+    try {
+      const topics = await prisma.topicProject.findMany({
+        where: {
+          topicId: topicId,
+        },
+      });
+      if (!topics.length) {
+        return null;
+      }
+      const projectsId = topics.map((topic) => topic.projectId);
+      return new TopicWithProjects(topics[0].topicId, projectsId);
+    } catch (error) {
+      logger(`Error in getTopicWithProjects: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return null;
+    }
+  }
+
 
 }

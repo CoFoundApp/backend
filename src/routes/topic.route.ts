@@ -12,5 +12,6 @@ router.post('/', validateTopic, topicController.create);
 router.put('/:id', validateTopic, topicController.updateByParams);
 router.delete('/:id', topicController.deleteByParams);
 router.delete('/', topicController.deleteAll);
+router.get('/:id/projects/', topicController.getTopicWithProjects);
 
 export default router;

@@ -113,7 +113,7 @@ export const swaggerConfig = {
             id: {
               type: 'integer',
             },
-            title: {
+            name: {
               type: 'string',
             },
           },
