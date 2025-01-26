@@ -301,11 +301,12 @@ export class ProjectController {
     }
   }
 
+  // swagger config for getProjectWithTopicsByProjectId
   /**
    * @swagger
-   * /api/projects/{projectId}/favorites/{userId}:
-   *   delete:
-   *     summary: Delete a favorite by project id and user id
+   * /api/projects/{projectId}/topics:
+   *   get:
+   *     summary: Retrieve a project with topics by project id
    *     tags: [Projects]
    *     parameters:
    *       - in: path
@@ -313,16 +314,15 @@ export class ProjectController {
    *         schema:
    *           type: integer
    *         required: true
-   *       - in: path
-   *         name: userId
-   *         schema:
-   *           type: integer
-   *         required: true
    *     responses:
    *       200:
-   *         description: Favorite deleted
+   *         description: A project with topics
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ProjectWithTopics'
    *       404:
-   *         description: Favorite not found
+   *         description: Project not found
    *       500:
    *         description: Internal Server Error
    */
