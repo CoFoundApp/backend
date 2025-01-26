@@ -15,3 +15,13 @@ export class Project {
         this.endingDate = endingDate;
     }
 }
+
+export class ProjectWithTopics {
+    id: number;
+    topics: number[];
+
+    constructor(id: number, topics: number[]) {
+        this.id = id;
+        this.topics = topics;
+    }
+}

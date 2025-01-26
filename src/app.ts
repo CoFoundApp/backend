@@ -20,7 +20,7 @@ import messageRoute from './routes/message.route';
 const app: Application = express();
 
 app.use(cors({
-  origin: '*', // Replace '*' with specific allowed origins for production
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));

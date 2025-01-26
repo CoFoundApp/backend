@@ -1,4 +1,3 @@
-// route project
 import { Router } from 'express';
 import { validateProject } from '../validators/project.validator';
 import { ProjectController } from '../controllers/project.controller';
@@ -19,5 +18,6 @@ router.delete('/:id', projectController.deleteByParams);
 router.delete('/', projectController.deleteAll);
 router.get('/:projectId/favorites', projectController.getAllFavoritesByProjectId);
 router.delete('/:projectId/favorites', projectController.deleteFavoriteByProjectId);
+router.get('/:projectId/topics', projectController.getProjectWithTopicsByProjectId);
 
 export default router;

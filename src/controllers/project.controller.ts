@@ -1,4 +1,3 @@
-// project controller
 import { Request, Response } from 'express';
 import { logger } from '../utils/logger';
 import { ProjectService } from '../services/project.services';
@@ -298,6 +297,50 @@ export class ProjectController {
       res.status(200).json({ message: 'Favorite deleted' });
     } catch (error) {
       logger(`Error in deleteFavoriteByProject: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/projects/{projectId}/favorites/{userId}:
+   *   delete:
+   *     summary: Delete a favorite by project id and user id
+   *     tags: [Projects]
+   *     parameters:
+   *       - in: path
+   *         name: projectId
+   *         schema:
+   *           type: integer
+   *         required: true
+   *       - in: path
+   *         name: userId
+   *         schema:
+   *           type: integer
+   *         required: true
+   *     responses:
+   *       200:
+   *         description: Favorite deleted
+   *       404:
+   *         description: Favorite not found
+   *       500:
+   *         description: Internal Server Error
+   */
+  async getProjectWithTopicsByProjectId(req: Request, res: Response): Promise<void> {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        res.status(400).json({ message: 'Invalid ID format' });
+        return;
+      }
+      const project = await projectService.getProjectWithTopicsByProjectId(projectId);
+      if (!project) {
+        res.status(404).json({ message: 'Project not found' });
+        return;
+      }
+      res.status(200).json(project);
+    } catch (error) {
+      logger(`Error in getProjectWithTopicsByProjectId: ${error instanceof Error ? error.message : 'Unknown error'}`);
       res.status(500).json({ message: 'Internal Server Error' });
     }
   }

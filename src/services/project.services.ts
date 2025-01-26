@@ -1,5 +1,4 @@
-// project service
-import { Project } from '../models/project.model';
+import { Project, ProjectWithTopics } from '../models/project.model';
 import { logger } from '../utils/logger';
 import { PrismaClient } from '@prisma/client';
 
@@ -123,6 +122,23 @@ export class ProjectService {
     } catch (error) {
       logger(`Error in deleteAllProjects: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return false;
+    }
+  }
+
+  async getProjectWithTopicsByProjectId(projectId: number): Promise<ProjectWithTopics | null> {
+    try {
+      const projects = await prisma.topicProject.findMany({
+        where: {
+          projectId: projectId,
+        },
+      });
+      if (!projects.length) {
+        return null;
+      }
+      return new ProjectWithTopics(projects[0].projectId, projects.map((project) => project.topicId));
+    } catch (error) {
+      logger(`Error in getProjectWithTopicsByProjectId: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return null;
     }
   }
 }

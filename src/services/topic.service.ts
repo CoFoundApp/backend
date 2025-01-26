@@ -1,4 +1,3 @@
-// topic service
 import { Topic, TopicWithProjects } from '../models/topic.model';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
@@ -100,7 +99,6 @@ export class TopicService {
     }
   }
 
-  // get TopicWithProjects so return type is TopicWithProjects[]
   async getTopicWithProjects(topicId: number): Promise<TopicWithProjects | null> {
     try {
       const topics = await prisma.topicProject.findMany({
@@ -118,6 +116,4 @@ export class TopicService {
       return null;
     }
   }
-
-
 }

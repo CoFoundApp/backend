@@ -253,7 +253,6 @@ export class TopicController {
     }
   }
 
-  // get TopicWithProjects so return type is TopicWithProjects by topic id
   /**
    * @swagger
    * /api/topics/{id}/projects:
