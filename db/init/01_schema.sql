@@ -783,20 +783,21 @@ CREATE INDEX IF NOT EXISTS idx_outbox_unprocessed ON outbox_events(topic) WHERE 
 -- =============================================================================
 -- Parent partitioned table
 CREATE TABLE IF NOT EXISTS track_events (
-  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  occurred_at        TIMESTAMPTZ NOT NULL,
+  id                 UUID NOT NULL DEFAULT gen_random_uuid(),
   user_id            UUID REFERENCES users(id) ON DELETE SET NULL,
   event_name         TEXT NOT NULL,
   properties         JSONB NOT NULL DEFAULT '{}',
   context            JSONB NOT NULL DEFAULT '{}',
-  occurred_at        TIMESTAMPTZ NOT NULL,
-  received_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  received_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (occurred_at, id)
 ) PARTITION BY RANGE (occurred_at);
 
 -- Default partition (fallback)
 CREATE TABLE IF NOT EXISTS track_events_default
 PARTITION OF track_events DEFAULT;
 
--- Ensure partitions for current and next month
+-- Partitions utiles (mois courant + suivant)
 SELECT ensure_track_events_partition_for((now())::date);
 SELECT ensure_track_events_partition_for((now() + interval '1 month')::date);
 

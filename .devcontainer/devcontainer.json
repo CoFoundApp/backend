@@ -1,0 +1,20 @@
+{
+  "name": "cofound-api",
+  "dockerComposeFile": ["../docker-compose.yml"],
+  "service": "api",
+  "workspaceFolder": "/usr/src/app",
+  "overrideCommand": false,
+  "waitFor": "onCreateCommand",
+  "postCreateCommand": "pnpm install",
+  "remoteEnv": {
+    "PNPM_STORE_DIR": "/usr/src/app/.pnpm-store"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  }
+}

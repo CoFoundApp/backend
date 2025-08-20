@@ -1,7 +1,7 @@
 FROM node:24-alpine
 
 WORKDIR /usr/src/app
-RUN corepack enable && corepack prepare pnpm@9.6.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
 
 # Manifests pour installation rapide (monorepo)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
