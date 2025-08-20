@@ -1,0 +1,19 @@
+# Node
+node_modules
+dist
+*.log
+*.pid
+npm-debug.log*
+pnpm-debug.log*
+
+# Env
+.env
+.env.local
+
+# Editor
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
