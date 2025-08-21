@@ -2,18 +2,27 @@ import { Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'node:path';
-import { Request, Response } from 'express';
+import { ConfigModule } from '@nestjs/config';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthResolver } from './health.resolver';
+
+import { envValidationSchema } from './config/env.validation';
+
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { RedisModule } from './infra/redis/redis.module';
 import { QueuesFeatureModule } from './queue/queues.module';
+import { SecurityModule } from './infra/security/security.module';
 import { WsModule } from './modules/ws/ws.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      cache: true,
+      validationSchema: envValidationSchema,
+    }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'schema.gql'),
@@ -22,6 +31,8 @@ import { WsModule } from './modules/ws/ws.module';
       introspection: true,
       context: ({ req, res }: { req: Request, res: Response }) => ({ req, res }),
     }),
+
+    SecurityModule,
 
     WsModule,
 
