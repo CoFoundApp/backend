@@ -18,3 +18,8 @@ pnpm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Build
+build/
+schema.gql
+prisma/
