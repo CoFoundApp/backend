@@ -10,6 +10,7 @@ import { HealthResolver } from './health.resolver';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { RedisModule } from './infra/redis/redis.module';
 import { QueuesFeatureModule } from './queue/queues.module';
+import { WsModule } from './modules/ws/ws.module';
 
 @Module({
   imports: [
@@ -22,8 +23,12 @@ import { QueuesFeatureModule } from './queue/queues.module';
       context: ({ req, res }: { req: Request, res: Response }) => ({ req, res }),
     }),
 
+    WsModule,
+
     PrismaModule,
+
     RedisModule,
+
     QueuesFeatureModule,
   ],
   controllers: [AppController],

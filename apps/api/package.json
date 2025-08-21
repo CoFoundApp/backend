@@ -23,11 +23,13 @@
     "@nestjs/platform-socket.io": "^11",
     "@nestjs/websockets": "^11",
     "@prisma/client": "6.14.0",
+    "@socket.io/redis-adapter": "^8.3.0",
     "bullmq": "^5.58.0",
     "graphql": "^16.11",
     "ioredis": "^5.7.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",
