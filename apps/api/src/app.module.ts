@@ -9,6 +9,7 @@ import { AppService } from './app.service';
 import { HealthResolver } from './health.resolver';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { RedisModule } from './infra/redis/redis.module';
+import { QueuesFeatureModule } from './queue/queues.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { RedisModule } from './infra/redis/redis.module';
 
     PrismaModule,
     RedisModule,
+    QueuesFeatureModule,
   ],
   controllers: [AppController],
   providers: [AppService, HealthResolver],
