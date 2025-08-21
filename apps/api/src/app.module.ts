@@ -15,6 +15,7 @@ import { RedisModule } from './infra/redis/redis.module';
 import { QueuesFeatureModule } from './queue/queues.module';
 import { SecurityModule } from './infra/security/security.module';
 import { WsModule } from './modules/ws/ws.module';
+import { HealthModule } from './infra/health/health.module';
 
 @Module({
   imports: [
@@ -31,6 +32,8 @@ import { WsModule } from './modules/ws/ws.module';
       introspection: true,
       context: ({ req, res }: { req: Request, res: Response }) => ({ req, res }),
     }),
+
+    HealthModule,
 
     SecurityModule,
 

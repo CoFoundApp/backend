@@ -53,6 +53,11 @@ services:
       - ./:/usr/src/app
       - /usr/src/app/node_modules
     command: ["pnpm", "--filter", "@cofound/api", "dev"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/readyz >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
 volumes:
   db_data:
