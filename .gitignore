@@ -22,4 +22,4 @@ Thumbs.db
 # Build
 build/
 schema.gql
-prisma/
+schema.prisma

@@ -15,6 +15,7 @@
     "@apollo/server": "^4.12.2",
     "@nestjs/apollo": "^13",
     "@nestjs/common": "^11",
+    "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11",
     "@nestjs/graphql": "^13",
     "@nestjs/platform-express": "^11",
@@ -22,6 +23,7 @@
     "@nestjs/websockets": "^11",
     "@prisma/client": "6.14.0",
     "graphql": "^16.11",
+    "ioredis": "^5.7.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },

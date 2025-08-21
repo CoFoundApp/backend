@@ -8,6 +8,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthResolver } from './health.resolver';
 import { PrismaModule } from './infra/prisma/prisma.module';
+import { RedisModule } from './infra/redis/redis.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { PrismaModule } from './infra/prisma/prisma.module';
     }),
 
     PrismaModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [AppService, HealthResolver],
