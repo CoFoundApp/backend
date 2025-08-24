@@ -16,6 +16,7 @@ import { QueuesFeatureModule } from './queue/queues.module';
 import { SecurityModule } from './infra/security/security.module';
 import { WsModule } from './modules/ws/ws.module';
 import { HealthModule } from './infra/health/health.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -44,6 +45,8 @@ import { HealthModule } from './infra/health/health.module';
     RedisModule,
 
     QueuesFeatureModule,
+
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService, HealthResolver],
