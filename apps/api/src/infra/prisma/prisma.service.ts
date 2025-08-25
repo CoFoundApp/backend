@@ -23,8 +23,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     handler: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
     return this.$transaction(async (tx) => {
-      if (userId) await tx.$executeRaw`SET app.user_id = ${userId}`;
-      if (role) await tx.$executeRaw`SET app.role = ${role}`;
+      if (userId) await tx.$executeRaw`SELECT set_config('app.user_id', ${userId}, true)`;
+      if (role)   await tx.$executeRaw`SELECT set_config('app.role',   ${role},   true)`;
       return handler(tx);
     });
   }

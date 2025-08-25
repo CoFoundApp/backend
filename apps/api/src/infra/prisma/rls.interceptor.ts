@@ -25,8 +25,9 @@ export class RlsInterceptor implements NestInterceptor {
 
     // Ouvre une transaction et injecte tx dans ALS pour toute la requête
     const work = this.prisma.$transaction(async (tx) => {
-      if (userId) await tx.$executeRaw`SET app.user_id = ${userId}`;
-      if (role) await tx.$executeRaw`SET app.role = ${role}`;
+      if (userId) await tx.$executeRaw`SELECT set_config('app.user_id', ${userId}, true)`;
+      if (role)   await tx.$executeRaw`SELECT set_config('app.role',   ${role},   true)`;
+
 
       return this.rc.run({ tx, userId, role }, async () => {
         // Nest appelle next.handle() (Observable), on attend son completion

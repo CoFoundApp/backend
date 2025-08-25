@@ -1,4 +1,3 @@
-// apps/api/src/infra/redis/redis.module.ts
 import { Global, Module } from '@nestjs/common';
 import Redis, { RedisOptions } from 'ioredis';
 
@@ -28,7 +27,26 @@ function makeRedis(): Redis {
 
 @Global()
 @Module({
-  providers: [{ provide: REDIS, useFactory: makeRedis }],
+  providers: [
+    {
+      provide: REDIS,
+      useFactory: () => {
+        const url = process.env.REDIS_URL || 'redis://localhost:6379';
+        const client = new Redis(url, { lazyConnect: true });
+        client.connect().catch((err: unknown) => console.error('[redis] connect err', err));
+
+        // fermeture propre pour Jest & app
+        const close = async () => {
+          try { await client.quit(); } catch { client.disconnect(); }
+        };
+        process.once('beforeExit', close);
+        process.once('SIGINT', close);
+        process.once('SIGTERM', close);
+
+        return client;
+      },
+    },
+  ],
   exports: [REDIS],
 })
 export class RedisModule {}
