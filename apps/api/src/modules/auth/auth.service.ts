@@ -39,15 +39,15 @@ export class AuthService {
 
   async signup(input: SignupInput) {
     const email = input.email.trim().toLowerCase();
-    const exists = await this.prisma.users.findUnique({ where: { email } }).catch(() => null);
+    const exists = await this.prisma.prisma().users.findUnique({ where: { email } }).catch(() => null);
     if (exists) throw new ConflictException('Email already registered');
 
     const password_hash = await bcrypt.hash(input.password, 12);
-    const user = await this.prisma.users.create({
+    const user = await this.prisma.prisma().users.create({
       data: {
         email,
         password_hash,
-        role: 'user', // par défaut
+        role: 'user',
       },
     });
 
@@ -56,7 +56,7 @@ export class AuthService {
 
   async login(input: LoginInput) {
     const email = input.email.trim().toLowerCase();
-    const user = await this.prisma.users.findUnique({ where: { email } });
+    const user = await this.prisma.prisma().users.findUnique({ where: { email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const ok = await bcrypt.compare(input.password, user.password_hash);
@@ -66,7 +66,6 @@ export class AuthService {
   }
 
   async me(userId: string) {
-    // Exemple lecture RLS-friendly
     return this.prisma.withUserContext(userId, null, (tx) =>
       tx.users.findUnique({
         where: { id: userId },
@@ -80,7 +79,6 @@ export class AuthService {
     const key = `rt:${jti}`;
     const val = await this.redis.get(key);
     if (val !== userId) throw new UnauthorizedException('Refresh token revoked');
-    // rotation: supprime l'ancien et émet des nouveaux
     await this.redis.del(key);
     return this.issueTokens(userId, role);
   }
@@ -93,12 +91,12 @@ export class AuthService {
   // --- helpers ---
   private async issueTokens(userId: string, role: string) {
     const accessToken = jwt.sign({ sub: userId, role }, this.accessSecret, {
-      expiresIn: parseTTLToSeconds(this.accessTtl, 900), // ex "900s"
+      expiresIn: parseTTLToSeconds(this.accessTtl, 900),
     } as SignOptions);
 
     const jti = randomUUID();
     const refreshToken = jwt.sign({ sub: userId, role, jti }, this.refreshSecret, {
-      expiresIn: parseTTLToSeconds(this.refreshTtl, 30 * 86400), // ex "30d"
+      expiresIn: parseTTLToSeconds(this.refreshTtl, 30 * 86400),
     } as SignOptions);
 
     // allowlist du refresh dans Redis (TTL)

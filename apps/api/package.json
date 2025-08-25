@@ -9,7 +9,8 @@
     "lint": "eslint \"src/**/*.ts\"",
     "prisma:pull": "prisma db pull --schema ./prisma/schema.prisma",
     "prisma:generate": "prisma generate --schema ./prisma/schema.prisma",
-    "prisma:studio": "prisma studio --schema ./prisma/schema.prisma"
+    "prisma:studio": "prisma studio --schema ./prisma/schema.prisma",
+    "seed:admin": "node ./dist/scripts/seed-admin.js"
   },
   "dependencies": {
     "@apollo/server": "^4.12.2",

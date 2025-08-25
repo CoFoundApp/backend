@@ -30,7 +30,7 @@ export class HealthController {
     };
 
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      await this.prisma.prisma().$queryRaw`SELECT 1`;
       checks.db.ok = true;
     } catch (e: any) {
       checks.db = { ok: false, detail: String(e?.message ?? e) };

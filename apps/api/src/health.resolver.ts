@@ -18,7 +18,7 @@ export class HealthResolver {
   @Query(() => String, { description: 'Ping DB via Prisma' })
   async dbPing(): Promise<string> {
     // simple round-trip
-    const now = await this.prisma.$queryRawUnsafe<{ now: Date }[]>("SELECT NOW()");
+    const now = await this.prisma.prisma().$queryRawUnsafe<{ now: Date }[]>("SELECT NOW()");
     return `db-ok:${now[0].now.toISOString()}`;
   }
 
