@@ -19,6 +19,7 @@ import { SecurityModule } from './infra/security/security.module';
 import { WsModule } from './modules/ws/ws.module';
 import { HealthModule } from './infra/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { ConsentModule } from './modules/consent/consent.module';
 
 @Module({
   imports: [
@@ -49,6 +50,8 @@ import { AuthModule } from './modules/auth/auth.module';
     QueuesFeatureModule,
 
     AuthModule,
+
+    ConsentModule,
   ],
   controllers: [AppController],
   providers: [
