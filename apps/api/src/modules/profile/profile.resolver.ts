@@ -9,6 +9,12 @@ import { ProfileService } from './profile.service';
 import { UpdateMyProfileInput } from './dto/update-my-profile.input';
 import { User } from '../user/user.type';
 import { UserService } from '../user/user.service';
+import { Skill } from '../taxonomy/types/skill.type';
+import { Interest } from '../taxonomy/types/interest.type';
+import { SkillsService } from '../taxonomy/skills.service';
+import { InterestsService } from '../taxonomy/interests.service';
+import { UpdateMySkillsInput } from '../taxonomy/dto/update-my-skills.input';
+import { UpdateMyInterestsInput } from '../taxonomy/dto/update-my-interests.input';
 
 
 @Resolver(() => Profile)
@@ -17,6 +23,8 @@ export class ProfileResolver {
     private readonly profiles: ProfileService,
     @Inject(forwardRef(() => UserService))
     private readonly users: UserService,
+    private readonly skillsService: SkillsService,
+    private readonly interestsService: InterestsService,
   ) {}
 
   /** Public: lecture d'un profil public/unlisted par id */
@@ -58,5 +66,33 @@ export class ProfileResolver {
   @ResolveField(() => User)
   async user(@Parent() profile: Profile) {
     return this.users.findById(profile.user_id);
+  }
+
+  @ResolveField(() => [Skill])
+  async skills(@Parent() profile: Profile) {
+    // pivot lié à users → on interroge par user_id
+    return this.skillsService.listByUser(profile.user_id);
+  }
+
+  @ResolveField(() => [Interest])
+  async interests(@Parent() profile: Profile) {
+    return this.interestsService.listByUser(profile.user_id);
+  }
+
+  @UseGuards(GqlAuthGuard)
+  @Mutation(() => Boolean)
+  async updateMySkills(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMySkillsInput) {
+    if (!user) throw new UnauthorizedException();
+    // pas besoin de l'id du profil, le pivot est sur user_id
+    await this.skillsService.attachToUser(user.sub, input.addIds ?? [], input.removeIds ?? []);
+    return true;
+  }
+
+  @UseGuards(GqlAuthGuard)
+  @Mutation(() => Boolean)
+  async updateMyInterests(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyInterestsInput) {
+    if (!user) throw new UnauthorizedException();
+    await this.interestsService.attachToUser(user.sub, input.addIds ?? [], input.removeIds ?? []);
+    return true;
   }
 }
