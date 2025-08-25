@@ -20,6 +20,8 @@ import { WsModule } from './modules/ws/ws.module';
 import { HealthModule } from './infra/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ConsentModule } from './modules/consent/consent.module';
+import { ProfileModule } from './modules/profile/profile.module';
+import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [
@@ -52,6 +54,10 @@ import { ConsentModule } from './modules/consent/consent.module';
     AuthModule,
 
     ConsentModule,
+
+    UserModule,
+
+    ProfileModule
   ],
   controllers: [AppController],
   providers: [

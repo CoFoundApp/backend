@@ -10,7 +10,8 @@
     "strict": true,
     "skipLibCheck": true,
     "sourceMap": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "strictNullChecks": true
   },
   "include": ["src/**/*.ts"]
 }
