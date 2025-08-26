@@ -4,11 +4,19 @@ import { SkillsService } from './skills.service';
 import { SkillsResolver } from './skills.resolver';
 import { InterestsService } from './interests.service';
 import { InterestsResolver } from './interests.resolver';
-import { EmbeddingModule } from '../embedding/embedding.module';
+import { QueuesFeatureModule } from '../../queue/queues.module';
 
 @Module({
-  imports: [EmbeddingModule],
-  providers: [PrismaService, SkillsService, SkillsResolver, InterestsService, InterestsResolver],
+  imports: [
+    QueuesFeatureModule,
+  ],
+  providers: [
+    PrismaService,
+    SkillsService,
+    SkillsResolver,
+    InterestsService,
+    InterestsResolver,
+  ],
   exports: [SkillsService, InterestsService],
 })
 export class TaxonomyModule {}

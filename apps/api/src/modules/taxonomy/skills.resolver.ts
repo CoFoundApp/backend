@@ -7,13 +7,13 @@ import { UseGuards } from '@nestjs/common';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { ProfileEmbeddingService } from '../embedding/profile-embedding.service';
+import { JobsService } from '../../queue/jobs.service';
 
 @Resolver(() => Skill)
 export class SkillsResolver {
   constructor(
     private readonly skills: SkillsService,
-    private readonly profileEmb: ProfileEmbeddingService
+    private readonly jobs: JobsService,
   ) {}
 
   // Public list
@@ -50,18 +50,22 @@ export class SkillsResolver {
     return this.skills.attachToUser(userId, addIds ?? [], removeIds ?? []).then(() => true);
   }
 
-  // Admin set user skills by slugs
+  // Admin set user skills by slugs and enqueue profile embedding recompute
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles('admin')
-  @Mutation(() => Boolean)
-  adminSetUserSkillsBySlugs(
+  @Mutation(() => Boolean, {
+    description:
+      'Admin: set user skills by slugs and enqueue profile embedding recompute',
+  })
+  async adminSetUserSkillsBySlugs(
     @Args('userId', { type: () => String }) userId: string,
-    @Args({ name: 'addSlugs', type: () => [String], nullable: true }) addSlugs?: string[],
-    @Args({ name: 'removeSlugs', type: () => [String], nullable: true }) removeSlugs?: string[],
-  ) {
-    return this.skills
-      .setBySlugs(userId, addSlugs ?? [], removeSlugs ?? [])
-      .then(() => this.profileEmb.recomputeForUser(userId))
-      .then(() => true);
+    @Args({ name: 'addSlugs', type: () => [String], nullable: true })
+    addSlugs?: string[],
+    @Args({ name: 'removeSlugs', type: () => [String], nullable: true })
+    removeSlugs?: string[],
+  ): Promise<boolean> {
+    await this.skills.setBySlugs(userId, addSlugs ?? [], removeSlugs ?? []);
+    await this.jobs.enqueueRecomputeProfile(userId);
+    return true;
   }
 }

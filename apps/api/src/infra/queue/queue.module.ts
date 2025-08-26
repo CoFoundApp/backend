@@ -7,7 +7,7 @@ const redisUrl = process.env.REDIS_URL || 'redis://redis:6379';
 @Module({
   imports: [
     BullModule.forRoot({
-      connection: { url: redisUrl },
+      connection: { url: process.env.REDIS_URL || 'redis://redis:6379' },
       defaultJobOptions: {
         removeOnComplete: 100,
         removeOnFail: 500,

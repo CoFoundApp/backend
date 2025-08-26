@@ -1,29 +1,68 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
+import { Logger, OnModuleInit } from '@nestjs/common';
+import { ProfileEmbeddingService } from '../modules/embedding/profile-embedding.service';
+import { EmbeddingService } from '../modules/embedding/embedding.service';
 
 @Processor('embeddings')
-export class EmbeddingsProcessor extends WorkerHost {
-  // Un seul handler pour tous les noms de jobs de cette queue
+export class EmbeddingsProcessor extends WorkerHost implements OnModuleInit {
+  private readonly logger = new Logger(EmbeddingsProcessor.name);
+
+  constructor(
+    private readonly profileEmb: ProfileEmbeddingService,
+    private readonly embedSvc: EmbeddingService,
+  ) {
+    super();
+  }
+
+  onModuleInit() {
+    this.logger.log('EmbeddingsProcessor ready (queue=embeddings)');
+  }
+
+  // Limiteur naïf: ~N req/s (free-tier friendly)
+  private async rateLimitTick() {
+    const max = Number(process.env.EMBEDDINGS_RATE_MAX ?? 8);
+    const interval = 1000 / Math.max(1, max);
+    await new Promise((r) => setTimeout(r, interval));
+  }
+
   async process(job: Job): Promise<any> {
-    if (job.name === 'generate') {
-      const { profileId } = job.data as { profileId: string };
-      // TODO: construire profile_text, appel provider embedding, update DB
-      // Pour l’instant, on simule un travail:
-      await new Promise((r) => setTimeout(r, 200));
-      return { ok: true, profileId };
+    await this.rateLimitTick();
+
+    switch (job.name) {
+      case 'recompute_profile': {
+        const { userId } = job.data as { userId: string };
+        const ok = await this.profileEmb.recomputeForUser(userId);
+        return { ok, userId };
+      }
+      case 'recompute_skill': {
+        const { id } = job.data as { id: string };
+        const ok = await this.embedSvc.computeAndStoreForSkill(id);
+        return { ok, id };
+      }
+      case 'recompute_interest': {
+        const { id } = job.data as { id: string };
+        const ok = await this.embedSvc.computeAndStoreForInterest(id);
+        return { ok, id };
+      }
+      default:
+        this.logger.warn(`Unknown job: ${job.name}`);
+        return { ignored: job.name };
     }
-    return { ignored: job.name };
+  }
+
+  @OnWorkerEvent('active')
+  onActive(job: Job) {
+    this.logger.log(`[embeddings] active #${job.id} ${job.name}`);
   }
 
   @OnWorkerEvent('completed')
   onCompleted(job: Job, result: unknown) {
-    // eslint-disable-next-line no-console
-    console.log(`[embeddings] completed #${job.id}`, result);
+    this.logger.log(`[embeddings] completed #${job.id} ${JSON.stringify(result)}`);
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job | undefined, err: Error) {
-    // eslint-disable-next-line no-console
-    console.error(`[embeddings] failed #${job?.id}`, err.message);
+    this.logger.error(`[embeddings] failed #${job?.id}: ${err.message}`, err.stack);
   }
 }
