@@ -152,7 +152,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   looking_for        TEXT,
   availability_hours INT,
   tags               TEXT[] DEFAULT '{}',
-  embedding          VECTOR(1536),
+  embedding          VECTOR(1024),
   visibility         visibility NOT NULL DEFAULT 'public',
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -167,7 +167,7 @@ CREATE TABLE IF NOT EXISTS skills (
   name               CITEXT NOT NULL UNIQUE,
   category           TEXT,
   slug               CITEXT UNIQUE,
-  embedding          VECTOR(1536)
+  embedding          VECTOR(1024)
 );
 CREATE INDEX IF NOT EXISTS hnsw_skills_embedding ON skills USING hnsw (embedding vector_l2_ops);
 
@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS interests (
   name               CITEXT NOT NULL UNIQUE,
   category           TEXT,
   slug               CITEXT UNIQUE,
-  embedding          VECTOR(1536)
+  embedding          VECTOR(1024)
 );
 CREATE INDEX IF NOT EXISTS hnsw_interests_embedding ON interests USING hnsw (embedding vector_l2_ops);
 
@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS projects (
   status             project_status NOT NULL DEFAULT 'draft',
   stage              project_stage NOT NULL DEFAULT 'idea',
   visibility         visibility NOT NULL DEFAULT 'public',
-  embedding          VECTOR(1536),
+  embedding          VECTOR(1024),
   search_tsv         tsvector,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -287,7 +287,7 @@ CREATE TABLE IF NOT EXISTS messages (
   type               message_type NOT NULL DEFAULT 'text',
   content            TEXT,
   reply_to_id        UUID REFERENCES messages(id) ON DELETE SET NULL,
-  embedding          VECTOR(1536),
+  embedding          VECTOR(1024),
   search_tsv         tsvector,
   metadata           JSONB NOT NULL DEFAULT '{}',
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -356,7 +356,7 @@ CREATE TABLE IF NOT EXISTS events (
   meeting_url        TEXT,
   capacity           INT CHECK (capacity IS NULL OR capacity >= 0),
   visibility         visibility NOT NULL DEFAULT 'public',
-  embedding          VECTOR(1536),
+  embedding          VECTOR(1024),
   search_tsv         tsvector,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -416,7 +416,7 @@ CREATE TABLE IF NOT EXISTS courses (
   published          BOOLEAN NOT NULL DEFAULT FALSE,
   published_at       TIMESTAMPTZ,
   visibility         visibility NOT NULL DEFAULT 'public',
-  embedding          VECTOR(1536),
+  embedding          VECTOR(1024),
   search_tsv         tsvector,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -452,7 +452,7 @@ CREATE TABLE IF NOT EXISTS lessons (
   video_url          TEXT,
   duration_seconds   INT,
   position           INT NOT NULL DEFAULT 1 CHECK (position > 0),
-  embedding          VECTOR(1536),
+  embedding          VECTOR(1024),
   search_tsv         tsvector
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_lesson_position ON lessons(module_id, position);
@@ -541,7 +541,7 @@ CREATE TABLE IF NOT EXISTS resources (
   url                TEXT,
   tags               TEXT[] DEFAULT '{}',
   visibility         visibility NOT NULL DEFAULT 'public',
-  embedding          VECTOR(1536),
+  embedding          VECTOR(1024),
   search_tsv         tsvector,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -589,7 +589,7 @@ CREATE TABLE IF NOT EXISTS assistant_cache (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cache_key          TEXT NOT NULL UNIQUE,
   payload            JSONB NOT NULL DEFAULT '{}',
-  query_embedding    VECTOR(1536),
+  query_embedding    VECTOR(1024),
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_used_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

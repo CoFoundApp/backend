@@ -1,0 +1,67 @@
+import { Resolver, Mutation, Args, Query, Int } from '@nestjs/graphql';
+import { UseGuards } from '@nestjs/common';
+import { EmbeddingService } from './embedding.service';
+import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { SkillMatch } from './types/skill-match.type';
+import { InterestMatch } from './types/interest-match.type';
+import { ProfileEmbeddingService } from './profile-embedding.service';
+
+@Resolver()
+export class EmbeddingResolver {
+  constructor(
+    private readonly svc: EmbeddingService,
+    private readonly profileEmb: ProfileEmbeddingService,
+  ) {}
+
+  // --- ADMIN: forcer calcul embedding ---
+  @UseGuards(GqlAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Mutation(() => Boolean)
+  async computeSkillEmbedding(@Args('id', { type: () => String }) id: string) {
+    return this.svc.computeAndStoreForSkill(id);
+  }
+
+  // --- ADMIN: forcer calcul embedding ---
+  @UseGuards(GqlAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Mutation(() => Boolean)
+  async computeInterestEmbedding(@Args('id', { type: () => String }) id: string) {
+    return this.svc.computeAndStoreForInterest(id);
+  }
+
+  // --- ADMIN/DEV: recherche sémantique par texte (pas d’exposition du vecteur) ---
+  // NB: n’expose pas embedding
+  @UseGuards(GqlAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Query(() => [SkillMatch])
+  async searchSkillsByText(
+    @Args('text', { type: () => String }) text: string,
+    @Args('limit', { type: () => Int, nullable: true, defaultValue: 10 }) limit?: number,
+  ) {
+    const rows = await this.svc.searchSkillsByText(text, limit ?? 10);
+    return rows.map((r) => ({ item: { id: r.id, name: r.name, category: r.category, slug: r.slug }, distance: r.distance }));
+  }
+
+  // --- ADMIN/DEV: recherche sémantique par texte (pas d’exposition du vecteur) ---
+  // NB: n’expose pas embedding
+  @UseGuards(GqlAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Query(() => [InterestMatch])
+  async searchInterestsByText(
+    @Args('text', { type: () => String }) text: string,
+    @Args('limit', { type: () => Int, nullable: true, defaultValue: 10 }) limit?: number,
+  ) {
+    const rows = await this.svc.searchInterestsByText(text, limit ?? 10);
+    return rows.map((r) => ({ item: { id: r.id, name: r.name, category: r.category, slug: r.slug }, distance: r.distance }));
+  }
+
+  // --- ADMIN: forcer recalcul de l'embedding de profil ---
+  @UseGuards(GqlAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Mutation(() => Boolean)
+  adminRecomputeProfileEmbedding(@Args('userId', { type: () => String }) userId: string) {
+    return this.profileEmb.recomputeForUser(userId);
+  }
+}

@@ -1,16 +1,17 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CreateInterestInput } from './dto/create-interest.input';
 import { slugify } from '../../common/utils/slug.util';
 import { ListArgs } from './dto/list.args';
 import { makeCursorPage } from '../../common/utils/pagination.util';
-import type { Prisma, PrismaClient } from '@prisma/client';
 import { toVectorLiteral } from '../../common/utils/vector.util';
+import { isUuid } from '../../common/utils/uuid.util';
 
 @Injectable()
 export class InterestsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Admin create interest
   async adminCreateInterest(input: CreateInterestInput) {
     const name = input.name.trim();
     const slug = slugify(name);
@@ -26,10 +27,12 @@ export class InterestsService {
     }
   }
 
+  // Admin list interests
   async adminListInterests(args: ListArgs) {
     return this.listInterests(args);
   }
 
+  // Liste d'intérêts
   async listInterests({ q, category, limit, cursor }: ListArgs) {
     const where: any = {};
     if (q?.trim()) {
@@ -55,6 +58,7 @@ export class InterestsService {
     return makeCursorPage(items, take);
   }
 
+  // Trouver par IDs
   async findByIds(ids: string[]) {
     if (!ids?.length) return [];
     return this.prisma.prisma().interests.findMany({
@@ -65,30 +69,28 @@ export class InterestsService {
 
   /** Lien user <-> interests via pivot user_interests */
   async attachToUser(userId: string, addIds: string[] = [], removeIds: string[] = []) {
-    const prisma = this.prisma.prisma();
-    const ops: Prisma.PrismaPromise<any>[] = [];
+    const db = this.prisma.prisma();
 
-    if (addIds.length) {
-      ops.push(
-        prisma.user_interests.createMany({
-          data: addIds.map((interest_id) => ({ user_id: userId, interest_id })),
-          skipDuplicates: true,
-        })
-      );
+    if (!isUuid(userId)) throw new BadRequestException('Invalid userId (UUID required)');
+    const badAdd = addIds.filter(id => !isUuid(id));
+    const badRem = removeIds.filter(id => !isUuid(id));
+    if (badAdd.length || badRem.length) {
+      throw new BadRequestException(`Invalid interest UUID(s): ${[...badAdd, ...badRem].join(', ')}`);
     }
+
     if (removeIds.length) {
-      ops.push(
-        prisma.user_interests.deleteMany({
-          where: { user_id: userId, interest_id: { in: removeIds } },
-        })
-      );
+      await db.user_interests.deleteMany({ where: { user_id: userId, interest_id: { in: removeIds } } });
     }
-    if (!ops.length) return true;
-
-    await (prisma as unknown as PrismaClient).$transaction(ops);
+    if (addIds.length) {
+      await db.user_interests.createMany({
+        data: addIds.map(interest_id => ({ user_id: userId, interest_id })),
+        skipDuplicates: true,
+      });
+    }
     return true;
   }
 
+  // Liste des intérêts par utilisateur
   async listByUser(userId: string) {
     const rows = await this.prisma.prisma().user_interests.findMany({
       where: { user_id: userId },
@@ -100,7 +102,8 @@ export class InterestsService {
     return rows.map((r) => r.interests);
   }
 
-    async setInterestEmbedding(interestId: string, vec: number[], dim = 1536) {
+  // Ajout d'un embedding interet
+  async setInterestEmbedding(interestId: string, vec: number[], dim = 1536) {
     const lit = toVectorLiteral(vec, dim);
     await this.prisma.prisma().$executeRawUnsafe(
       `UPDATE interests SET embedding = '${lit}'::vector WHERE id = $1`,
@@ -109,6 +112,7 @@ export class InterestsService {
     return true;
   }
 
+  // Recherche d'intérêts par embedding
   async searchInterestsByEmbedding(vec: number[], limit = 10, dim = 1536) {
     const lit = toVectorLiteral(vec, dim);
     return this.prisma.prisma().$queryRawUnsafe<
@@ -122,6 +126,27 @@ export class InterestsService {
       LIMIT $1
       `,
       limit,
+    );
+  }
+
+  /** Admin: set par slugs (insensible à la casse côté CITEXT). Les slugs inconnus sont ignorés. */
+  async setBySlugs(userId: string, addSlugs: string[] = [], removeSlugs: string[] = []) {
+    const db = this.prisma.prisma();
+    if (!isUuid(userId)) throw new BadRequestException('Invalid userId (UUID required)');
+
+    const [add, rem] = await Promise.all([
+      addSlugs.length
+        ? db.interests.findMany({ where: { slug: { in: addSlugs } }, select: { id: true } })
+        : Promise.resolve([] as { id: string }[]),
+      removeSlugs.length
+        ? db.interests.findMany({ where: { slug: { in: removeSlugs } }, select: { id: true } })
+        : Promise.resolve([] as { id: string }[]),
+    ]);
+
+    return this.attachToUser(
+      userId,
+      add.map(s => s.id),
+      rem.map(s => s.id),
     );
   }
 }

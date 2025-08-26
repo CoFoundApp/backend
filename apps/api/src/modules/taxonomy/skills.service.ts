@@ -1,16 +1,17 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CreateSkillInput } from './dto/create-skill.input';
 import { slugify } from '../../common/utils/slug.util';
 import { ListArgs } from './dto/list.args';
 import { makeCursorPage } from '../../common/utils/pagination.util';
-import type { Prisma, PrismaClient } from '@prisma/client';
 import { toVectorLiteral } from '../../common/utils/vector.util';
+import { isUuid } from '../../common/utils/uuid.util';
 
 @Injectable()
 export class SkillsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Admin create skill
   async adminCreateSkill(input: CreateSkillInput) {
     const name = input.name.trim();
     const slug = slugify(name);
@@ -26,10 +27,12 @@ export class SkillsService {
     }
   }
 
+  // Admin list skills
   async adminListSkills(args: ListArgs) {
     return this.listSkills(args);
   }
 
+  // Liste des compétences
   async listSkills({ q, category, limit, cursor }: ListArgs) {
     const where: any = {};
     if (q?.trim()) {
@@ -55,6 +58,7 @@ export class SkillsService {
     return makeCursorPage(items, take);
   }
 
+  // Trouver par IDs
   async findByIds(ids: string[]) {
     if (!ids?.length) return [];
     return this.prisma.prisma().skills.findMany({
@@ -65,30 +69,28 @@ export class SkillsService {
 
   /** Lien user <-> skills via pivot user_skills */
   async attachToUser(userId: string, addIds: string[] = [], removeIds: string[] = []) {
-    const prisma = this.prisma.prisma();
-    const ops: Prisma.PrismaPromise<any>[] = [];
+    const db = this.prisma.prisma();
 
-    if (addIds.length) {
-      ops.push(
-        prisma.user_skills.createMany({
-          data: addIds.map((skill_id) => ({ user_id: userId, skill_id })),
-          skipDuplicates: true,
-        })
-      );
+    if (!isUuid(userId)) throw new BadRequestException('Invalid userId (UUID required)');
+    const badAdd = addIds.filter(id => !isUuid(id));
+    const badRem = removeIds.filter(id => !isUuid(id));
+    if (badAdd.length || badRem.length) {
+      throw new BadRequestException(`Invalid skill UUID(s): ${[...badAdd, ...badRem].join(', ')}`);
     }
+
     if (removeIds.length) {
-      ops.push(
-        prisma.user_skills.deleteMany({
-          where: { user_id: userId, skill_id: { in: removeIds } },
-        })
-      );
+      await db.user_skills.deleteMany({ where: { user_id: userId, skill_id: { in: removeIds } } });
     }
-    if (!ops.length) return true;
-
-    await (prisma as unknown as PrismaClient).$transaction(ops);
+    if (addIds.length) {
+      await db.user_skills.createMany({
+        data: addIds.map(skill_id => ({ user_id: userId, skill_id })),
+        skipDuplicates: true,
+      });
+    }
     return true;
   }
 
+  // Liste des compétences par utilisateur
   async listByUser(userId: string) {
     const rows = await this.prisma.prisma().user_skills.findMany({
       where: { user_id: userId },
@@ -100,7 +102,7 @@ export class SkillsService {
     return rows.map((r) => r.skills);
   }
 
-      /** Met à jour l'embedding d'un skill (par ex. après calcul en worker) */
+  /** Met à jour l'embedding d'un skill (par ex. après calcul en worker) */
   async setSkillEmbedding(skillId: string, vec: number[], dim = 1536) {
     const lit = toVectorLiteral(vec, dim);
     // UPDATE via SQL brut (pgvector)
@@ -111,10 +113,10 @@ export class SkillsService {
     return true;
   }
 
+  // Recherche de compétences par embedding
   async searchSkillsByEmbedding(vec: number[], limit = 10, dim = 1536) {
     const lit = toVectorLiteral(vec, dim);
-    // cosine distance operator: <=> (plus petit = plus proche)
-    // On renvoie aussi la distance pour debug/tri client
+
     return this.prisma.prisma().$queryRawUnsafe<
       Array<{ id: string; name: string; category: string | null; slug: string | null; distance: number }>
     >(
@@ -126,6 +128,27 @@ export class SkillsService {
       LIMIT $1
       `,
       limit,
+    );
+  }
+
+  /** Admin: set par slugs (insensible à la casse côté CITEXT). Les slugs inconnus sont ignorés. */
+  async setBySlugs(userId: string, addSlugs: string[] = [], removeSlugs: string[] = []) {
+    const db = this.prisma.prisma();
+    if (!isUuid(userId)) throw new BadRequestException('Invalid userId (UUID required)');
+
+    const [add, rem] = await Promise.all([
+      addSlugs.length
+        ? db.skills.findMany({ where: { slug: { in: addSlugs } }, select: { id: true } })
+        : Promise.resolve([] as { id: string }[]),
+      removeSlugs.length
+        ? db.skills.findMany({ where: { slug: { in: removeSlugs } }, select: { id: true } })
+        : Promise.resolve([] as { id: string }[]),
+    ]);
+
+    return this.attachToUser(
+      userId,
+      add.map(s => s.id),
+      rem.map(s => s.id),
     );
   }
 }

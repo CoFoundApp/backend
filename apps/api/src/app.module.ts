@@ -22,6 +22,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ConsentModule } from './modules/consent/consent.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { UserModule } from './modules/user/user.module';
+import { TaxonomyModule } from './modules/taxonomy/taxonomy.module';
+import { EmbeddingModule } from './modules/embedding/embedding.module';
+import { MatchingModule } from './modules/matching/matching.module';
 
 @Module({
   imports: [
@@ -57,7 +60,13 @@ import { UserModule } from './modules/user/user.module';
 
     UserModule,
 
-    ProfileModule
+    ProfileModule,
+
+    TaxonomyModule,
+
+    EmbeddingModule,
+
+    MatchingModule,
   ],
   controllers: [AppController],
   providers: [

@@ -10,6 +10,7 @@ pnpm-debug.log*
 # Env
 .env
 .env.local
+.env.docker
 
 # Editor
 .vscode

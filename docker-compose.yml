@@ -37,7 +37,7 @@ services:
       dockerfile: Dockerfile
     container_name: cofound_api
     env_file:
-      - .env.docker
+      - .env
     environment:
       NODE_ENV: development
       PNPM_STORE_DIR: /usr/src/app/.pnpm-store

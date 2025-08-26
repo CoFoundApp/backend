@@ -15,6 +15,7 @@ import { SkillsService } from '../taxonomy/skills.service';
 import { InterestsService } from '../taxonomy/interests.service';
 import { UpdateMySkillsInput } from '../taxonomy/dto/update-my-skills.input';
 import { UpdateMyInterestsInput } from '../taxonomy/dto/update-my-interests.input';
+import { ProfileEmbeddingService } from '../embedding/profile-embedding.service';
 
 
 @Resolver(() => Profile)
@@ -25,6 +26,7 @@ export class ProfileResolver {
     private readonly users: UserService,
     private readonly skillsService: SkillsService,
     private readonly interestsService: InterestsService,
+    private readonly profileEmbedding: ProfileEmbeddingService,
   ) {}
 
   /** Public: lecture d'un profil public/unlisted par id */
@@ -68,31 +70,55 @@ export class ProfileResolver {
     return this.users.findById(profile.user_id);
   }
 
+  // Résout les skills associés au profil
   @ResolveField(() => [Skill])
   async skills(@Parent() profile: Profile) {
-    // pivot lié à users → on interroge par user_id
     return this.skillsService.listByUser(profile.user_id);
   }
 
+  // Résout les intérêts associés au profil
   @ResolveField(() => [Interest])
   async interests(@Parent() profile: Profile) {
     return this.interestsService.listByUser(profile.user_id);
   }
 
+  // Mise à jour de mes compétences
   @UseGuards(GqlAuthGuard)
   @Mutation(() => Boolean)
   async updateMySkills(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMySkillsInput) {
     if (!user) throw new UnauthorizedException();
-    // pas besoin de l'id du profil, le pivot est sur user_id
+
     await this.skillsService.attachToUser(user.sub, input.addIds ?? [], input.removeIds ?? []);
+    await this.profileEmbedding.recomputeForUser(user.sub);
     return true;
   }
 
+  // Mise à jour de mes intérêts
   @UseGuards(GqlAuthGuard)
   @Mutation(() => Boolean)
   async updateMyInterests(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyInterestsInput) {
     if (!user) throw new UnauthorizedException();
     await this.interestsService.attachToUser(user.sub, input.addIds ?? [], input.removeIds ?? []);
+    await this.profileEmbedding.recomputeForUser(user.sub);
     return true;
+  }
+
+  // Admin: s'assurer qu'un profil existe
+  @UseGuards(GqlAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Mutation(() => Boolean)
+  adminEnsureProfile(@Args('userId', { type: () => String }) userId: string) {
+    return this.profiles.ensureMyProfile(userId).then(() => true);
+  }
+
+  // Admin: Changer la visibilité d'un profil
+  @UseGuards(GqlAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Mutation(() => Boolean)
+  adminSetProfileVisibility(
+    @Args('userId', { type: () => String }) userId: string,
+    @Args('visibility', { type: () => String }) visibility: string, // ex: "PUBLIC"
+  ) {
+    return this.profiles.updateMyProfile(userId, { visibility } as any).then(() => true);
   }
 }

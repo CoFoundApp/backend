@@ -123,6 +123,9 @@ importers:
         specifier: ^4.8.1
         version: 4.8.1
     devDependencies:
+      '@mistralai/mistralai':
+        specifier: ^1.9.18
+        version: 1.9.18(zod@3.25.76)
       '@nestjs/cli':
         specifier: ^11.0.10
         version: 11.0.10(@types/node@22.17.2)
@@ -883,6 +886,11 @@ packages:
   '@lukeed/csprng@1.1.0':
     resolution: {integrity: sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==}
     engines: {node: '>=8'}
+
+  '@mistralai/mistralai@1.9.18':
+    resolution: {integrity: sha512-D/vNAGEvWMsg95tzgLTg7pPnW9leOPyH+nh1Os05NwxVPbUykoYgMAwOEX7J46msahWdvZ4NQQuxUXIUV2P6dg==}
+    peerDependencies:
+      zod: '>= 3'
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3':
     resolution: {integrity: sha512-QZHtlVgbAdy2zAqNA9Gu1UpIuI8Xvsd1v8ic6B2pZmeFnFcMWiPLfWXh7TVw4eGEZ/C9TH281KwhVoeQUKbyjw==}
@@ -4062,6 +4070,14 @@ packages:
     resolution: {integrity: sha512-cYVsTjKl8b+FrnidjibDWskAv7UKOfcwaVZdp/it9n1s9fU3IkgDbhdIRKCW4JDsAlECJY0ytoVPT3sK6kideA==}
     engines: {node: '>=18'}
 
+  zod-to-json-schema@3.24.6:
+    resolution: {integrity: sha512-h/z3PKvcTcTetyjl1fkj79MHNEjm+HpD6NXheWjzOekY7kV+lwDYnHw+ivHkijnCSMz1yJaWBD9vu/Fcmk+vEg==}
+    peerDependencies:
+      zod: ^3.24.1
+
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
 snapshots:
 
   '@ampproject/remapping@2.3.0':
@@ -4947,6 +4963,11 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.5.5
 
   '@lukeed/csprng@1.1.0': {}
+
+  '@mistralai/mistralai@1.9.18(zod@3.25.76)':
+    dependencies:
+      zod: 3.25.76
+      zod-to-json-schema: 3.24.6(zod@3.25.76)
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3':
     optional: true
@@ -8455,3 +8476,9 @@ snapshots:
   yocto-queue@0.1.0: {}
 
   yoctocolors-cjs@2.1.2: {}
+
+  zod-to-json-schema@3.24.6(zod@3.25.76):
+    dependencies:
+      zod: 3.25.76
+
+  zod@3.25.76: {}
