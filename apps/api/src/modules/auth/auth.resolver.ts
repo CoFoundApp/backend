@@ -9,6 +9,7 @@ import { GqlRefreshGuard } from './guards/gql-refresh.guard';
 import { CurrentUser, JwtUser } from './current-user.decorator';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
+import { Context } from '@nestjs/graphql';
 
 @Resolver()
 export class AuthResolver {
@@ -20,8 +21,25 @@ export class AuthResolver {
   }
 
   @Mutation(() => TokensOutput, { description: 'Login + tokens' })
-  async login(@Args('input') input: LoginInput): Promise<TokensOutput> {
-    return this.auth.login(input);
+  async login(
+    @Args('input') input: LoginInput,
+    @Context() context: any
+  ): Promise<TokensOutput> {
+    const { accessToken, refreshToken } = await this.auth.login(input);
+
+    context.res.cookie("access_token", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax"
+    });
+
+    context.res.cookie("refresh_token", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax"
+    });
+
+    return { accessToken, refreshToken };
   }
 
   @Mutation(() => TokensOutput, {
