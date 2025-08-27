@@ -33,6 +33,12 @@ export class Project {
   @Field(() => ProfileVisibility)
   visibility!: ProfileVisibility;
 
+  @Field(() => [String])
+  project_skills!: string[];
+
+  @Field(() => [String])
+  project_interests!: string[];
+
   @Field(() => GraphQLISODateTime)
   created_at!: Date;
 

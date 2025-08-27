@@ -283,6 +283,7 @@ model interests {
   slug           String?                @unique @db.Citext
   embedding      Unsupported("vector")?
   user_interests user_interests[]
+  project_interests project_interests[]
 
   @@index([embedding], map: "hnsw_interests_embedding")
 }
@@ -576,6 +577,8 @@ model projects {
   project_applications project_applications[]
   project_members      project_members[]
   project_metrics      project_metrics[]
+  project_skills       project_skills[]
+  project_interests    project_interests[]
   users                users                    @relation(fields: [owner_id], references: [id], onUpdate: NoAction)
 
   @@index([embedding], map: "hnsw_projects_embedding")
@@ -672,6 +675,7 @@ model skills {
   slug        String?                @unique @db.Citext
   embedding   Unsupported("vector")?
   user_skills user_skills[]
+  project_skills project_skills[]
 
   @@index([embedding], map: "hnsw_skills_embedding")
 }
@@ -742,6 +746,27 @@ model user_skills {
 
   @@id([user_id, skill_id])
   @@index([skill_id], map: "idx_user_skills_skill")
+}
+
+model project_skills {
+  project_id String @db.Uuid
+  skill_id   String @db.Uuid
+  importance Int?   @db.SmallInt
+  projects   projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  skills     skills   @relation(fields: [skill_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([project_id, skill_id])
+  @@index([skill_id], map: "idx_project_skills_skill")
+}
+
+model project_interests {
+  project_id  String @db.Uuid
+  interest_id String @db.Uuid
+  projects    projects  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  interests   interests @relation(fields: [interest_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([project_id, interest_id])
+  @@index([interest_id], map: "idx_project_interests_interest")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.

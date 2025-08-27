@@ -41,6 +41,18 @@ export class UpdateProjectInput {
   @IsEnum(ProjectStage)
   stage?: ProjectStage | null;
 
+  @Field(() => [String])
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  project_skills?: string[] | null;
+
+  @Field(() => [String])
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  project_interests?: string[] | null;
+
   @Field(() => ProfileVisibility, { nullable: true })
   @IsOptional()
   @IsEnum(ProfileVisibility)
