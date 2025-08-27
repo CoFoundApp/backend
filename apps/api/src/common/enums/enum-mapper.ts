@@ -1,5 +1,13 @@
 import type { Prisma } from '@prisma/client';
-import { UserRole, UserStatus, ProfileVisibility } from './domain.enums';
+import {
+  UserRole,
+  UserStatus,
+  ProfileVisibility,
+  ProjectStatus,
+  ProjectStage,
+  MemberRole,
+  MemberStatus,
+} from './domain.enums';
 
 export const mapRoleToPrisma = (role: UserRole): Prisma.UsersScalarFieldEnum | any => {
   return role as unknown as any;
@@ -11,4 +19,20 @@ export const mapStatusToPrisma = (status: UserStatus): any => {
 
 export const mapVisibilityToPrisma = (v: ProfileVisibility): any => {
   return v as unknown as any;
+};
+
+export const mapProjectStatusToPrisma = (s: ProjectStatus): any => {
+  return s as unknown as any;
+};
+
+export const mapProjectStageToPrisma = (s: ProjectStage): any => {
+  return s as unknown as any;
+};
+
+export const mapMemberRoleToPrisma = (r: MemberRole): any => {
+  return r as unknown as any;
+};
+
+export const mapMemberStatusToPrisma = (s: MemberStatus): any => {
+  return s as unknown as any;
 };

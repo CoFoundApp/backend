@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { UpdateMyProfileInput } from './dto/update-my-profile.input';
 import { ProfileVisibility } from '../../common/enums/domain.enums';

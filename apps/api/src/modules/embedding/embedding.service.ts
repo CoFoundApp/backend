@@ -81,4 +81,24 @@ export class EmbeddingService {
       limit,
     );
   }
+
+  async computeAndStoreForProject(projectId: string) {
+    const p = await this.prisma.prisma().projects.findUnique({
+      where: { id: projectId },
+      select: { id: true, title: true, summary: true, description: true, tags: true },
+    });
+    if (!p) return false;
+    const parts: string[] = [p.title];
+    if (p.summary) parts.push(p.summary);
+    if (p.description) parts.push(p.description);
+    if (Array.isArray(p.tags) && p.tags.length) parts.push(p.tags.join(', '));
+    const vec = await this.embedder.embedText(parts.join(' | '));
+    if (!vec.length) return false;
+    const lit = toVectorLiteral(vec, EMBEDDING_DIM);
+    await this.prisma.prisma().$executeRawUnsafe(
+      `UPDATE projects SET embedding = '${lit}'::vector WHERE id = $1::uuid`,
+      projectId,
+    );
+    return true;
+  }
 }

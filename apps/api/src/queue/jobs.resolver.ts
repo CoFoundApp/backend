@@ -44,4 +44,11 @@ export class JobsResolver {
   adminEmbeddingJobState(@Args('jobId', { type: () => String }) jobId: string) {
     return this.jobs.getJobState(jobId).then(s => s ?? 'not-found');
   }
+
+  @UseGuards(GqlAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Mutation(() => String)
+  adminEnqueueRecomputeProject(@Args('id', { type: () => String }) id: string) {
+    return this.jobs.enqueueRecomputeProject(id).then(j => `queued:${j.id}`);
+  }
 }

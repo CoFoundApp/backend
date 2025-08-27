@@ -56,4 +56,19 @@ export class JobsService {
     if (!job) return null;
     return job.getState();
   }
+
+  enqueueRecomputeProject(id: string) {
+    return this.embeddingsQ.add('recompute_project', { id }, { jobId: `project:${id}`, priority: 3 });
+  }
+
+  async enqueueRecomputeProjectDebounced(id: string, debounceMs = Number(process.env.EMBEDDINGS_DEBOUNCE_MS ?? 2000)) {
+    const jobId = `project:${id}`;
+    const existing = await this.embeddingsQ.getJob(jobId);
+    if (existing) {
+      const st = await existing.getState();
+      if (st !== 'active') await existing.remove();
+      else return existing;
+    }
+    return this.embeddingsQ.add('recompute_project', { id }, { jobId, priority: 3, delay: debounceMs });
+  }
 }

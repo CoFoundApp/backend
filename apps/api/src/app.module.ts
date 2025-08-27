@@ -25,6 +25,7 @@ import { UserModule } from './modules/user/user.module';
 import { TaxonomyModule } from './modules/taxonomy/taxonomy.module';
 import { EmbeddingModule } from './modules/embedding/embedding.module';
 import { MatchingModule } from './modules/matching/matching.module';
+import { ProjectModule } from './modules/projects/project.module';
 
 @Module({
   imports: [
@@ -67,6 +68,8 @@ import { MatchingModule } from './modules/matching/matching.module';
     EmbeddingModule,
 
     MatchingModule,
+
+    ProjectModule,
   ],
   controllers: [AppController],
   providers: [

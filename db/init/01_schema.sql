@@ -11,6 +11,9 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;   -- gen_random_uuid()
 CREATE EXTENSION IF NOT EXISTS vector;     -- pgvector (HNSW)
 CREATE EXTENSION IF NOT EXISTS citext;     -- case-insensitive text
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 
 -- -----------------------------------------------------------------------------
 -- Helper functions (timestamps / session identity / FTS / partitions)
@@ -219,20 +222,40 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
-CREATE INDEX IF NOT EXISTS hnsw_projects_embedding ON projects USING hnsw (embedding vector_l2_ops);
-CREATE INDEX IF NOT EXISTS idx_projects_fts ON projects USING gin (search_tsv);
+
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS search_tsv tsvector;
+
+DROP INDEX IF EXISTS idx_projects_fts;
+CREATE INDEX idx_projects_fts ON projects USING gin (search_tsv);
+
+DROP INDEX IF EXISTS hnsw_projects_embedding;
+CREATE INDEX hnsw_projects_embedding
+ON projects
+USING hnsw (embedding vector_cosine_ops)
+WITH (m=16, ef_construction=64);
+
 CREATE TRIGGER trg_projects_updated_at
 BEFORE UPDATE ON projects
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE OR REPLACE FUNCTION trg_projects_fts() RETURNS trigger AS $$
+
+CREATE OR REPLACE FUNCTION projects_fts_trigger() RETURNS trigger AS $$
 BEGIN
-  NEW.search_tsv := tsv_update_simple(coalesce(NEW.title,'') || ' ' || coalesce(NEW.summary,'') || ' ' || coalesce(NEW.description,''));
+  NEW.search_tsv :=
+    setweight(to_tsvector('simple', coalesce(NEW.title,'')), 'A') ||
+    setweight(to_tsvector('simple', coalesce(NEW.summary,'')), 'B') ||
+    setweight(to_tsvector('simple', coalesce(NEW.description,'')), 'C') ||
+    setweight(to_tsvector('simple', array_to_string(NEW.tags, ' ')), 'B') ||
+    setweight(to_tsvector('simple', coalesce(NEW.industry,'')), 'B');
   RETURN NEW;
-END$$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS projects_fts_insupd ON projects;
-CREATE TRIGGER projects_fts_insupd BEFORE INSERT OR UPDATE
-ON projects FOR EACH ROW EXECUTE FUNCTION trg_projects_fts();
+END
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_projects_fts ON projects;
+CREATE TRIGGER trg_projects_fts
+BEFORE INSERT OR UPDATE OF title, summary, description, tags, industry
+ON projects
+FOR EACH ROW EXECUTE FUNCTION projects_fts_trigger();
+
 
 CREATE TABLE IF NOT EXISTS project_members (
   project_id         UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,

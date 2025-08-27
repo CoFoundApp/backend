@@ -45,6 +45,11 @@ export class EmbeddingsProcessor extends WorkerHost implements OnModuleInit {
         const ok = await this.embedSvc.computeAndStoreForInterest(id);
         return { ok, id };
       }
+      case 'recompute_project': {
+        const { id } = job.data as { id: string };
+        const ok = await this.embedSvc.computeAndStoreForProject(id);
+        return { ok, id };
+      }
       default:
         this.logger.warn(`Unknown job: ${job.name}`);
         return { ignored: job.name };
