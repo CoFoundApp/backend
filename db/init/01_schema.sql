@@ -153,11 +153,15 @@ CREATE TABLE IF NOT EXISTS profiles (
   availability_hours INT,
   tags               TEXT[] DEFAULT '{}',
   embedding          VECTOR(1024),
-  visibility         visibility NOT NULL DEFAULT 'public',
+  embedding_text_hash TEXT,
+  embedding_at       TIMESTAMPTZ,
+  embedding_model    TEXT,
+  embedding_dim      SMALLINT,
+  visibility         visibility NOT NULL DEFAULT 'PUBLIC',
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS hnsw_profiles_embedding ON profiles USING hnsw (embedding vector_l2_ops);
+CREATE INDEX IF NOT EXISTS hnsw_profiles_embedding ON profiles USING hnsw (embedding vector_cosine_ops);
 CREATE TRIGGER trg_profiles_updated_at
 BEFORE UPDATE ON profiles
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();

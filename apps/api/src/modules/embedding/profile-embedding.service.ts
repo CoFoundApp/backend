@@ -26,10 +26,9 @@ export class ProfileEmbeddingService {
    */
   async recomputeForUser(userId: string): Promise<boolean> {
     const t0 = Date.now();
-
-    // 1) Charger les données nécessaires (profil + skills + interests)
     const db = this.prisma.prisma();
 
+    // 1) Charger les données
     const [p, userSkills, userInterests] = await Promise.all([
       db.profiles.findUnique({
         where: { user_id: userId },
@@ -53,9 +52,7 @@ export class ProfileEmbeddingService {
       }),
       db.user_interests.findMany({
         where: { user_id: userId },
-        select: {
-          interests: { select: { name: true, slug: true } },
-        },
+        select: { interests: { select: { name: true, slug: true } } },
       }),
     ]);
 
@@ -64,22 +61,24 @@ export class ProfileEmbeddingService {
       return false;
     }
 
+    // 2) Texte & hash
     const profileText = this.buildProfileText(p, userSkills, userInterests);
     const textHash = sha256Hex(`${this.model}::${profileText}`);
 
-    // 3) Idempotence: si hash identique, skip
-    //   (on interroge en SQL direct pour éviter les soucis de typage Prisma si la colonne n'existe pas dans le schema)
+    // 3) Idempotence (cast UUID)
     const hashRows = await db.$queryRaw<{ embedding_text_hash: string | null }[]>`
-      SELECT embedding_text_hash FROM profiles WHERE user_id = ${userId} LIMIT 1
+      SELECT embedding_text_hash
+      FROM profiles
+      WHERE user_id = ${userId}::uuid
+      LIMIT 1
     `;
     const currentHash = hashRows[0]?.embedding_text_hash ?? null;
-
     if (currentHash && currentHash === textHash) {
       this.logger.log(`skip (unchanged) user=${userId}`);
       return true;
     }
 
-    // 4) Appel provider embedding
+    // 4) Provider embedding
     const vec = await this.port.embedText(profileText);
     if (!Array.isArray(vec) || !vec.length) {
       throw new Error('Embedding provider returned empty vector');
@@ -88,18 +87,18 @@ export class ProfileEmbeddingService {
       throw new Error(`Invalid vector dimension: got ${vec.length}, expected ${this.expectedDim}`);
     }
 
-    // 5) Write dans Postgres (pgvector) + meta
+    // 5) Update pgvector + meta
     const vecLit = toVectorLiteral(vec);
     await db.$executeRawUnsafe(
       `
       UPDATE profiles
-         SET embedding = ${vecLit},
-             embedding_text_hash = $1,
-             embedding_at = NOW(),
-             embedding_model = $2,
-             embedding_dim = $3::int2,
-             updated_at = NOW()
-       WHERE user_id = $4
+        SET embedding           = '${vecLit}'::vector,
+            embedding_text_hash = $1,
+            embedding_at        = NOW(),
+            embedding_model     = $2,
+            embedding_dim       = $3::int2,
+            updated_at          = NOW()
+      WHERE user_id             = $4::uuid
       `,
       textHash,
       this.model,
@@ -108,19 +107,18 @@ export class ProfileEmbeddingService {
     );
 
     const ms = Date.now() - t0;
-    this.logger.log(
-      JSON.stringify({
-        event: 'profile_embedding_updated',
-        userId,
-        dim: this.expectedDim,
-        model: this.model,
-        text_len: profileText.length,
-        ms,
-      }),
-    );
+    this.logger.log(JSON.stringify({
+      event: 'profile_embedding_updated',
+      userId,
+      dim: this.expectedDim,
+      model: this.model,
+      text_len: profileText.length,
+      ms,
+    }));
 
     return true;
   }
+
 
   private buildProfileText(
     p: {

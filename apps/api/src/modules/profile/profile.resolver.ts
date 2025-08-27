@@ -16,10 +16,13 @@ import { InterestsService } from '../taxonomy/interests.service';
 import { UpdateMySkillsInput } from '../taxonomy/dto/update-my-skills.input';
 import { UpdateMyInterestsInput } from '../taxonomy/dto/update-my-interests.input';
 import { ProfileEmbeddingService } from '../embedding/profile-embedding.service';
+import { JobsService } from '../../queue/jobs.service';
+import { Logger } from '@nestjs/common';
 
 
 @Resolver(() => Profile)
 export class ProfileResolver {
+    private readonly logger = new Logger(ProfileResolver.name);
   constructor(
     private readonly profiles: ProfileService,
     @Inject(forwardRef(() => UserService))
@@ -27,6 +30,7 @@ export class ProfileResolver {
     private readonly skillsService: SkillsService,
     private readonly interestsService: InterestsService,
     private readonly profileEmbedding: ProfileEmbeddingService,
+    private readonly jobs: JobsService,
   ) {}
 
   /** Public: lecture d'un profil public/unlisted par id */
@@ -56,12 +60,14 @@ export class ProfileResolver {
   /** Moi: mise à jour de mon profil */
   @UseGuards(GqlAuthGuard)
   @Mutation(() => Profile)
-  async updateMyProfile(
-    @CurrentUser() user: JwtUser,
-    @Args('input') input: UpdateMyProfileInput,
-  ) {
+  async updateMyProfile(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyProfileInput) {
     if (!user) throw new UnauthorizedException();
-    return this.profiles.updateMyProfile(user.sub, input);
+    const p = await this.profiles.updateMyProfile(user.sub, input);
+
+    await this.jobs.enqueueRecomputeProfileDebounced(user.sub);
+
+    this.logger.log(`enqueue done`);
+    return p;
   }
 
   /** Résout le user associé au profil */
@@ -117,7 +123,7 @@ export class ProfileResolver {
   @Mutation(() => Boolean)
   adminSetProfileVisibility(
     @Args('userId', { type: () => String }) userId: string,
-    @Args('visibility', { type: () => String }) visibility: string, // ex: "PUBLIC"
+    @Args('visibility', { type: () => String }) visibility: string,
   ) {
     return this.profiles.updateMyProfile(userId, { visibility } as any).then(() => true);
   }
