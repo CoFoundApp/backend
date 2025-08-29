@@ -1,31 +1,20 @@
+// src/modules/auth/strategies/jwt-refresh.strategy.ts
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Request } from 'express';
 
-/**
- * Rafraîchissement: on lit le token depuis l'en-tête "x-refresh-token"
- * (plus simple avec GraphQL que les cookies). Tu pourras passer aux cookies httpOnly plus tard.
- */
-function fromXRefreshHeader(req: any): string | null {
-  const t = req?.headers?.['x-refresh-token'];
-  return typeof t === 'string' ? t : null;
-}
+const cookieExtractor = (req: Request): string | null =>
+  req?.cookies?.['refresh_token'] ?? null;
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
   constructor() {
     super({
-      jwtFromRequest: ExtractJwt.fromExtractors([
-        fromXRefreshHeader,
-        ExtractJwt.fromAuthHeaderAsBearerToken(), // fallback si besoin
-      ]),
+      jwtFromRequest: ExtractJwt.fromExtractors([cookieExtractor]),
       secretOrKey: process.env.JWT_REFRESH_SECRET || 'dev-refresh',
       ignoreExpiration: false,
     });
   }
-
-  async validate(payload: any) {
-    // payload = { sub, role, jti, iat, exp }
-    return payload;
-  }
+  async validate(payload: any) { return payload; }
 }
