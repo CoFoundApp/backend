@@ -4,6 +4,9 @@ import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { MatchingService } from './matching.service';
 import { MatchRecommendation } from './types/match-recommendation.type';
+import { ProfileMatchConnection, ProjectMatchConnection } from './types/connection.input'
+import { MatchProfilesInput } from './types/match-profiles-input.type';
+import { MatchProjectsInput } from './types/match-projects-input.type';
 
 @Resolver()
 export class MatchingResolver {
@@ -20,5 +23,15 @@ export class MatchingResolver {
   ) {
     if (!user) throw new UnauthorizedException();
     return this.matching.suggestProfilesForUser(user.sub, limit ?? 20, preselect ?? 200, maxDistance ?? 0.4);
+  }
+
+  @Query(() => ProfileMatchConnection)
+  async matchProfiles(@Args('input') input: MatchProfilesInput): Promise<ProfileMatchConnection> {
+    return this.matching.matchProfiles(input);
+  }
+
+  @Query(() => ProjectMatchConnection)
+  async matchProjects(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
+    return this.matching.matchProjects(input);
   }
 }
