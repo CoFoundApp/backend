@@ -33,8 +33,7 @@ export class SkillsResolver {
   }
 
   // Admin create
-  @UseGuards(GqlAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(GqlAuthGuard)
   @Mutation(() => Skill)
   async createSkill(@Args('input') input: CreateSkillInput) {
     return this.skills.adminCreateSkill(input);
@@ -71,18 +70,17 @@ export class SkillsResolver {
     return true;
   }
 
-  // Authenticated create and assign
+  // Authenticated: set skills for the current user
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => Skill, {
-    description: 'Create a new skill and attach it to the current user',
+  @Mutation(() => Boolean, {
+    description: 'Replace current user skills with provided IDs',
   })
-  async createAndAssignSkill(
+  async setMySkills(
     @CurrentUser() user: JwtUser,
-    @Args('input') input: CreateSkillInput,
-  ) {
-    const skill = await this.skills.createAndAssignSkill(user.sub, input);
-    await this.jobs.enqueueRecomputeSkill(skill.id);
+    @Args({ name: 'skillIds', type: () => [String] }) skillIds: string[],
+  ): Promise<boolean> {
+    await this.skills.setForUser(user.sub, skillIds ?? []);
     await this.jobs.enqueueRecomputeProfile(user.sub);
-    return skill;
+    return true;
   }
 }

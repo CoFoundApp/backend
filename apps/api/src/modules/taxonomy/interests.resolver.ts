@@ -32,8 +32,7 @@ export class InterestsResolver {
   }
 
   // Admin create
-  @UseGuards(GqlAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(GqlAuthGuard)
   @Mutation(() => Interest)
   async createInterest(@Args('input') input: CreateInterestInput) {
     return this.interests.adminCreateInterest(input);
@@ -58,18 +57,17 @@ export class InterestsResolver {
     return true;
   }
 
-  // create and assign
+  // Authenticated: set interests for the current user
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => Interest, {
-    description: 'Create a new interest and attach it to the current user',
+  @Mutation(() => Boolean, {
+    description: 'Replace current user interests with provided IDs',
   })
-  async createAndAssignInterest(
+  async setMyInterests(
     @CurrentUser() user: JwtUser,
-    @Args('input') input: CreateInterestInput,
-  ) {
-    const interest = await this.interests.createAndAssignInterest(user.sub, input);
-    await this.jobs.enqueueRecomputeInterest(interest.id);
+    @Args({ name: 'interestIds', type: () => [String] }) interestIds: string[],
+  ): Promise<boolean> {
+    await this.interests.setForUser(user.sub, interestIds ?? []);
     await this.jobs.enqueueRecomputeProfile(user.sub);
-    return interest;
+    return true;
   }
 }

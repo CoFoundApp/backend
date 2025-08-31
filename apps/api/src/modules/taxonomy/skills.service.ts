@@ -152,31 +152,24 @@ export class SkillsService {
     );
   }
 
-    /** Crée une compétence si besoin et l'associe à l'utilisateur */
-  async createAndAssignSkill(userId: string, input: CreateSkillInput) {
-    const name = input.name.trim();
-    const slug = slugify(name);
+  /** Remplace la liste des compétences d'un utilisateur par l'ensemble fourni */
+  async setForUser(userId: string, skillIds: string[] = []) {
     const db = this.prisma.prisma();
 
-    let skill;
-    try {
-      skill = await db.skills.create({
-        data: { name, category: input.category ?? null, slug },
-        select: { id: true, name: true, category: true, slug: true },
-      });
-    } catch (e: any) {
-      if (e?.code === 'P2002') {
-        skill = await db.skills.findFirst({
-          where: { slug },
-          select: { id: true, name: true, category: true, slug: true },
-        });
-        if (!skill) throw e;
-      } else {
-        throw e;
-      }
-    }
+    // Récupérer les compétences déjà associées
+    const rows = await db.user_skills.findMany({
+      where: { user_id: userId },
+      select: { skill_id: true },
+    });
+    const existing = rows.map(r => r.skill_id);
 
-    await this.attachToUser(userId, [skill.id], []);
-    return skill;
+    // Calculer les ajouts et suppressions
+    const toAdd = skillIds.filter(id => !existing.includes(id));
+    const toRemove = existing.filter(id => !skillIds.includes(id));
+
+    if (toAdd.length || toRemove.length) {
+      await this.attachToUser(userId, toAdd, toRemove);
+    }
+    return true;
   }
 }

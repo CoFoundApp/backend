@@ -150,31 +150,24 @@ export class InterestsService {
     );
   }
 
-    /** Crée un intérêt si besoin et l'associe à l'utilisateur */
-  async createAndAssignInterest(userId: string, input: CreateInterestInput) {
-    const name = input.name.trim();
-    const slug = slugify(name);
+  /** Remplace la liste des intérêts d'un utilisateur par l'ensemble fourni */
+  async setForUser(userId: string, interestIds: string[] = []) {
     const db = this.prisma.prisma();
 
-    let interest;
-    try {
-      interest = await db.interests.create({
-        data: { name, category: input.category ?? null, slug },
-        select: { id: true, name: true, category: true, slug: true },
-      });
-    } catch (e: any) {
-      if (e?.code === 'P2002') {
-        interest = await db.interests.findFirst({
-          where: { slug },
-          select: { id: true, name: true, category: true, slug: true },
-        });
-        if (!interest) throw e;
-      } else {
-        throw e;
-      }
-    }
+    // Récupérer les intérêts déjà associés
+    const rows = await db.user_interests.findMany({
+      where: { user_id: userId },
+      select: { interest_id: true },
+    });
+    const existing = rows.map(r => r.interest_id);
 
-    await this.attachToUser(userId, [interest.id], []);
-    return interest;
+    // Calculer les ajouts et suppressions
+    const toAdd = interestIds.filter(id => !existing.includes(id));
+    const toRemove = existing.filter(id => !interestIds.includes(id));
+
+    if (toAdd.length || toRemove.length) {
+      await this.attachToUser(userId, toAdd, toRemove);
+    }
+    return true;
   }
 }
