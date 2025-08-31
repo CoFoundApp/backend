@@ -8,6 +8,8 @@ import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { JobsService } from '../../queue/jobs.service';
+import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
+
 
 @Resolver(() => Skill)
 export class SkillsResolver {
@@ -67,5 +69,20 @@ export class SkillsResolver {
     await this.skills.setBySlugs(userId, addSlugs ?? [], removeSlugs ?? []);
     await this.jobs.enqueueRecomputeProfile(userId);
     return true;
+  }
+
+  // Authenticated create and assign
+  @UseGuards(GqlAuthGuard)
+  @Mutation(() => Skill, {
+    description: 'Create a new skill and attach it to the current user',
+  })
+  async createAndAssignSkill(
+    @CurrentUser() user: JwtUser,
+    @Args('input') input: CreateSkillInput,
+  ) {
+    const skill = await this.skills.createAndAssignSkill(user.sub, input);
+    await this.jobs.enqueueRecomputeSkill(skill.id);
+    await this.jobs.enqueueRecomputeProfile(user.sub);
+    return skill;
   }
 }

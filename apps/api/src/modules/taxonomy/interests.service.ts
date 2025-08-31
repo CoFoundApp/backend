@@ -149,4 +149,32 @@ export class InterestsService {
       rem.map(s => s.id),
     );
   }
+
+    /** Crée un intérêt si besoin et l'associe à l'utilisateur */
+  async createAndAssignInterest(userId: string, input: CreateInterestInput) {
+    const name = input.name.trim();
+    const slug = slugify(name);
+    const db = this.prisma.prisma();
+
+    let interest;
+    try {
+      interest = await db.interests.create({
+        data: { name, category: input.category ?? null, slug },
+        select: { id: true, name: true, category: true, slug: true },
+      });
+    } catch (e: any) {
+      if (e?.code === 'P2002') {
+        interest = await db.interests.findFirst({
+          where: { slug },
+          select: { id: true, name: true, category: true, slug: true },
+        });
+        if (!interest) throw e;
+      } else {
+        throw e;
+      }
+    }
+
+    await this.attachToUser(userId, [interest.id], []);
+    return interest;
+  }
 }

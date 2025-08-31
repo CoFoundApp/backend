@@ -8,6 +8,7 @@ import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { JobsService } from '../../queue/jobs.service';
+import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 
 @Resolver(() => Interest)
 export class InterestsResolver {
@@ -55,5 +56,20 @@ export class InterestsResolver {
     await this.interests.setBySlugs(userId, addSlugs ?? [], removeSlugs ?? []);
     await this.jobs.enqueueRecomputeProfile(userId);
     return true;
+  }
+
+  // create and assign
+  @UseGuards(GqlAuthGuard)
+  @Mutation(() => Interest, {
+    description: 'Create a new interest and attach it to the current user',
+  })
+  async createAndAssignInterest(
+    @CurrentUser() user: JwtUser,
+    @Args('input') input: CreateInterestInput,
+  ) {
+    const interest = await this.interests.createAndAssignInterest(user.sub, input);
+    await this.jobs.enqueueRecomputeInterest(interest.id);
+    await this.jobs.enqueueRecomputeProfile(user.sub);
+    return interest;
   }
 }

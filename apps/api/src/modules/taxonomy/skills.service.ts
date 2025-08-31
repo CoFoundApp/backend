@@ -151,4 +151,32 @@ export class SkillsService {
       rem.map(s => s.id),
     );
   }
+
+    /** Crée une compétence si besoin et l'associe à l'utilisateur */
+  async createAndAssignSkill(userId: string, input: CreateSkillInput) {
+    const name = input.name.trim();
+    const slug = slugify(name);
+    const db = this.prisma.prisma();
+
+    let skill;
+    try {
+      skill = await db.skills.create({
+        data: { name, category: input.category ?? null, slug },
+        select: { id: true, name: true, category: true, slug: true },
+      });
+    } catch (e: any) {
+      if (e?.code === 'P2002') {
+        skill = await db.skills.findFirst({
+          where: { slug },
+          select: { id: true, name: true, category: true, slug: true },
+        });
+        if (!skill) throw e;
+      } else {
+        throw e;
+      }
+    }
+
+    await this.attachToUser(userId, [skill.id], []);
+    return skill;
+  }
 }
