@@ -80,6 +80,8 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'member_role')     THEN CREATE TYPE member_role AS ENUM ('owner','admin','member','mentor'); END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'member_status')   THEN CREATE TYPE member_status AS ENUM ('invited','active','left','removed'); END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'application_status') THEN CREATE TYPE application_status AS ENUM ('pending','accepted','rejected','withdrawn'); END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'position_status') THEN CREATE TYPE position_status AS ENUM ('open','closed'); END IF;
+
 
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'conversation_type') THEN CREATE TYPE conversation_type AS ENUM ('dm','group','project'); END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'message_type')    THEN CREATE TYPE message_type AS ENUM ('text','system','file','event'); END IF;
@@ -281,9 +283,24 @@ CREATE TABLE IF NOT EXISTS project_members (
 );
 CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
 
+CREATE TABLE IF NOT EXISTS project_positions (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id         UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  title              TEXT NOT NULL,
+  description        TEXT,
+  status             position_status NOT NULL DEFAULT 'open',
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_project_positions_project ON project_positions(project_id);
+CREATE TRIGGER trg_project_positions_updated_at
+BEFORE UPDATE ON project_positions
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 CREATE TABLE IF NOT EXISTS project_applications (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id         UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  position_id        UUID REFERENCES project_positions(id) ON DELETE SET NULL,
   applicant_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   note               TEXT,
   status             application_status NOT NULL DEFAULT 'pending',
@@ -291,6 +308,8 @@ CREATE TABLE IF NOT EXISTS project_applications (
   decided_by         UUID REFERENCES users(id) ON DELETE SET NULL,
   decided_at         TIMESTAMPTZ
 );
+CREATE INDEX IF NOT EXISTS idx_project_applications_position ON project_applications(position_id);
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_project_app_once ON project_applications(project_id, applicant_id);
 
 -- =============================================================================
@@ -890,6 +909,7 @@ ALTER TABLE profiles              ENABLE ROW LEVEL SECURITY; ALTER TABLE profile
 -- Projects & membership
 ALTER TABLE projects              ENABLE ROW LEVEL SECURITY; ALTER TABLE projects              FORCE ROW LEVEL SECURITY;
 ALTER TABLE project_members       ENABLE ROW LEVEL SECURITY; ALTER TABLE project_members       FORCE ROW LEVEL SECURITY;
+ALTER TABLE project_positions     ENABLE ROW LEVEL SECURITY; ALTER TABLE project_positions     FORCE ROW LEVEL SECURITY;
 ALTER TABLE project_applications  ENABLE ROW LEVEL SECURITY; ALTER TABLE project_applications  FORCE ROW LEVEL SECURITY;
 
 -- Conversations & messages
@@ -970,6 +990,10 @@ USING (
   OR EXISTS (SELECT 1 FROM projects p WHERE p.id = project_members.project_id AND p.owner_id = app_user_id())
   OR app_is_admin()
 );
+
+-- project_positions: public read
+CREATE POLICY project_positions_select_public ON project_positions FOR SELECT
+USING (true);
 
 -- project_applications: applicant, owner, admin
 CREATE POLICY project_applications_select_related ON project_applications FOR SELECT

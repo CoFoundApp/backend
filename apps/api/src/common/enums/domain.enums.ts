@@ -56,6 +56,19 @@ export enum MemberStatus {
   REMOVED = 'removed',
 }
 
+export enum ApplicationStatus {
+  PENDING = 'pending',
+  ACCEPTED = 'accepted',
+  REJECTED = 'rejected',
+  WITHDRAWN = 'withdrawn',
+  CANCELED = 'canceled',
+}
+
+export enum PositionStatus {
+  OPEN = 'open',
+  CLOSED = 'closed',
+}
+
 registerEnumType(UserRole, { name: 'UserRole' });
 registerEnumType(UserStatus, { name: 'UserStatus' });
 registerEnumType(ProfileVisibility, { name: 'ProfileVisibility' });
@@ -64,3 +77,5 @@ registerEnumType(ProjectStatus, { name: 'ProjectStatus' });
 registerEnumType(ProjectStage, { name: 'ProjectStage' });
 registerEnumType(MemberRole, { name: 'MemberRole' });
 registerEnumType(MemberStatus, { name: 'MemberStatus' });
+registerEnumType(ApplicationStatus, { name: 'ApplicationStatus' });
+registerEnumType(PositionStatus, { name: 'PositionStatus' });
