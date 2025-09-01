@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Float, Int } from '@nestjs/graphql';
 import { UseGuards, UnauthorizedException } from '@nestjs/common';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
@@ -7,6 +7,7 @@ import { ProjectService } from './project.service';
 import { CreateProjectInput } from './dto/create-project.input';
 import { UpdateProjectInput } from './dto/update-project.input';
 import { JobsService } from '../../queue/jobs.service';
+import { ProjectSearchHit } from './project-search-hit.type';
 
 @Resolver(() => Project)
 export class ProjectResolver {
@@ -29,6 +30,15 @@ export class ProjectResolver {
   async listMyProjects(@CurrentUser() user: JwtUser) {
     if (!user) throw new UnauthorizedException();
     return this.projects.listByOwner(user.sub);
+  }
+
+  @Query(() => [ProjectSearchHit], { description: 'Recherche de projets (BM25 + vector)' })
+  async searchProjects(
+    @Args('q', { type: () => String }) q: string,
+    @Args('embedding', { type: () => [Float], nullable: true }) embedding?: number[],
+    @Args('k', { type: () => Int, nullable: true, defaultValue: 20 }) k?: number,
+  ) {
+    return this.projects.searchProjects(q, embedding, k ?? 20);
   }
 
   @UseGuards(GqlAuthGuard)
