@@ -44,7 +44,7 @@ export enum ProjectStage {
 
 export enum MemberRole {
   OWNER = 'owner',
-  ADMIN = 'admin',
+  MAINTAINER = 'maintainer',
   MEMBER = 'member',
   MENTOR = 'mentor',
 }
@@ -69,6 +69,13 @@ export enum PositionStatus {
   CLOSED = 'closed',
 }
 
+export enum InvitationStatus {
+  PENDING = 'pending',
+  ACCEPTED = 'accepted',
+  DECLINED = 'declined',
+  EXPIRED = 'expired',
+}
+
 registerEnumType(UserRole, { name: 'UserRole' });
 registerEnumType(UserStatus, { name: 'UserStatus' });
 registerEnumType(ProfileVisibility, { name: 'ProfileVisibility' });
@@ -79,3 +86,4 @@ registerEnumType(MemberRole, { name: 'MemberRole' });
 registerEnumType(MemberStatus, { name: 'MemberStatus' });
 registerEnumType(ApplicationStatus, { name: 'ApplicationStatus' });
 registerEnumType(PositionStatus, { name: 'PositionStatus' });
+registerEnumType(InvitationStatus, { name: 'InvitationStatus' });

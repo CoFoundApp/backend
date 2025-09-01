@@ -28,6 +28,7 @@ import { MatchingModule } from './modules/matching/matching.module';
 import { ProjectModule } from './modules/projects/project.module';
 import { ProjectApplicationModule } from './modules/project_applications/project-application.module';
 import { ProjectPositionModule } from './modules/project-position/project-position.module';
+import { ProjectMemberModule } from './modules/project_member/project-member.module';
 
 @Module({
   imports: [
@@ -76,6 +77,8 @@ import { ProjectPositionModule } from './modules/project-position/project-positi
     ProjectApplicationModule,
 
     ProjectPositionModule,
+
+    ProjectMemberModule,
   ],
   controllers: [AppController],
   providers: [
