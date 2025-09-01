@@ -34,7 +34,7 @@ export class ProfileResolver {
   ) {}
 
   /** Public: lecture d'un profil public/unlisted par id */
-  @Query(() => Profile, { nullable: true })
+  @Query(() => Profile, { nullable: true, description: 'Lecture d’un profil public par id' })
   async profileById(@Args('id', { type: () => String }) id: string) {
     return this.profiles.getPublicProfileById(id);
   }
@@ -42,7 +42,7 @@ export class ProfileResolver {
   /** Admin: listing des profils */
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles('admin')
-  @Query(() => [Profile])
+  @Query(() => [Profile], { description: 'admin: Listing des profils' })
   async adminListProfiles(
     @Args('limit', { type: () => Int, nullable: true, defaultValue: 50 }) limit?: number,
   ) {
@@ -51,7 +51,7 @@ export class ProfileResolver {
 
   /** Moi: lire mon profil (créé s'il n'existe pas) */
   @UseGuards(GqlAuthGuard)
-  @Query(() => Profile)
+  @Query(() => Profile, { description: 'Lecture de mon profil' })
   async myProfile(@CurrentUser() user: JwtUser) {
     if (!user) throw new UnauthorizedException();
     return this.profiles.ensureMyProfile(user.sub);
@@ -59,7 +59,7 @@ export class ProfileResolver {
 
   /** Moi: mise à jour de mon profil */
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => Profile)
+  @Mutation(() => Profile, { description: 'Mise à jour de mon profil' })
   async updateMyProfile(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyProfileInput) {
     if (!user) throw new UnauthorizedException();
     const p = await this.profiles.updateMyProfile(user.sub, input);
@@ -71,26 +71,26 @@ export class ProfileResolver {
   }
 
   /** Résout le user associé au profil */
-  @ResolveField(() => User)
+  @ResolveField(() => User, { description: 'User associé au profil' })
   async user(@Parent() profile: Profile) {
     return this.users.findById(profile.user_id);
   }
 
   // Résout les skills associés au profil
-  @ResolveField(() => [Skill])
+  @ResolveField(() => [Skill], { description: 'Skills associés au profil' })
   async skills(@Parent() profile: Profile) {
     return this.skillsService.listByUser(profile.user_id);
   }
 
   // Résout les intérêts associés au profil
-  @ResolveField(() => [Interest])
+  @ResolveField(() => [Interest], { description: 'Intérêts associés au profil' })
   async interests(@Parent() profile: Profile) {
     return this.interestsService.listByUser(profile.user_id);
   }
 
   // Mise à jour de mes compétences
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => Boolean)
+  @Mutation(() => Boolean, { description: 'Mise à jour de mes compétences' })
   async updateMySkills(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMySkillsInput) {
     if (!user) throw new UnauthorizedException();
 
@@ -101,7 +101,7 @@ export class ProfileResolver {
 
   // Mise à jour de mes intérêts
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => Boolean)
+  @Mutation(() => Boolean, { description: 'Mise à jour de mes intérêts' })
   async updateMyInterests(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyInterestsInput) {
     if (!user) throw new UnauthorizedException();
     await this.interestsService.attachToUser(user.sub, input.addIds ?? [], input.removeIds ?? []);
@@ -112,7 +112,7 @@ export class ProfileResolver {
   // Admin: s'assurer qu'un profil existe
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles('admin')
-  @Mutation(() => Boolean)
+  @Mutation(() => Boolean, { description: 'Admin: S’assurer qu’un profil existe' })
   adminEnsureProfile(@Args('userId', { type: () => String }) userId: string) {
     return this.profiles.ensureMyProfile(userId).then(() => true);
   }
@@ -120,7 +120,7 @@ export class ProfileResolver {
   // Admin: Changer la visibilité d'un profil
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles('admin')
-  @Mutation(() => Boolean)
+  @Mutation(() => Boolean, { description: 'Admin: Changer la visibilité d\'un profil' })
   adminSetProfileVisibility(
     @Args('userId', { type: () => String }) userId: string,
     @Args('visibility', { type: () => String }) visibility: string,

@@ -15,7 +15,7 @@ export class ProjectApplicationResolver {
   constructor(private readonly applications: ProjectApplicationService) {}
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => ProjectApplication)
+  @Mutation(() => ProjectApplication, { description: 'Postuler à un projet' })
   async applyToProject(
     @CurrentUser() user: JwtUser,
     @Args('input') input: ApplyProjectInput,
@@ -25,7 +25,7 @@ export class ProjectApplicationResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Query(() => ProjectApplicationList)
+  @Query(() => ProjectApplicationList, { description: 'Lister mes candidatures à un projet' })
   async projectApplications(
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
@@ -48,7 +48,7 @@ export class ProjectApplicationResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => ProjectApplication)
+  @Mutation(() => ProjectApplication, { description: 'Décider d\'une candidature à un projet' })
   async decideProjectApplication(
     @CurrentUser() user: JwtUser,
     @Args('id', { type: () => String }) id: string,
@@ -61,7 +61,7 @@ export class ProjectApplicationResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => ProjectApplication)
+  @Mutation(() => ProjectApplication, { description: 'Retirer une candidature à un projet' })
   async withdrawProjectApplication(
     @CurrentUser() user: JwtUser,
     @Args('id', { type: () => String }) id: string,
@@ -71,7 +71,7 @@ export class ProjectApplicationResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => ProjectApplication)
+  @Mutation(() => ProjectApplication, { description: 'Annuler une candidature à un projet' })
   async cancelProjectApplication(
     @CurrentUser() user: JwtUser,
     @Args('id', { type: () => String }) id: string,

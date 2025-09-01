@@ -34,7 +34,7 @@ export class SkillsResolver {
 
   // Admin create
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => Skill)
+  @Mutation(() => Skill, { description: 'Créer un nouvel skill' })
   async createSkill(@Args('input') input: CreateSkillInput) {
     return this.skills.adminCreateSkill(input);
   }
@@ -42,7 +42,7 @@ export class SkillsResolver {
   // Admin set user skills
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles('admin')
-  @Mutation(() => Boolean)
+  @Mutation(() => Boolean, { description: 'Admin: set user skills by IDs' })
   adminSetUserSkills(
     @Args('userId', { type: () => String }) userId: string,
     @Args({ name: 'addIds', type: () => [String], nullable: true }) addIds?: string[],

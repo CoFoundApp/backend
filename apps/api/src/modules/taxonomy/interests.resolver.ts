@@ -31,9 +31,9 @@ export class InterestsResolver {
     return page.nextCursor ?? null;
   }
 
-  // Admin create
+  // create
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => Interest)
+  @Mutation(() => Interest, { description: 'Créer un nouvel intérêt' })
   async createInterest(@Args('input') input: CreateInterestInput) {
     return this.interests.adminCreateInterest(input);
   }

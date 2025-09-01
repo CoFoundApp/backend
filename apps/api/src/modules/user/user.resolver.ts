@@ -45,7 +45,7 @@ export class UserResolver {
   }
 
   /** Résout le profil associé à l'utilisateur */
-  @ResolveField(() => Profile, { nullable: true })
+  @ResolveField(() => Profile, { nullable: true, description: "Le profil de l'utilisateur" })
   async profile(@Parent() user: User) {
     return this.profiles.getMyProfile(user.id);
   }

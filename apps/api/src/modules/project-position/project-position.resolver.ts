@@ -11,7 +11,7 @@ export class ProjectPositionResolver {
   constructor(private readonly positions: ProjectPositionService) {}
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => ProjectPosition)
+  @Mutation(() => ProjectPosition, { description: 'Créer une position de projet' })
   async createProjectPosition(
     @CurrentUser() user: JwtUser,
     @Args('input') input: CreateProjectPositionInput,
@@ -21,7 +21,7 @@ export class ProjectPositionResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Query(() => [ProjectPosition])
+  @Query(() => [ProjectPosition], { description: 'Lister les positions d\'un projet' })
   async listProjectPositions(
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
@@ -31,7 +31,7 @@ export class ProjectPositionResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => ProjectPosition)
+  @Mutation(() => ProjectPosition, { description: 'Clore une position de projet' })
   async closeProjectPosition(
     @CurrentUser() user: JwtUser,
     @Args('id', { type: () => String }) id: string,

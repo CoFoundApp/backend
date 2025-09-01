@@ -25,12 +25,14 @@ export class MatchingResolver {
     return this.matching.suggestProfilesForUser(user.sub, limit ?? 20, preselect ?? 200, maxDistance ?? 0.4);
   }
 
-  @Query(() => ProfileMatchConnection)
+  @UseGuards(GqlAuthGuard)
+  @Query(() => ProfileMatchConnection, { description: 'Matcher des profils selon divers critères' })
   async matchProfiles(@Args('input') input: MatchProfilesInput): Promise<ProfileMatchConnection> {
     return this.matching.matchProfiles(input);
   }
 
-  @Query(() => ProjectMatchConnection)
+  @UseGuards(GqlAuthGuard)
+  @Query(() => ProjectMatchConnection, { description: 'Matcher des projets selon divers critères' })
   async matchProjects(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
     return this.matching.matchProjects(input);
   }

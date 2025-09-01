@@ -16,7 +16,7 @@ export class ProjectResolver {
   ) {}
 
   @UseGuards(GqlAuthGuard)
-  @Query(() => Project, { nullable: true })
+  @Query(() => Project, { nullable: true, description: 'Récupérer un projet par ID' })
   async projectById(@CurrentUser() user: JwtUser, @Args('id', { type: () => String }) id: string) {
     if (!user) throw new UnauthorizedException();
     const p = await this.projects.findById(id);
@@ -25,14 +25,14 @@ export class ProjectResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Query(() => [Project])
+  @Query(() => [Project], { description: 'Lister mes projets' })
   async listMyProjects(@CurrentUser() user: JwtUser) {
     if (!user) throw new UnauthorizedException();
     return this.projects.listByOwner(user.sub);
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => Project)
+  @Mutation(() => Project, { description: 'Créer un projet' })
   async createProject(@CurrentUser() user: JwtUser, @Args('input') input: CreateProjectInput) {
     if (!user) throw new UnauthorizedException();
     const p = await this.projects.create(user.sub, input);
@@ -41,7 +41,7 @@ export class ProjectResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => Project)
+  @Mutation(() => Project, { description: 'Mettre à jour un projet' })
   async updateProject(
     @CurrentUser() user: JwtUser,
     @Args('id', { type: () => String }) id: string,
@@ -54,7 +54,7 @@ export class ProjectResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => Boolean)
+  @Mutation(() => Boolean, { description: 'Supprimer un projet' })
   async deleteProject(@CurrentUser() user: JwtUser, @Args('id', { type: () => String }) id: string) {
     if (!user) throw new UnauthorizedException();
     return this.projects.delete(id, user.sub);

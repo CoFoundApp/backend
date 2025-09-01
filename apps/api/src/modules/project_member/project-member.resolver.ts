@@ -11,7 +11,7 @@ export class ProjectMemberResolver {
   constructor(private readonly members: ProjectMemberService) {}
 
   @UseGuards(GqlAuthGuard)
-  @Query(() => [ProjectMember])
+  @Query(() => [ProjectMember], { description: 'Lister les membres d\'un projet' })
   async projectMembers(
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
@@ -21,7 +21,7 @@ export class ProjectMemberResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Query(() => [ProjectInvitation])
+  @Query(() => [ProjectInvitation], { description: 'Lister les invitations à un projet' })
   async projectInvitations(
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
@@ -31,7 +31,7 @@ export class ProjectMemberResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => ProjectInvitation)
+  @Mutation(() => ProjectInvitation, { description: 'Inviter un utilisateur à un projet' })
   async inviteUser(
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
@@ -43,7 +43,7 @@ export class ProjectMemberResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => ProjectMember)
+  @Mutation(() => ProjectMember, { description: 'Accepter une invitation à un projet' })
   async acceptInvitation(
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
@@ -54,7 +54,7 @@ export class ProjectMemberResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => ProjectInvitation)
+  @Mutation(() => ProjectInvitation, { description: 'Décliner une invitation à un projet' })
   async declineInvitation(
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
@@ -65,7 +65,7 @@ export class ProjectMemberResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => Boolean)
+  @Mutation(() => Boolean, { description: 'Quitter un projet' })
   async leaveProject(
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
@@ -75,7 +75,7 @@ export class ProjectMemberResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => Boolean)
+  @Mutation(() => Boolean, { description: 'Retirer un membre d\'un projet' })
   async removeProjectMember(
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
@@ -86,7 +86,7 @@ export class ProjectMemberResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Mutation(() => ProjectMember)
+  @Mutation(() => ProjectMember, { description: 'Mettre à jour le rôle d\'un membre de projet' })
   async updateProjectMemberRole(
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,

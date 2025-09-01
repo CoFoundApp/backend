@@ -18,7 +18,7 @@ export class EmbeddingResolver {
   // --- ADMIN: forcer calcul embedding ---
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles('admin')
-  @Mutation(() => Boolean)
+  @Mutation(() => Boolean, {description: "Forcer le calcul de l'embedding de compétence"})
   async computeSkillEmbedding(@Args('id', { type: () => String }) id: string) {
     return this.svc.computeAndStoreForSkill(id);
   }
@@ -26,7 +26,7 @@ export class EmbeddingResolver {
   // --- ADMIN: forcer calcul embedding ---
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles('admin')
-  @Mutation(() => Boolean)
+  @Mutation(() => Boolean, {description: "Forcer le calcul de l'embedding d'intérêt"})
   async computeInterestEmbedding(@Args('id', { type: () => String }) id: string) {
     return this.svc.computeAndStoreForInterest(id);
   }
@@ -35,7 +35,7 @@ export class EmbeddingResolver {
   // NB: n’expose pas embedding
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles('admin')
-  @Query(() => [SkillMatch])
+  @Query(() => [SkillMatch], {description: "Recherche sémantique de compétences par texte"})
   async searchSkillsByText(
     @Args('text', { type: () => String }) text: string,
     @Args('limit', { type: () => Int, nullable: true, defaultValue: 10 }) limit?: number,
@@ -48,7 +48,7 @@ export class EmbeddingResolver {
   // NB: n’expose pas embedding
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles('admin')
-  @Query(() => [InterestMatch])
+  @Query(() => [InterestMatch], {description: "Recherche sémantique d'intérêts par texte"})
   async searchInterestsByText(
     @Args('text', { type: () => String }) text: string,
     @Args('limit', { type: () => Int, nullable: true, defaultValue: 10 }) limit?: number,
@@ -60,7 +60,7 @@ export class EmbeddingResolver {
   // --- ADMIN: forcer recalcul de l'embedding de profil ---
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles('admin')
-  @Mutation(() => Boolean)
+  @Mutation(() => Boolean, {description: "Forcer le recalcul de l'embedding de profil"})
   adminRecomputeProfileEmbedding(@Args('userId', { type: () => String }) userId: string) {
     return this.profileEmb.recomputeForUser(userId);
   }
