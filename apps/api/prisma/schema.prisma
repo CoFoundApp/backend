@@ -405,17 +405,49 @@ model messages {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model notifications {
-  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id    String            @db.Uuid
-  type       notification_type
-  title      String?
-  body       String?
-  data       Json              @default("{}")
-  read_at    DateTime?         @db.Timestamptz(6)
-  created_at DateTime          @default(now()) @db.Timestamptz(6)
-  users      users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String            @db.Uuid
+  type            notification_type
+  subject_id      String?           @db.Uuid
+  actor_id        String?           @db.Uuid
+  project_id      String?           @db.Uuid
+  payload         Json              @default("{}")
+  channels        String[]          @db.Text
+  is_read         Boolean           @default(false)
+  emailed_at      DateTime?         @db.Timestamptz(6)
+  digest_key      String?
+  idempotency_key String?           @unique
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime          @default(now()) @db.Timestamptz(6)
+  users           users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([user_id], map: "idx_notifications_user")
+  @@index([user_id, created_at(sort: Desc)], map: "idx_notifications_user_created")
+  @@index([user_id, is_read, created_at(sort: Desc)], map: "idx_notifications_user_unread")
+}
+
+model notification_preferences {
+  user_id           String            @db.Uuid
+  type              notification_type
+  site_enabled      Boolean           @default(true)
+  email_frequency   email_frequency   @default(immediate)
+  quiet_hours_start DateTime?         @db.Time(6)
+  quiet_hours_end   DateTime?         @db.Time(6)
+  created_at        DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime          @default(now()) @db.Timestamptz(6)
+  users             users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([user_id, type])
+}
+
+model email_templates {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String   @unique
+  subject    String
+  html       String
+  text       String?
+  locale     String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -844,6 +876,7 @@ model users {
   project_invitations_received project_invitations[]             @relation("project_invitations_invitee")
   quiz_attempts                                                 quiz_attempts[]
   recommendation_feedback                                       recommendation_feedback[]
+  notification_preferences                                      notification_preferences[]
   resources                                                     resources[]
   subscriptions                                                 subscriptions[]
   track_events                                                  track_events[]
@@ -948,12 +981,25 @@ enum message_type {
 }
 
 enum notification_type {
-  system
-  message
-  project_invite
-  application_update
-  event_update
-  learning
+  application_submitted
+  application_accepted
+  application_rejected
+  application_canceled
+  application_withdrawn
+  invitation_sent
+  invitation_accepted
+  invitation_declined
+  member_removed
+  member_left
+  project_position_opened
+  project_updated
+}
+
+enum email_frequency {
+  immediate
+  digest_daily
+  digest_weekly
+  off
 }
 
 enum plan_interval {

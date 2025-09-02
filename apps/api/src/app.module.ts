@@ -9,6 +9,7 @@ import { AppService } from './app.service';
 import { HealthResolver } from './health.resolver';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { RlsInterceptor } from './infra/prisma/rls.interceptor';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { envValidationSchema } from './config/env.validation';
 
@@ -29,6 +30,8 @@ import { ProjectModule } from './modules/projects/project.module';
 import { ProjectApplicationModule } from './modules/project_applications/project-application.module';
 import { ProjectPositionModule } from './modules/project-position/project-position.module';
 import { ProjectMemberModule } from './modules/project_member/project-member.module';
+import { NotificationModule } from './modules/notifications/notification.module';
+import { EmailModule } from './infra/email/email.module';
 
 @Module({
   imports: [
@@ -37,6 +40,7 @@ import { ProjectMemberModule } from './modules/project_member/project-member.mod
       cache: true,
       validationSchema: envValidationSchema,
     }),
+    ScheduleModule.forRoot(),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'schema.gql'),
@@ -55,6 +59,8 @@ import { ProjectMemberModule } from './modules/project_member/project-member.mod
     PrismaModule,
 
     RedisModule,
+
+    EmailModule,
 
     QueuesFeatureModule,
 
@@ -79,6 +85,8 @@ import { ProjectMemberModule } from './modules/project_member/project-member.mod
     ProjectPositionModule,
 
     ProjectMemberModule,
+
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

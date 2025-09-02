@@ -76,6 +76,30 @@ export enum InvitationStatus {
   EXPIRED = 'expired',
 }
 
+export enum NotificationType {
+  application_submitted = 'application_submitted',
+  application_accepted = 'application_accepted',
+  application_rejected = 'application_rejected',
+  application_canceled = 'application_canceled',
+  application_withdrawn = 'application_withdrawn',
+  invitation_sent = 'invitation_sent',
+  invitation_accepted = 'invitation_accepted',
+  invitation_declined = 'invitation_declined',
+  member_removed = 'member_removed',
+  member_left = 'member_left',
+  project_position_opened = 'project_position_opened',
+  project_updated = 'project_updated',
+}
+
+export enum EmailFrequency {
+  immediate = 'immediate',
+  digest_daily = 'digest_daily',
+  digest_weekly = 'digest_weekly',
+  off = 'off',
+}
+
+registerEnumType(NotificationType, { name: 'NotificationType' });
+registerEnumType(EmailFrequency, { name: 'EmailFrequency' });
 registerEnumType(UserRole, { name: 'UserRole' });
 registerEnumType(UserStatus, { name: 'UserStatus' });
 registerEnumType(ProfileVisibility, { name: 'ProfileVisibility' });
