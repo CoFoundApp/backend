@@ -8,6 +8,7 @@ import jwt, { SignOptions } from 'jsonwebtoken';
 import type Redis from 'ioredis';
 import { Inject } from '@nestjs/common';
 import { REDIS } from '../../infra/redis/redis.module';
+import { TemplateMailerService } from '../../infra/email/template-mailer.service';
 
 function parseTTLToSeconds(str: string | undefined, defSeconds: number): number {
   if (!str) return defSeconds;
@@ -35,6 +36,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(REDIS) private readonly redis: Redis,
+    private readonly mail: TemplateMailerService,
   ) {}
 
   async signup(input: SignupInput) {
@@ -49,6 +51,11 @@ export class AuthService {
         password_hash,
         role: 'user',
       },
+    });
+
+    await this.mail.sendTemplate(user.email, 'welcome', 'en', {
+      email: user.email,
+      app_name: process.env.BRAND_NAME || 'My App',
     });
 
     return this.issueTokens(user.id, String(user.role || 'user'));

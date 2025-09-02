@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "nest start --watch",
-    "build": "nest build",
+    "dev": "nest start --watch && cpx \"src/infra/email/templates/**/*\" dist/infra/email/templates",
+    "build": "nest build && cpx \"src/infra/email/templates/**/*\" dist/infra/email/templates",
     "start": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
     "prisma:pull": "prisma db pull --schema ./prisma/schema.prisma",
@@ -66,6 +66,7 @@
     "@typescript-eslint/eslint-plugin": "^8.3.0",
     "@typescript-eslint/parser": "^8.3.0",
     "cookie-parser": "^1.4.7",
+    "cpx": "^1.5.0",
     "cross-env": "^10.0.0",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^9.1.0",

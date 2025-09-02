@@ -2,24 +2,18 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
-  Inject,
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import * as Handlebars from 'handlebars';
-import { promises as fs } from 'fs';
-import * as path from 'path';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationType, EmailFrequency } from '../../common/enums/domain.enums';
-import {
-  EmailProvider,
-  EMAIL_PROVIDER,
-} from '../../infra/email/email.module';
+import { TemplateMailerService } from '../../infra/email/template-mailer.service';
+
 
 @Injectable()
 export class NotificationService {
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(EMAIL_PROVIDER) private readonly email: EmailProvider,
+    private readonly mailer: TemplateMailerService,
   ) {}
 
   private encodeCursor(n: { created_at: Date; id: string }) {
@@ -200,39 +194,6 @@ export class NotificationService {
     return notif;
   }
 
-  private async loadTemplate(type: NotificationType, locale: string) {
-    const base = path.join(
-      __dirname,
-      '..',
-      '..',
-      'infra',
-      'email',
-      'templates',
-    );
-    const attempt = async (loc: string) => {
-      try {
-        const subject = await fs.readFile(
-          path.join(base, loc, `${type}.subject.hbs`),
-          'utf8',
-        );
-        const html = await fs.readFile(
-          path.join(base, loc, `${type}.html.hbs`),
-          'utf8',
-        );
-        let text: string | undefined;
-        try {
-          text = await fs.readFile(
-            path.join(base, loc, `${type}.text.hbs`),
-            'utf8',
-          );
-        } catch {}
-        return { subject, html, text };
-      } catch {
-        return null;
-      }
-    };
-    return (await attempt(locale)) ?? (await attempt('en'));
-  }
 
   private async sendImmediateEmail(notif: any) {
     const user = await this.prisma.prisma().users.findUnique({
@@ -242,30 +203,12 @@ export class NotificationService {
     if (!user) return;
 
     const locale = 'en'; // TODO: fetch from user profile when available
-    const template = await this.loadTemplate(notif.type, locale);
-    if (!template) return;
-
-    const base = {
-      brand_name: process.env.BRAND_NAME ?? 'CoFound',
-      brand_url: process.env.BRAND_URL ?? '',
-      brand_logo_url: process.env.BRAND_LOGO_URL ?? '',
-      unsubscribe_url: process.env.APP_BASE_URL
-        ? `${process.env.APP_BASE_URL}/settings/notifications`
-        : undefined,
-    };
-    const data = {
-      ...base,
-      ...(notif.payload || {}),
-      year: new Date().getFullYear(),
-      lang: locale,
-    };
-    const subject = Handlebars.compile(template.subject)(data);
-    const html = Handlebars.compile(template.html)({ ...data, subject });
-    const text = template.text
-      ? Handlebars.compile(template.text)({ ...data, subject })
-      : undefined;
-
-    await this.email.send(user.email, subject, html, text);
+    await this.mailer.sendTemplate(
+      user.email,
+      notif.type,
+      locale,
+      notif.payload || {},
+    );
     await this.prisma.prisma().notifications.update({
       where: { id: notif.id },
       data: { emailed_at: new Date() },
@@ -297,9 +240,11 @@ export class NotificationService {
         .users.findUnique({ where: { id: userId }, select: { email: true } });
       if (!user) continue;
       const list = byUser[userId];
-      const subject = `You have ${list.length} notifications`;
-      const html = list.map((n) => `<p>${n.type}</p>`).join('');
-      await this.email.send(user.email, subject, html);
+      const locale = 'en';
+      await this.mailer.sendTemplate(user.email, 'digest', locale, {
+        count: list.length,
+        notifications: list,
+      });
       await this.prisma.prisma().notifications.updateMany({
         where: { id: { in: list.map((n) => n.id) } },
         data: { emailed_at: new Date() },
@@ -326,9 +271,11 @@ export class NotificationService {
         .users.findUnique({ where: { id: userId }, select: { email: true } });
       if (!user) continue;
       const list = byUser[userId];
-      const subject = `You have ${list.length} notifications`;
-      const html = list.map((n) => `<p>${n.type}</p>`).join('');
-      await this.email.send(user.email, subject, html);
+      const locale = 'en';
+      await this.mailer.sendTemplate(user.email, 'digest', locale, {
+        count: list.length,
+        notifications: list,
+      });
       await this.prisma.prisma().notifications.updateMany({
         where: { id: { in: list.map((n) => n.id) } },
         data: { emailed_at: new Date() },
