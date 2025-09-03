@@ -161,11 +161,12 @@ export class NotificationService {
     payload?: Record<string, any>;
     digest_key?: string | null;
     idempotency_key?: string | null;
+    sendEmail?: boolean;
   }) {
     const pref = await this.getPreference(args.userId, args.type);
     const channels: string[] = [];
     if (pref.site_enabled) channels.push('site');
-    if (pref.email_frequency !== EmailFrequency.off) channels.push('email');
+    if (pref.email_frequency !== EmailFrequency.off && args.sendEmail !== false) channels.push('email');
     if (!channels.length) return null;
 
     const notif = await this.prisma.prisma().notifications.create({
@@ -182,7 +183,7 @@ export class NotificationService {
       },
     });
 
-    if (channels.includes('email')) {
+    if (channels.includes('email') && args.sendEmail !== false) {
       if (
         pref.email_frequency === EmailFrequency.immediate &&
         !this.inQuietHours(pref.quiet_hours_start, pref.quiet_hours_end)

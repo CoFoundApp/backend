@@ -16,7 +16,13 @@ export const CurrentUser = createParamDecorator(
     }
     if (type === 'graphql') {
       const g = GqlExecutionContext.create(ctx);
-      return (g.getContext()?.req?.user as JwtUser) ?? null;
+      const gqlCtx = g.getContext();
+      return (
+        (gqlCtx?.req?.user as JwtUser) ??
+        (gqlCtx?.connection?.context?.user as JwtUser) ??
+        (gqlCtx?.extra?.user as JwtUser) ??
+        null
+      );
     }
     return null;
   },

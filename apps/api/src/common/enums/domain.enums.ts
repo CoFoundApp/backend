@@ -89,6 +89,7 @@ export enum NotificationType {
   member_left = 'member_left',
   project_position_opened = 'project_position_opened',
   project_updated = 'project_updated',
+  new_message = 'new_message',
 }
 
 export enum EmailFrequency {

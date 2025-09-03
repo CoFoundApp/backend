@@ -11,5 +11,6 @@ import { JSONScalar } from '../../common/scalars/json.scalar';
     PrismaService,
     { provide: JSONScalar.name, useValue: JSONScalar },
   ],
+  exports: [NotificationService]
 })
 export class NotificationModule {}

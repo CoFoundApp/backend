@@ -1,6 +1,6 @@
 {
   "name": "@cofound/api",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "nest start --watch && cpx \"src/infra/email/templates/**/*\" dist/infra/email/templates",
@@ -70,6 +70,7 @@
     "cross-env": "^10.0.0",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^9.1.0",
+    "graphql-subscriptions": "^3.0.0",
     "handlebars": "^4.7.8",
     "jest": "^30.0.5",
     "nodemailer": "^7.0.6",

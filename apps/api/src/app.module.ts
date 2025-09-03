@@ -32,6 +32,7 @@ import { ProjectPositionModule } from './modules/project-position/project-positi
 import { ProjectMemberModule } from './modules/project_member/project-member.module';
 import { NotificationModule } from './modules/notifications/notification.module';
 import { EmailModule } from './infra/email/email.module';
+import { ConversationModule } from './modules/conversation/conversation.module';
 
 @Module({
   imports: [
@@ -87,6 +88,8 @@ import { EmailModule } from './infra/email/email.module';
     ProjectMemberModule,
 
     NotificationModule,
+
+    ConversationModule,
   ],
   controllers: [AppController],
   providers: [
