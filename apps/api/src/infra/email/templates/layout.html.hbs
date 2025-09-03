@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="{{lang}}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="color-scheme" content="light only">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>{{subject}}</title>
+  <style>
+    :root {
+      --radius: 0.625rem;
+      --background: oklch(1 0 0);
+      --foreground: oklch(0.141 0.005 285.823);
+      --card: oklch(1 0 0);
+      --card-foreground: oklch(0.141 0.005 285.823);
+      --popover: oklch(1 0 0);
+      --popover-foreground: oklch(0.141 0.005 285.823);
+      --primary: oklch(0.21 0.006 285.885);
+      --primary-foreground: oklch(0.985 0 0);
+      --secondary: oklch(0.967 0.001 286.375);
+      --secondary-foreground: oklch(0.21 0.006 285.885);
+      --muted: oklch(0.967 0.001 286.375);
+      --muted-foreground: oklch(0.552 0.016 285.938);
+      --accent: oklch(0.967 0.001 286.375);
+      --accent-foreground: oklch(0.21 0.006 285.885);
+      --destructive: oklch(0.577 0.245 27.325);
+      --border: oklch(0.92 0.004 286.32);
+      --input: oklch(0.92 0.004 286.32);
+      --ring: oklch(0.705 0.015 286.067);
+      --chart-1: oklch(0.646 0.222 41.116);
+      --chart-2: oklch(0.6 0.118 184.704);
+      --chart-3: oklch(0.398 0.07 227.392);
+      --chart-4: oklch(0.828 0.189 84.429);
+      --chart-5: oklch(0.769 0.188 70.08);
+      --sidebar: oklch(0.985 0 0);
+      --sidebar-foreground: oklch(0.141 0.005 285.823);
+      --sidebar-primary: oklch(0.21 0.006 285.885);
+      --sidebar-primary-foreground: oklch(0.985 0 0);
+      --sidebar-accent: oklch(0.967 0.001 286.375);
+      --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+      --sidebar-border: oklch(0.92 0.004 286.32);
+      --sidebar-ring: oklch(0.705 0.015 286.067);
+    }
+    body {
+      background: var(--background);
+      color: var(--foreground);
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      max-width: 480px;
+      margin: 30px auto;
+      background: var(--background);
+      box-shadow: 0 2px 6px rgba(20,20,40,0.06);
+      overflow: hidden;
+    }
+    .header {
+      background: var(--primary);
+      color: var(--primary-foreground);
+      padding: 20px 0;
+      text-align: center;
+    }
+    .logo {
+      height: 42px;
+      margin-bottom: 12px;
+    }
+    .content {
+      padding: 30px 20px 18px;
+      color: var(--foreground);
+    }
+    .btn {
+      display: inline-block;
+      margin-top: 22px;
+      padding: 12px 24px;
+      border-radius: 6px;
+      background: var(--secondary);
+      color: var(--secondary-foreground);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .footer {
+      background: var(--background);
+      border-top: 1px solid var(--border);
+      color: var(--muted-foreground);
+      font-size: 0.82em;
+      padding: 18px 15px;
+      text-align: center;
+    }
+    .footer a {
+      color: var(--muted-foreground);
+      text-decoration: underline;
+    }
+    @media (max-width: 560px) {
+      .container { width: 100%; max-width: 99vw; }
+      .content { padding: 18px 5vw 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      {{#if brand_logo_url}}
+      <img src="{{brand_logo_url}}" alt="{{brand_name}}" class="logo" />
+      {{/if}}
+      <span><strong>{{subject}}</strong></span>
+    </div>
+    <div class="content">
+      {{> @partial-block }}
+    </div>
+    <div class="footer">
+      © {{year}} {{brand_name}}<br/>
+      {{#if unsubscribe_url}}<a href="{{unsubscribe_url}}">Unsubscribe</a>{{/if}}
+    </div>
+  </div>
+</body>
+</html>

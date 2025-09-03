@@ -1,0 +1,120 @@
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../infra/prisma/prisma.service';
+import * as bcrypt from 'bcryptjs';
+import { UserRole, UserStatus } from '../../common/enums/domain.enums';
+import { mapRoleToPrisma, mapStatusToPrisma } from '../../common/enums/enum-mapper';
+import { TemplateMailerService } from '../../infra/email/template-mailer.service';
+
+const BCRYPT_ROUNDS = Number(process.env.SECURITY_BCRYPT_ROUNDS ?? 12);
+
+@Injectable()
+export class UserService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: TemplateMailerService,
+  ) {}
+
+  private async safeSend(to: string | null | undefined, template: string, payload: Record<string, any>) {
+    if (!to) return;
+    try { await this.mail.sendTemplate(to, template, 'en', payload); } catch {}
+  }
+
+  /** liste des utilisateurs */
+  async listUsers(limit = 50) {
+    return this.prisma.prisma().users.findMany({
+      orderBy: { created_at: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        last_login_at: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+  }
+
+  /** création utilisateur */
+  async createUser(email: string, password: string, role?: UserRole, status?: UserStatus) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    try {
+      const user = await this.prisma.prisma().users.create({
+        data: {
+          email: normalizedEmail,
+          password_hash,
+          role: mapRoleToPrisma(role ?? UserRole.USER),
+          status: mapStatusToPrisma(status ?? UserStatus.ACTIVE),
+        },
+        select: { id: true, email: true, role: true, status: true, created_at: true, updated_at: true },
+      });
+
+      await this.safeSend(user.email, 'user_account_created', {
+        app_name: process.env.APP_NAME,
+        email: user.email,
+        role: String(user.role),
+        status: String(user.status),
+        cta_url: `${process.env.APP_BASE_URL}/login`,
+      });
+
+      return user;
+    } catch (e: any) {
+      if (e?.code === 'P2002') throw new ConflictException('Email already exists');
+      throw e;
+    }
+  }
+
+  /** mise à jour utilisateur */
+  async updateUser(id: string, role?: UserRole, status?: UserStatus) {
+    const user = await this.prisma.prisma().users.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const updated = await this.prisma.prisma().users.update({
+      where: { id },
+      data: {
+        role: role ? mapRoleToPrisma(role) : undefined,
+        status: status ? mapStatusToPrisma(status) : undefined,
+      },
+      select: { id: true, email: true, role: true, status: true, created_at: true, updated_at: true },
+    });
+
+    if (role || status) {
+      await this.safeSend(updated.email, 'user_account_updated', {
+        app_name: process.env.APP_NAME,
+        email: updated.email,
+        role: String(updated.role),
+        status: String(updated.status),
+        cta_url: `${process.env.APP_BASE_URL}/account`,
+      });
+    }
+
+    return updated;
+  }
+
+  /** lecture d'un utilisateur par ID */
+  async findById(id: string) {
+    return this.prisma.prisma().users.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        last_login_at: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+  }
+
+  /** Optionnel: set last_login_at */
+  async setLastLogin(userId: string) {
+    await this.prisma.prisma().users.update({
+      where: { id: userId },
+      data: { last_login_at: new Date() },
+    });
+  }
+}

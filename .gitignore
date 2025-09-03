@@ -1,0 +1,25 @@
+# Node
+node_modules
+dist
+*.log
+*.pid
+npm-debug.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Env
+.env
+.env.local
+.env.docker
+
+# Editor
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+build/
+schema.gql

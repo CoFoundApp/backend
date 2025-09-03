@@ -1,0 +1,33 @@
+{{#> layout}}
+  <p>Hi{{#if display_name}} {{display_name}}{{/if}},</p>
+
+  <p>Your profile has been successfully updated on <strong>{{app_name}}</strong>.</p>
+
+  {{#if headline}}
+    <p><strong>Headline:</strong> {{headline}}</p>
+  {{/if}}
+
+  {{#if location}}
+    <p><strong>Location:</strong> {{location}}</p>
+  {{/if}}
+
+  {{#if website_url}}
+    <p><strong>Website:</strong> <a href="{{website_url}}" target="_blank">{{website_url}}</a></p>
+  {{/if}}
+
+  {{#if looking_for}}
+    <p><strong>Looking for:</strong> {{looking_for}}</p>
+  {{/if}}
+
+  {{#if availability_hours}}
+    <p><strong>Availability:</strong> {{availability_hours}} hours/week</p>
+  {{/if}}
+
+  {{#if cta_url}}
+    <p><a href="{{cta_url}}" class="btn">View your profile</a></p>
+  {{/if}}
+
+  <p>Last updated: {{updated_at}}</p>
+
+  <p>Cheers,<br/>The {{app_name}} Team</p>
+{{/layout}}

@@ -1,0 +1,12 @@
+{{#> layout}}
+  <p>Hi,</p>
+  <p>The project <strong>{{project_title}}</strong> was updated.</p>
+  {{#if changes.length}}
+    <p><strong>Changes:</strong></p>
+    <ul>
+      {{#each changes}}<li>{{this}}</li>{{/each}}
+    </ul>
+  {{/if}}
+  {{#if cta_url}}<p><a href="{{cta_url}}" class="btn">Open project</a></p>{{/if}}
+  <p>Cheers,<br/>The {{app_name}} Team</p>
+{{/layout}}

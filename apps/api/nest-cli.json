@@ -1,0 +1,13 @@
+{
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "assets": [
+      {
+        "include": "src/infra/email/templates/**/*",
+        "outDir": "dist/infra/email/templates"
+      }
+    ]
+  }
+}

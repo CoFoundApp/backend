@@ -1,0 +1,15 @@
+{{#> layout}}
+  <p>Bonjour, {{applicant_name}}</p>
+
+  <p>Votre candidature pour le projet <strong>{{project_name}}</strong> a été retirée.</p>
+
+  {{#if (ne position_name "N/A")}}
+    <p><strong>Poste:</strong> {{position_name}}</p>
+  {{/if}}
+
+  <p><strong>Status:</strong> {{status}}</p>
+
+  <p>Vous pouvez toujours postuler à nouveau si le poste est toujours ouvert.</p>
+
+  <p>Merci,<br/>L'équipe {{app_name}}</p>
+{{/layout}}

@@ -1,0 +1,9 @@
+{{#> layout}}
+  <p>Hi,</p>
+  <p>An invitation was sent for <strong>{{project_title}}</strong>.</p>
+  <p><strong>Invitee:</strong> {{invitee_name}}<br/>
+     <strong>Invited by:</strong> {{inviter_name}}{{#if role}}<br/>
+     <strong>Role:</strong> {{role}}{{/if}}</p>
+  {{#if cta_url}}<p><a href="{{cta_url}}" class="btn">View invitations</a></p>{{/if}}
+  <p>Cheers,<br/>The {{app_name}} Team</p>
+{{/layout}}

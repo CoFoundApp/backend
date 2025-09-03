@@ -1,0 +1,15 @@
+{{#> layout}}
+  <p>Bonjour, {{owner_name}}</p>
+
+  <p>{{applicant_name}} a retiré sa candidature pour votre projet <strong>{{project_name}}</strong>.</p>
+
+  {{#if position_name}}
+    <p><strong>Poste :</strong> {{position_name}}</p>
+  {{/if}}
+
+  <p><strong>Status :</strong> {{status}}</p>
+
+  <p><a href="{{cta_url}}" class="btn">Voir les candidatures</a></p>
+
+  <p>Merci,<br/>L'équipe {{app_name}}</p>
+{{/layout}}

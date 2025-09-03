@@ -1,0 +1,20 @@
+{{#> layout}}
+  <p>Hi {{applicant_name}},</p>
+
+  <p>Your application to <strong>{{project_name}}</strong> has been received.</p>
+
+  {{#if position_name}}
+    <p><strong>Position:</strong> {{position_name}}</p>
+  {{/if}}
+
+  <p><strong>Status:</strong>
+    {{#if (eq status "PENDING")}}Pending review{{/if}}
+    {{#if (eq status "ACCEPTED")}}Accepted{{/if}}
+    {{#if (eq status "REJECTED")}}Rejected{{/if}}
+    {{#if (and (ne status "PENDING") (ne status "ACCEPTED") (ne status "REJECTED"))}}{{status}}{{/if}}
+  </p>
+
+  <p>We'll notify you as soon as there is an update.</p>
+
+  <p>Cheers,<br/>The {{app_name}} Team</p>
+{{/layout}}

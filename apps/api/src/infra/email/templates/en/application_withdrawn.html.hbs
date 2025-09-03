@@ -1,0 +1,15 @@
+{{#> layout}}
+  <p>Hi, {{applicant_name}}</p>
+
+  <p>Your application for the project <strong>{{project_name}}</strong> has been withdrawn.</p>
+
+  {{#if (ne position_name "N/A")}}
+    <p><strong>Position:</strong> {{position_name}}</p>
+  {{/if}}
+
+  <p><strong>Status:</strong> {{status}}</p>
+
+  <p>You can always apply again if the position is still open.</p>
+
+  <p>Cheers,<br/>The {{app_name}} Team</p>
+{{/layout}}

@@ -1,0 +1,8 @@
+{{#> layout}}
+  <p>Bonjour,</p>
+  <p>Un nouveau poste a été créé sur <strong>{{project_title}}</strong>:</p>
+  <p><strong>{{position_title}}</strong></p>
+  {{#if description}}<p>{{description}}</p>{{/if}}
+  {{#if cta_url}}<p><a href="{{cta_url}}" class="btn">Gérer les postes</a></p>{{/if}}
+  <p>Merci,<br/>L'équipe {{app_name}}</p>
+{{/layout}}

@@ -1,0 +1,15 @@
+{{#> layout}}
+  <p>Bonjour, {{applicant_name}}</p>
+
+  <p>Votre candidature pour <strong>{{project_name}}</strong> a été <strong>{{decision_label}}</strong>.</p>
+
+  {{#if position_name}}
+    <p><strong>Poste:</strong> {{position_name}}</p>
+  {{/if}}
+
+  <p><strong>Status:</strong> {{status}}</p>
+
+  <p>Si vous avez des questions, veuillez contacter le support.</p>
+
+  <p>Merci,<br/>L'équipe {{app_name}}</p>
+{{/layout}}

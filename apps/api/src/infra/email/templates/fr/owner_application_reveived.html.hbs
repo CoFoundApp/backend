@@ -1,0 +1,15 @@
+{{#> layout}}
+  <p>Bonjour, {{owner_name}}</p>
+
+  <p>Vous avez une nouvelle candidature pour votre projet <strong>{{project_name}}</strong>.</p>
+
+  <p><strong>Candidat :</strong> {{applicant_name}}</p>
+
+  {{#if position_name}}
+    <p><strong>Poste :</strong> {{position_name}}</p>
+  {{/if}}
+
+  <p><a href="{{cta_url}}" class="btn">Examiner les candidatures</a></p>
+
+  <p>Merci,<br/>L'équipe {{app_name}}</p>
+{{/layout}}

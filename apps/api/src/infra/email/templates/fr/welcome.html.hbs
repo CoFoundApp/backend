@@ -1,0 +1,13 @@
+{{#> layout}}
+  <p>Bonjour,</p>
+
+  <p>Bienvenue sur <strong>{{app_name}}</strong> ! Votre compte (<strong>{{email}}</strong>) a été créé avec succès.</p>
+
+  {{#if cta_url}}
+    <p><a href="{{cta_url}}" class="btn">Aller au tableau de bord</a></p>
+  {{/if}}
+
+  <p>Si vous n'avez pas créé ce compte, vous pouvez ignorer ce message en toute sécurité.</p>
+
+  <p>Merci,<br/>L'équipe {{app_name}}</p>
+{{/layout}}

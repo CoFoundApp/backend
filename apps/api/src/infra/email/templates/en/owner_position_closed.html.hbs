@@ -1,0 +1,7 @@
+{{#> layout}}
+  <p>Hi,</p>
+  <p>The position <strong>{{position_title}}</strong> on <strong>{{project_title}}</strong> has been closed.</p>
+  {{#if status}}<p><strong>Status:</strong> {{status}}</p>{{/if}}
+  {{#if cta_url}}<p><a href="{{cta_url}}" class="btn">Manage positions</a></p>{{/if}}
+  <p>Cheers,<br/>The {{app_name}} Team</p>
+{{/layout}}
