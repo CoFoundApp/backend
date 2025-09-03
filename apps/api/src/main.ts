@@ -3,16 +3,17 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import compression from 'compression';
-import { json, urlencoded } from 'express';
 import cookieParser from 'cookie-parser';
 import { ValidationPipe } from '@nestjs/common';
 import { RedisIoAdapter } from './infra/ws/redis-io.adapter';
+import { graphqlUploadExpress } from 'graphql-upload-ts';
+import express, { json, urlencoded } from 'express';
+import { join } from 'node:path';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Si tu es derrière un proxy / HTTPS (Nginx/Traefik), requis pour cookies "secure"
-  app.getHttpAdapter().getInstance().set('trust proxy', 1); // <— AJOUT
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   const allowedOrigin = process.env.CORS_ORIGIN || '*';
   app.enableCors({
@@ -20,8 +21,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Cookies (secret optionnel si tu signes certains cookies)
-  app.use(cookieParser(process.env.COOKIE_SECRET)); // <— AJOUT
+  app.use(cookieParser(process.env.COOKIE_SECRET));
 
   app.use(helmet({
     contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
@@ -31,6 +31,8 @@ async function bootstrap() {
   const bodyLimit = process.env.BODY_LIMIT || '1mb';
   app.use(json({ limit: bodyLimit }));
   app.use(urlencoded({ limit: bodyLimit, extended: true }));
+  app.use(graphqlUploadExpress({ maxFileSize: 10_000_000, maxFiles: 10 }));
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
   app.use(compression());
 
   app.useGlobalPipes(new ValidationPipe({

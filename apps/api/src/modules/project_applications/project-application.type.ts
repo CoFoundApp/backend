@@ -16,6 +16,9 @@ export class ProjectApplication {
   @Field(() => String, { nullable: true })
   note?: string | null;
 
+  @Field(() => [String])
+  attachment_urls!: string[];
+
   @Field(() => String, { nullable: true })
   position_id?: string | null;
 

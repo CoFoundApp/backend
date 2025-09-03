@@ -62,6 +62,9 @@ export class ProjectService {
       status: input.status ? mapProjectStatusToPrisma(input.status) : undefined,
       stage: input.stage ? mapProjectStageToPrisma(input.stage) : undefined,
       visibility: input.visibility ? mapVisibilityToPrisma(input.visibility as ProfileVisibility) : undefined,
+      attachment_urls: Array.isArray(input.attachment_urls) ? input.attachment_urls : [],
+      banner_url: input.banner_url ?? null,
+      avatar_url: input.avatar_url ?? null,
     };
 
     const project = await this.prisma.prisma().projects.create({ data });
@@ -110,6 +113,9 @@ export class ProjectService {
       status: input.status ? mapProjectStatusToPrisma(input.status) : undefined,
       stage: input.stage ? mapProjectStageToPrisma(input.stage) : undefined,
       visibility: input.visibility ? mapVisibilityToPrisma(input.visibility as ProfileVisibility) : undefined,
+      attachment_urls: Array.isArray(input.attachment_urls) ? input.attachment_urls : undefined,
+      banner_url: input.banner_url ?? undefined,
+      avatar_url: input.avatar_url ?? undefined,
       updated_at: new Date(),
     };
 
@@ -117,7 +123,7 @@ export class ProjectService {
 
     // compute “changes” (liste de champs modifiés)
     const changed: string[] = [];
-    for (const key of ['title','summary','description','industry','tags','status','stage','visibility']) {
+    for (const key of ['title','summary','description','industry','tags','status','stage','visibility','attachment_urls','banner_url','avatar_url']) {
       const newVal = (data as any)[key];
       if (newVal !== undefined) changed.push(key);
     }

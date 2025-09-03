@@ -69,6 +69,7 @@ export class ProjectApplicationService {
         applicant_id: applicantId,
         position_id: input.position_id ?? null,
         note: input.note ?? null,
+        attachment_urls: Array.isArray(input.attachment_urls) ? input.attachment_urls : [],
       } as any,
       include: { project_positions: true },
     })) as any;

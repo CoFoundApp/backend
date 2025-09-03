@@ -33,6 +33,7 @@ import { ProjectMemberModule } from './modules/project_member/project-member.mod
 import { NotificationModule } from './modules/notifications/notification.module';
 import { EmailModule } from './infra/email/email.module';
 import { ConversationModule } from './modules/conversation/conversation.module';
+import { UploadModule } from './modules/upload/upload.module';
 
 @Module({
   imports: [
@@ -90,6 +91,8 @@ import { ConversationModule } from './modules/conversation/conversation.module';
     NotificationModule,
 
     ConversationModule,
+
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [

@@ -183,6 +183,9 @@ importers:
       graphql-subscriptions:
         specifier: ^3.0.0
         version: 3.0.0(graphql@16.11.0)
+      graphql-upload-ts:
+        specifier: ^2.1.2
+        version: 2.1.2(graphql@16.11.0)
       handlebars:
         specifier: ^4.7.8
         version: 4.7.8
@@ -3042,6 +3045,12 @@ packages:
     peerDependencies:
       graphql: ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0
 
+  graphql-upload-ts@2.1.2:
+    resolution: {integrity: sha512-g0mL/55NI1MzRrTczIJw1cruIrqlUm7liQRkuGl6l9s4/j0aSuPkvZ52BS7teI43g6KXE/NeDyUotEAiTyZdHw==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      graphql: '>=0.13.1'
+
   graphql-ws@6.0.4:
     resolution: {integrity: sha512-8b4OZtNOvv8+NZva8HXamrc0y1jluYC0+13gdh7198FKjVzXyTvVc95DCwGzaKEfn3YuWZxUqjJlHe3qKM/F2g==}
     engines: {node: '>=20'}
@@ -3908,6 +3917,10 @@ packages:
   object-inspect@1.13.4:
     resolution: {integrity: sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==}
     engines: {node: '>= 0.4'}
+
+  object-path@0.11.8:
+    resolution: {integrity: sha512-YJjNZrlXJFM42wTBn6zgOJVar9KFJvzx6sTWDte8sWZF//cnjl0BxHNpfZx+ZffXX63A9q0b1zsFiBX4g4X5KA==}
+    engines: {node: '>= 10.12.0'}
 
   object-visit@1.0.1:
     resolution: {integrity: sha512-GBaMwwAVK9qbQN3Scdo0OyvgPW7l3lnaVMj84uTOZlswkX0KpF6fyDBJhtTthf7pymztoN36/KEr1DyhF96zEA==}
@@ -8583,6 +8596,13 @@ snapshots:
       graphql: 16.11.0
       tslib: 2.8.1
 
+  graphql-upload-ts@2.1.2(graphql@16.11.0):
+    dependencies:
+      busboy: 1.6.0
+      graphql: 16.11.0
+      http-errors: 2.0.0
+      object-path: 0.11.8
+
   graphql-ws@6.0.4(graphql@16.11.0)(ws@8.18.1):
     dependencies:
       graphql: 16.11.0
@@ -9573,6 +9593,8 @@ snapshots:
   object-hash@3.0.0: {}
 
   object-inspect@1.13.4: {}
+
+  object-path@0.11.8: {}
 
   object-visit@1.0.1:
     dependencies:

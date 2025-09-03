@@ -18,7 +18,7 @@ import { UpdateMyInterestsInput } from '../taxonomy/dto/update-my-interests.inpu
 import { ProfileEmbeddingService } from '../embedding/profile-embedding.service';
 import { JobsService } from '../../queue/jobs.service';
 import { Logger } from '@nestjs/common';
-
+import { UploadService } from '../upload/upload.service';
 
 @Resolver(() => Profile)
 export class ProfileResolver {
@@ -31,6 +31,7 @@ export class ProfileResolver {
     private readonly interestsService: InterestsService,
     private readonly profileEmbedding: ProfileEmbeddingService,
     private readonly jobs: JobsService,
+    private readonly uploads: UploadService,
   ) {}
 
   /** Public: lecture d'un profil public/unlisted par id */
@@ -62,6 +63,12 @@ export class ProfileResolver {
   @Mutation(() => Profile, { description: 'Mise à jour de mon profil' })
   async updateMyProfile(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyProfileInput) {
     if (!user) throw new UnauthorizedException();
+    if (input.avatar) {
+      input.avatar_url = await this.uploads.save(input.avatar);
+    }
+    if (input.banner) {
+      input.banner_url = await this.uploads.save(input.banner);
+    }
     const p = await this.profiles.updateMyProfile(user.sub, input);
 
     await this.jobs.enqueueRecomputeProfileDebounced(user.sub);
