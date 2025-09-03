@@ -1,0 +1,15 @@
+{{#> layout}}
+  <p>Hi, {{owner_name}}</p>
+
+  <p>You have a new application for your project <strong>{{project_name}}</strong>.</p>
+
+  <p><strong>Applicant:</strong> {{applicant_name}}</p>
+
+  {{#if position_name}}
+    <p><strong>Position:</strong> {{position_name}}</p>
+  {{/if}}
+
+  <p><a href="{{cta_url}}" class="btn">Review applications</a></p>
+
+  <p>Cheers,<br/>The {{app_name}} Team</p>
+{{/layout}}

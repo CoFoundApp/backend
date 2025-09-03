@@ -1,0 +1,12 @@
+{{#> layout}}
+  <p>Hi,</p>
+  <p>Your account on <strong>{{app_name}}</strong> has been created for <strong>{{email}}</strong>.</p>
+
+  <p><strong>Role:</strong> {{role}}<br/>
+     <strong>Status:</strong> {{status}}</p>
+
+  {{#if cta_url}}<p><a href="{{cta_url}}" class="btn">Sign in</a></p>{{/if}}
+
+  <p>If you didn’t expect this, please contact support.</p>
+  <p>Cheers,<br/>The {{app_name}} Team</p>
+{{/layout}}

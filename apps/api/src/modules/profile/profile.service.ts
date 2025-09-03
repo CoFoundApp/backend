@@ -4,6 +4,7 @@ import { UpdateMyProfileInput } from './dto/update-my-profile.input';
 import { ProfileVisibility } from '../../common/enums/domain.enums';
 import { mapVisibilityToPrisma } from '../../common/enums/enum-mapper';
 import { isUuid } from '../../common/utils/uuid.util';
+import { TemplateMailerService } from '../../infra/email/template-mailer.service';
 
 function normalizeVisibility(v?: string | null): 'public' | 'unlisted' | 'private' | undefined {
   if (!v) return undefined;
@@ -17,7 +18,9 @@ function normalizeVisibility(v?: string | null): 'public' | 'unlisted' | 'privat
 
 @Injectable()
 export class ProfileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: TemplateMailerService) {}
 
   /** Renvoie un profil public/unlisted. */
   async getPublicProfileById(id: string) {
@@ -66,6 +69,25 @@ export class ProfileService {
     };
 
     const visibility = normalizeVisibility((input as any).visibility);
+
+    const userEmail = (await this.prisma.prisma().users.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    }))?.email;
+
+    await this.mail.sendTemplate(userEmail || "", 'profile_update', 'en', {
+      display_name: input.display_name,
+      headline: input.headline,
+      bio: input.bio,
+      location: input.location,
+      website_url: input.website_url,
+      avatar_url: input.avatar_url,
+      banner_url: input.banner_url,
+      looking_for: input.looking_for,
+      availability_hours: input.availability_hours,
+      updated_at: new Date(),
+      app_name: process.env.APP_NAME,
+    });
 
     return this.prisma.prisma().profiles.upsert({
       where: { user_id: userId },

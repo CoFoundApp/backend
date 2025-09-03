@@ -1,0 +1,7 @@
+{{#> layout}}
+  <p>Bonjour,</p>
+  <p>Le poste <strong>{{position_title}}</strong> sur <strong>{{project_title}}</strong> a été fermé.</p>
+  {{#if status}}<p><strong>Status:</strong> {{status}}</p>{{/if}}
+  {{#if cta_url}}<p><a href="{{cta_url}}" class="btn">Gérer les postes</a></p>{{/if}}
+  <p>Merci,<br/>L'équipe {{app_name}}</p>
+{{/layout}}

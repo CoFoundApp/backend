@@ -1,4 +1,15 @@
 {{#> layout}}
-<p>Your application to <strong>{{project_title}}</strong> was canceled.</p>
-<p><a href="{{cta_url}}" class="btn">View project</a></p>
+  <p>Hi, {{applicant_name}}</p>
+
+  <p>Your application to <strong>{{project_name}}</strong> has been <strong>canceled</strong> by the project owner.</p>
+
+  {{#if position_name}}
+    <p><strong>Position:</strong> {{position_name}}</p>
+  {{/if}}
+
+  <p><strong>Status:</strong> {{status}}</p>
+
+  <p>If you believe this is a mistake or need more details, please contact support.</p>
+
+  <p>Cheers,<br/>The {{app_name}} Team</p>
 {{/layout}}

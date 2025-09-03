@@ -1,0 +1,33 @@
+{{#> layout}}
+  <p>Bonjour{{#if display_name}} {{display_name}}{{/if}},</p>
+
+  <p>Votre profil a été mis à jour avec succès sur <strong>{{app_name}}</strong>.</p>
+
+  {{#if headline}}
+    <p><strong>En-tête :</strong> {{headline}}</p>
+  {{/if}}
+
+  {{#if location}}
+    <p><strong>Lieu :</strong> {{location}}</p>
+  {{/if}}
+
+  {{#if website_url}}
+    <p><strong>Site web :</strong> <a href="{{website_url}}" target="_blank">{{website_url}}</a></p>
+  {{/if}}
+
+  {{#if looking_for}}
+    <p><strong>Recherche :</strong> {{looking_for}}</p>
+  {{/if}}
+
+  {{#if availability_hours}}
+    <p><strong>Disponibilité :</strong> {{availability_hours}} heures/semaine</p>
+  {{/if}}
+
+  {{#if cta_url}}
+    <p><a href="{{cta_url}}" class="btn">Voir votre profil</a></p>
+  {{/if}}
+
+  <p>Dernière mise à jour : {{updated_at}}</p>
+
+  <p>Merci,<br/>L'équipe {{app_name}}</p>
+{{/layout}}

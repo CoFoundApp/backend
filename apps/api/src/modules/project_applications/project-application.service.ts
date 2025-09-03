@@ -7,10 +7,14 @@ import {
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { ApplyProjectInput } from './dto/apply-project.input';
 import { ApplicationStatus } from '../../common/enums/domain.enums';
+import { TemplateMailerService } from '../../infra/email/template-mailer.service';
 
 @Injectable()
 export class ProjectApplicationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: TemplateMailerService,
+  ) {}
 
   private encodeCursor(app: { created_at: Date; id: string }) {
     return Buffer.from(
@@ -24,9 +28,10 @@ export class ProjectApplicationService {
   }
 
   async apply(applicantId: string, input: ApplyProjectInput) {
+    let positionName = "";
     const project = await this.prisma.prisma().projects.findUnique({
       where: { id: input.project_id },
-      select: { owner_id: true, visibility: true },
+      select: { owner_id: true, visibility: true, title: true },
     });
     if (!project) throw new NotFoundException('Project not found');
     if (project.owner_id === applicantId)
@@ -43,6 +48,7 @@ export class ProjectApplicationService {
         throw new BadRequestException('Position not in project');
       if (position.status !== 'open')
         throw new BadRequestException('Position closed');
+      positionName = position.title;
     }
 
     const pending = await this.prisma.prisma().project_applications.findFirst({
@@ -66,6 +72,38 @@ export class ProjectApplicationService {
       } as any,
       include: { project_positions: true },
     })) as any;
+
+    const applicant = await this.prisma.prisma().users.findUnique({
+      where: { id: applicantId },
+      select: { email: true, profiles: { select: { display_name: true } } },
+    });
+
+    if (applicant?.email) {
+      await this.mail.sendTemplate(applicant?.email || "", 'application_submitted', 'en', {
+        applicant_name: applicant?.profiles?.display_name,
+        project_name: project.title,
+        position_name: positionName,
+        status: app.status,
+        app_name: process.env.APP_NAME,
+      });
+    }
+
+    const owner = await this.prisma.prisma().users.findUnique({
+      where: { id: project.owner_id },
+      select: { email: true, profiles: { select: { display_name: true } } },
+    });
+
+    if (owner?.email) {
+      await this.mail.sendTemplate(owner.email, 'owner_application_received', 'en', {
+        owner_name: owner?.profiles?.display_name ?? owner?.email,
+        owner_id: project.owner_id,
+        project_name: project.title,
+        applicant_name: applicant?.profiles?.display_name ?? applicant?.email,
+        position_name: positionName,
+        app_name: process.env.APP_NAME,
+      });
+    }
+
     return { ...app, position: app.project_positions };
   }
 
@@ -129,7 +167,7 @@ export class ProjectApplicationService {
   async withdraw(applicantId: string, id: string) {
     const app = await this.prisma.prisma().project_applications.findUnique({
       where: { id },
-      include: { project_positions: true },
+      include: { project_positions: true, projects: { select: { title: true, owner_id: true } } },
     });
     if (!app) throw new NotFoundException('Application not found');
     if (app.applicant_id !== applicantId)
@@ -142,6 +180,38 @@ export class ProjectApplicationService {
       data: { status: ApplicationStatus.WITHDRAWN, updated_at: new Date() },
       include: { project_positions: true },
     })) as any;
+
+    const applicant = await this.prisma.prisma().users.findUnique({
+      where: { id: app.applicant_id },
+      select: { email: true, profiles: { select: { display_name: true } } },
+    });
+
+    if (applicant?.email) {
+      await this.mail.sendTemplate(applicant?.email || "", 'application_withdrawn', 'en', {
+        applicant_name: applicant?.profiles?.display_name,
+        project_name: app.projects.title,
+        position_name: app.project_positions?.title,
+        status: updated.status,
+        app_name: process.env.APP_NAME,
+      });
+    }
+
+    const owner = await this.prisma.prisma().users.findUnique({
+      where: { id: app.projects.owner_id },
+      select: { email: true, profiles: { select: { display_name: true } } },
+    });
+
+    if (owner?.email) {
+      await this.mail.sendTemplate(owner.email, 'owner_application_withdrawn', 'en', {
+        owner_name: owner?.profiles?.display_name ?? owner?.email,
+        project_name: updated.projects?.title,
+        applicant_name: applicant?.profiles?.display_name ?? applicant?.email,
+        position_name: updated.project_positions?.title ?? null,
+        status: updated.status,
+        app_name: process.env.APP_NAME,
+      });
+    }
+
     return { ...updated, position: updated.project_positions };
   }
 
@@ -180,7 +250,10 @@ export class ProjectApplicationService {
           decided_at: new Date(),
           updated_at: new Date(),
         },
-        include: { project_positions: true },
+        include: {
+          project_positions: { select: { title: true } },
+          projects: { select: { title: true } },
+        },
       }) as any,
       ...(status === ApplicationStatus.ACCEPTED
         ? [
@@ -201,7 +274,24 @@ export class ProjectApplicationService {
         : []),
     ]);
 
+    const applicant = await this.prisma.prisma().users.findUnique({
+      where: { id: app.applicant_id },
+      select: { email: true, profiles: { select: { display_name: true } } },
+    });
+
     const updated = txn[0] as any;
+
+    if (applicant?.email) {
+      await this.mail.sendTemplate(applicant?.email || "", 'application_decided', 'en', {
+        applicant_name: applicant?.profiles?.display_name,
+        project_name: updated.projects?.title ?? app.project_id,
+        position_name: updated.project_positions?.title ?? null,
+        status,
+        decision_label: status === ApplicationStatus.ACCEPTED ? 'Accepted' : 'Rejected',
+        app_name: process.env.APP_NAME,
+      });
+    }
+
     return { ...updated, position: updated.project_positions };
   }
 
@@ -228,8 +318,27 @@ export class ProjectApplicationService {
         decided_at: new Date(),
         updated_at: new Date(),
       } as any,
-      include: { project_positions: true },
+      include: {
+        project_positions: { select: { title: true } },
+        projects: { select: { title: true } },
+      },
     })) as any;
+
+    const applicant = await this.prisma.prisma().users.findUnique({
+      where: { id: app.applicant_id },
+      select: { email: true, profiles: { select: { display_name: true } } },
+    });
+
+    if (applicant?.email) {
+      await this.mail.sendTemplate(applicant?.email || "", 'application_canceled', 'en', {
+        applicant_name: applicant?.profiles?.display_name,
+        project_name: updated.projects?.title ?? app.project_id,
+        position_name: updated.project_positions?.title ?? null,
+        status: updated.status,
+        app_name: process.env.APP_NAME,
+      });
+    }
+
     return { ...updated, position: updated.project_positions };
   }
 }

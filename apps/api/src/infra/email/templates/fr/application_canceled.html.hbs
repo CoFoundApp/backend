@@ -1,4 +1,15 @@
 {{#> layout}}
-<p>Votre candidature à <strong>{{project_title}}</strong> a été annulée.</p>
-<p><a href="{{cta_url}}" class="btn">Voir le projet</a></p>
+  <p>Bonjour, {{applicant_name}}</p>
+
+  <p>Votre candidature pour <strong>{{project_name}}</strong> a été <strong>annulée</strong> par le propriétaire du projet.</p>
+
+  {{#if position_name}}
+    <p><strong>Poste:</strong> {{position_name}}</p>
+  {{/if}}
+
+  <p><strong>Status:</strong> {{status}}</p>
+
+  <p>Si vous pensez qu'il s'agit d'une erreur ou si vous avez besoin de plus de détails, veuillez contacter le support.</p>
+
+  <p>Merci,<br/>L'équipe {{app_name}}</p>
 {{/layout}}

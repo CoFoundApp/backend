@@ -1,4 +1,20 @@
 {{#> layout}}
-<p><strong>{{actor_name}}</strong> a postulé à <strong>{{project_title}}</strong>.</p>
-<p><a href="{{cta_url}}" class="btn">Voir la candidature</a></p>
+  <p>Bonjour, {{applicant_name}}</p>
+
+  <p>Votre candidature pour <strong>{{project_name}}</strong> a été reçue.</p>
+
+  {{#if position_name}}
+    <p><strong>Poste:</strong> {{position_name}}</p>
+  {{/if}}
+
+  <p><strong>Status:</strong>
+    {{#if (eq status "PENDING")}}En attente d'examen{{/if}}
+    {{#if (eq status "ACCEPTED")}}Accepté{{/if}}
+    {{#if (eq status "REJECTED")}}Rejeté{{/if}}
+    {{#if (and (ne status "PENDING") (ne status "ACCEPTED") (ne status "REJECTED"))}}{{status}}{{/if}}
+  </p>
+
+  <p>Nous vous informerons dès qu'il y aura une mise à jour.</p>
+
+  <p>Merci,<br/>L'équipe {{app_name}}</p>
 {{/layout}}

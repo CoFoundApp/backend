@@ -12,6 +12,7 @@ import { ProfileVisibility } from '../../common/enums/domain.enums';
 import { EMBEDDING_PORT, EmbeddingPort, EMBEDDING_DIM } from '../embedding/embedding.port';
 import { toVectorLiteral } from '../../common/utils/vector.util';
 import { PrismaClient } from '@prisma/client';
+import { TemplateMailerService } from '../../infra/email/template-mailer.service';
 
 const BM25_WEIGHT = 0.6;
 const COSINE_WEIGHT = 0.4;
@@ -27,8 +28,14 @@ type DbLike = {
 export class ProjectService {
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(EMBEDDING_PORT) private readonly embedder: EmbeddingPort
+    @Inject(EMBEDDING_PORT) private readonly embedder: EmbeddingPort,
+    private readonly mail: TemplateMailerService,
 ) {}
+
+  private async safeSend(to: string | null | undefined, template: string, payload: Record<string, any>) {
+    if (!to) return;
+    try { await this.mail.sendTemplate(to, template, 'en', payload); } catch {}
+  }
 
   private async withEfSearch<T>(
     efSearch: number | undefined | null,
@@ -66,6 +73,18 @@ export class ProjectService {
         status: 'active',
       },
     });
+
+    // email owner
+    const owner = await this.prisma.prisma().users.findUnique({
+      where: { id: ownerId },
+      select: { email: true, profiles: { select: { display_name: true } } },
+    });
+    await this.safeSend(owner?.email, 'owner_project_created', {
+      app_name: process.env.APP_NAME,
+      project_title: project.title,
+      cta_url: `${process.env.APP_BASE_URL}/projects/${project.id}`,
+    });
+
     return project;
   }
 
@@ -93,13 +112,88 @@ export class ProjectService {
       visibility: input.visibility ? mapVisibilityToPrisma(input.visibility as ProfileVisibility) : undefined,
       updated_at: new Date(),
     };
+
+    const updated = await this.prisma.prisma().projects.update({ where: { id }, data });
+
+    // compute “changes” (liste de champs modifiés)
+    const changed: string[] = [];
+    for (const key of ['title','summary','description','industry','tags','status','stage','visibility']) {
+      const newVal = (data as any)[key];
+      if (newVal !== undefined) changed.push(key);
+    }
+
+    // emails
+    const [owner, memberIds] = await Promise.all([
+      this.prisma.prisma().users.findUnique({
+        where: { id: ownerId }, select: { email: true, profiles: { select: { display_name: true } } },
+      }),
+      this.prisma.prisma().project_members.findMany({
+        where: { project_id: id, status: 'active' }, select: { user_id: true },
+      }),
+    ]);
+
+    await this.safeSend(owner?.email, 'owner_project_updated', {
+      app_name: process.env.APP_NAME,
+      project_title: updated.title ?? existing.title,
+      changes: changed,
+      cta_url: `${process.env.APP_BASE_URL}/projects/${id}/settings`,
+    });
+
+    // notify members (excluding owner)
+    if (memberIds.length) {
+      const users = await this.prisma.prisma().users.findMany({
+        where: { id: { in: memberIds.map(m => m.user_id).filter(uid => uid !== ownerId) } },
+        select: { email: true },
+      });
+      for (const u of users) {
+        await this.safeSend(u.email, 'member_project_updated', {
+          app_name: process.env.APP_NAME,
+          project_title: updated.title ?? existing.title,
+          changes: changed,
+          cta_url: `${process.env.APP_BASE_URL}/projects/${id}`,
+        });
+      }
+    }
+
     return this.prisma.prisma().projects.update({ where: { id }, data });
   }
 
   async delete(id: string, ownerId: string) {
-    const existing = await this.prisma.prisma().projects.findUnique({ where: { id }, select: { owner_id: true } });
+    const existing = await this.prisma.prisma().projects.findUnique({
+      where: { id }, select: { owner_id: true, title: true },
+    });
     if (!existing) throw new NotFoundException('Project not found');
     if (existing.owner_id !== ownerId) throw new ForbiddenException('Not owner');
+
+    // fetch contacts
+    const [owner, memberIds] = await Promise.all([
+      this.prisma.prisma().users.findUnique({
+        where: { id: ownerId }, select: { email: true },
+      }),
+      this.prisma.prisma().project_members.findMany({
+        where: { project_id: id, status: 'active' }, select: { user_id: true },
+      }),
+    ]);
+
+    // send emails
+    await this.safeSend(owner?.email, 'owner_project_deleted', {
+      app_name: process.env.APP_NAME,
+      project_title: existing.title,
+    });
+
+    if (memberIds.length) {
+      const users = await this.prisma.prisma().users.findMany({
+        where: { id: { in: memberIds.map(m => m.user_id).filter(uid => uid !== ownerId) } },
+        select: { email: true },
+      });
+      for (const u of users) {
+        await this.safeSend(u.email, 'member_project_deleted', {
+          app_name: process.env.APP_NAME,
+          project_title: existing.title,
+        });
+      }
+    }
+
     await this.prisma.prisma().projects.delete({ where: { id } });
     return true;
   }

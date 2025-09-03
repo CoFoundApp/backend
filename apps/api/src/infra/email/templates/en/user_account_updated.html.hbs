@@ -1,0 +1,12 @@
+{{#> layout}}
+  <p>Hi,</p>
+  <p>Your <strong>{{app_name}}</strong> account settings were updated.</p>
+
+  <p><strong>Role:</strong> {{role}}<br/>
+     <strong>Status:</strong> {{status}}</p>
+
+  {{#if cta_url}}<p><a href="{{cta_url}}" class="btn">Open account</a></p>{{/if}}
+
+  <p>If you didn’t request this change, please contact support immediately.</p>
+  <p>Cheers,<br/>The {{app_name}} Team</p>
+{{/layout}}
