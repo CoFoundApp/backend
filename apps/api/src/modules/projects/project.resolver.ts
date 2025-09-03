@@ -8,12 +8,14 @@ import { CreateProjectInput } from './dto/create-project.input';
 import { UpdateProjectInput } from './dto/update-project.input';
 import { JobsService } from '../../queue/jobs.service';
 import { ProjectSearchHit } from './project-search-hit.type';
+import { UploadService } from '../upload/upload.service';
 
 @Resolver(() => Project)
 export class ProjectResolver {
   constructor(
     private readonly projects: ProjectService,
     private readonly jobs: JobsService,
+    private readonly uploads: UploadService,
   ) {}
 
   @UseGuards(GqlAuthGuard)
@@ -45,6 +47,17 @@ export class ProjectResolver {
   @Mutation(() => Project, { description: 'Créer un projet' })
   async createProject(@CurrentUser() user: JwtUser, @Args('input') input: CreateProjectInput) {
     if (!user) throw new UnauthorizedException();
+    if (input.attachments?.length) {
+      input.attachment_urls = await Promise.all(
+        input.attachments.map((f) => this.uploads.save(f)),
+      );
+    }
+    if (input.banner) {
+      input.banner_url = await this.uploads.save(input.banner);
+    }
+    if (input.avatar) {
+      input.avatar_url = await this.uploads.save(input.avatar);
+    }
     const p = await this.projects.create(user.sub, input);
     await this.jobs.enqueueRecomputeProjectDebounced(p.id);
     return p;
@@ -58,6 +71,17 @@ export class ProjectResolver {
     @Args('input') input: UpdateProjectInput,
   ) {
     if (!user) throw new UnauthorizedException();
+    if (input.attachments?.length) {
+      input.attachment_urls = await Promise.all(
+        input.attachments.map((f) => this.uploads.save(f)),
+      );
+    }
+    if (input.banner) {
+      input.banner_url = await this.uploads.save(input.banner);
+    }
+    if (input.avatar) {
+      input.avatar_url = await this.uploads.save(input.avatar);
+    }
     const p = await this.projects.update(id, user.sub, input);
     await this.jobs.enqueueRecomputeProjectDebounced(p.id);
     return p;

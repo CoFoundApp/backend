@@ -1,6 +1,7 @@
 import { InputType, Field } from '@nestjs/graphql';
 import { IsArray, IsIn, IsInt, IsOptional, IsString, IsUrl, Max, Min } from 'class-validator';
 import { LanguageCode, ProfileVisibility } from '../../../common/enums/domain.enums';
+import { FileUpload, GraphQLUpload } from 'graphql-upload-ts';
 
 @InputType()
 export class UpdateMyProfileInput {
@@ -40,10 +41,18 @@ export class UpdateMyProfileInput {
   @IsUrl()
   avatar_url?: string | null;
 
+  @Field(() => GraphQLUpload, { nullable: true })
+  @IsOptional()
+  avatar?: FileUpload;
+
   @Field(() => String, { nullable: true })
   @IsOptional()
   @IsUrl()
   banner_url?: string | null;
+
+  @Field(() => GraphQLUpload, { nullable: true })
+  @IsOptional()
+  banner?: FileUpload;
 
   @Field(() => String, { nullable: true })
   @IsOptional()

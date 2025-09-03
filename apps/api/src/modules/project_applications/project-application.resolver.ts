@@ -9,10 +9,14 @@ import {
 import { ProjectApplicationService } from './project-application.service';
 import { ApplyProjectInput } from './dto/apply-project.input';
 import { ApplicationStatus } from '../../common/enums/domain.enums';
+import { UploadService } from '../upload/upload.service';
 
 @Resolver(() => ProjectApplication)
 export class ProjectApplicationResolver {
-  constructor(private readonly applications: ProjectApplicationService) {}
+  constructor(
+    private readonly applications: ProjectApplicationService,
+    private readonly uploadService: UploadService,
+  ) {}
 
   @UseGuards(GqlAuthGuard)
   @Mutation(() => ProjectApplication, { description: 'Postuler à un projet' })
@@ -21,6 +25,11 @@ export class ProjectApplicationResolver {
     @Args('input') input: ApplyProjectInput,
   ) {
     if (!user) throw new UnauthorizedException();
+        if (input.attachments?.length) {
+      input.attachment_urls = await Promise.all(
+        input.attachments.map((f) => this.uploadService.save(f)),
+      );
+    }
     return this.applications.apply(user.sub, input);
   }
 

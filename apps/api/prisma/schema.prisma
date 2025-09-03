@@ -560,6 +560,7 @@ model project_applications {
   role                                           String?
   availability                                   Int?               @db.SmallInt
   links                                          String[]           @default([])
+  attachment_urls                                String[]           @default([])
   status                                         application_status @default(pending)
   decision_reason                                String?
   decided_by                                     String?            @db.Uuid
@@ -644,6 +645,9 @@ model projects {
   status               project_status           @default(draft)
   stage                project_stage            @default(idea)
   visibility           visibility               @default(public)
+  attachment_urls      String[]                 @default([])
+  banner_url           String?
+  avatar_url           String?
   embedding            Unsupported("vector")?
   search_tsv           Unsupported("tsvector")?
   created_at           DateTime                 @default(now()) @db.Timestamptz(6)
