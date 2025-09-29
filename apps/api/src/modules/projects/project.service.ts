@@ -6,6 +6,9 @@ import {
   mapProjectStatusToPrisma,
   mapProjectStageToPrisma,
   mapVisibilityToPrisma,
+  mapProjectStatusFromPrisma,
+  mapProjectStageFromPrisma,
+  mapVisibilityFromPrisma,
 } from '../../common/enums/enum-mapper';
 import { ProfileVisibility } from '../../common/enums/domain.enums';
 
@@ -13,12 +16,72 @@ import { EMBEDDING_PORT, EmbeddingPort, EMBEDDING_DIM } from '../embedding/embed
 import { toVectorLiteral } from '../../common/utils/vector.util';
 import { PrismaClient } from '@prisma/client';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
+import { ProjectListFiltersInput, ProjectListPageInput, ProjectListResult, ProjectListSortBy, ProjectListSortInput } from './dto/project-list.input';
+import { Project as GqlProject } from './project.type';
 
 const BM25_WEIGHT = 0.6;
 const COSINE_WEIGHT = 0.4;
 const VECTOR_DISTANCE_THRESHOLD = 0.6;
 const PRESELECT_FACTOR = 5;
 const EF_SEARCH = 40;
+
+type ProjectRow = {
+  id: string;
+  owner_id: string;
+  title: string;
+  summary: string | null;
+  description: string | null;
+  industry: string | null;
+  tags: string[] | null;
+  status: any;
+  stage: any;
+  visibility: any;
+  attachment_urls: string[] | null;
+  banner_url: string | null;
+  avatar_url: string | null;
+  created_at: Date;
+  updated_at: Date;
+
+  project_skills?: Array<{
+    skill_id: string;
+    skill?: { slug?: string | null; name?: string | null } | null;
+  }>;
+
+  project_interests?: Array<{
+    interest_id: string;
+    interest?: { slug?: string | null; name?: string | null } | null;
+  }>;
+};
+
+export function mapProjectRowToGql(row: ProjectRow): GqlProject {
+  const skills: string[] = (row.project_skills ?? [])
+    .map(ps => ps.skill?.slug ?? ps.skill?.name ?? ps.skill_id)
+    .filter(Boolean) as string[];
+
+  const interests: string[] = (row.project_interests ?? [])
+    .map(pi => pi.interest?.slug ?? pi.interest?.name ?? pi.interest_id)
+    .filter(Boolean) as string[];
+
+  return {
+    id: row.id,
+    owner_id: row.owner_id,
+    title: row.title,
+    summary: row.summary ?? null,
+    description: row.description ?? null,
+    industry: row.industry ?? null,
+    tags: row.tags ?? [],
+    status: mapProjectStatusFromPrisma(row.status),
+    stage: mapProjectStageFromPrisma(row.stage),
+    visibility: mapVisibilityFromPrisma(row.visibility),
+    attachment_urls: row.attachment_urls ?? [],
+    banner_url: row.banner_url ?? null,
+    avatar_url: row.avatar_url ?? null,
+    project_skills: skills,
+    project_interests: interests,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
 
 type DbLike = {
   $executeRawUnsafe: (query: string, ...params: any[]) => Promise<any>;
@@ -62,6 +125,8 @@ export class ProjectService {
       status: input.status ? mapProjectStatusToPrisma(input.status) : undefined,
       stage: input.stage ? mapProjectStageToPrisma(input.stage) : undefined,
       visibility: input.visibility ? mapVisibilityToPrisma(input.visibility as ProfileVisibility) : undefined,
+      project_skills: Array.isArray(input.project_skills) ? input.project_skills : [],
+      project_interests: Array.isArray(input.project_interests) ? input.project_interests : [],
       attachment_urls: Array.isArray(input.attachment_urls) ? input.attachment_urls : [],
       banner_url: input.banner_url ?? null,
       avatar_url: input.avatar_url ?? null,
@@ -91,12 +156,48 @@ export class ProjectService {
     return project;
   }
 
-  async findById(id: string) {
-    return this.prisma.prisma().projects.findUnique({ where: { id } });
+  async findById(id: string): Promise<ProjectRow | null> {
+    return this.prisma.prisma().projects.findUnique({
+      where: { id },
+      include: {
+        project_skills: {
+          include: {
+            skills: {
+              select: { slug: true, name: true }
+            }
+          }
+        },
+        project_interests: {
+          include: {
+            interests: {
+              select: { slug: true, name: true }
+            }
+          }
+        }
+      }
+    }) as Promise<ProjectRow | null>;
   }
 
-  async listByOwner(ownerId: string) {
-    return this.prisma.prisma().projects.findMany({ where: { owner_id: ownerId } });
+  async listByOwner(ownerId: string): Promise<ProjectRow[]> {
+    return this.prisma.prisma().projects.findMany({
+      where: { owner_id: ownerId },
+      include: {
+        project_skills: {
+          include: {
+            skills: {
+              select: { slug: true, name: true }
+            }
+          }
+        },
+        project_interests: {
+          include: {
+            interests: {
+              select: { slug: true, name: true }
+            }
+          }
+        }
+      }
+    }) as Promise<ProjectRow[]>;
   }
 
   async update(id: string, ownerId: string, input: UpdateProjectInput) {
@@ -114,6 +215,8 @@ export class ProjectService {
       stage: input.stage ? mapProjectStageToPrisma(input.stage) : undefined,
       visibility: input.visibility ? mapVisibilityToPrisma(input.visibility as ProfileVisibility) : undefined,
       attachment_urls: Array.isArray(input.attachment_urls) ? input.attachment_urls : undefined,
+      project_skills: Array.isArray(input.project_skills) ? input.project_skills : undefined,
+      project_interests: Array.isArray(input.project_interests) ? input.project_interests : undefined,
       banner_url: input.banner_url ?? undefined,
       avatar_url: input.avatar_url ?? undefined,
       updated_at: new Date(),
@@ -298,5 +401,106 @@ export class ProjectService {
 
     results.sort((a, b) => b.score - a.score);
     return results.slice(0, k);
+  }
+
+  async listProjects(
+    filters?: ProjectListFiltersInput,
+    sort?: ProjectListSortInput,
+    page?: ProjectListPageInput,
+  ): Promise<ProjectListResult> {
+    const pg = {
+      page: Math.max(1, page?.page ?? 1),
+      pageSize: Math.min(100, Math.max(1, page?.pageSize ?? 20)),
+    };
+    const skip = (pg.page - 1) * pg.pageSize;
+    const take = pg.pageSize;
+
+    // WHERE
+    const where: any = {};
+
+    // visibilities: défaut public+unlisted
+    const vis = (filters?.visibilities?.length
+      ? filters.visibilities
+      : ['public', 'unlisted']) as any[];
+    where.visibility = { in: vis.map(v => mapVisibilityToPrisma(v)) };
+
+    if (filters?.stages?.length) {
+      where.stage = { in: filters.stages.map(s => mapProjectStageToPrisma(s)) };
+    }
+    if (filters?.statuses?.length) {
+      where.status = { in: filters.statuses.map(s => mapProjectStatusToPrisma(s)) };
+    }
+    if (filters?.industries?.length) {
+      where.industry = { in: filters.industries };
+    }
+    if (filters?.ownerIds?.length) {
+      where.owner_id = { in: filters.ownerIds };
+    }
+    if (filters?.tagsAny?.length) {
+      where.tags = { hasSome: filters.tagsAny };
+    }
+    if (filters?.skillsAny?.length) {
+      where.project_skills = { hasSome: filters.skillsAny };
+    }
+    if (filters?.skillsAll?.length) {
+      where.project_skills = { ...(where.project_skills ?? {}), hasEvery: filters.skillsAll };
+    }
+    if (filters?.interestsAny?.length) {
+      where.project_interests = { hasSome: filters.interestsAny };
+    }
+    if (filters?.createdFrom || filters?.createdTo) {
+      where.created_at = {};
+      if (filters.createdFrom) where.created_at.gte = filters.createdFrom;
+      if (filters.createdTo) where.created_at.lt = filters.createdTo;
+    }
+    if (filters?.updatedFrom || filters?.updatedTo) {
+      where.updated_at = {};
+      if (filters.updatedFrom) where.updated_at.gte = filters.updatedFrom;
+      if (filters.updatedTo) where.updated_at.lt = filters.updatedTo;
+    }
+    if (typeof filters?.hasAttachment === 'boolean') {
+      where.attachment_urls = filters.hasAttachment ? { isEmpty: false } : { isEmpty: true };
+    }
+    if (typeof filters?.hasBanner === 'boolean') {
+      where.banner_url = filters.hasBanner ? { not: null } : null;
+    }
+    if (typeof filters?.hasAvatar === 'boolean') {
+      where.avatar_url = filters.hasAvatar ? { not: null } : null;
+    }
+
+    // ORDER BY
+    let orderBy: any = { created_at: 'desc' as const };
+    if (sort) {
+      if (sort.by === ProjectListSortBy.CREATED_AT) orderBy = { created_at: sort.direction };
+      else if (sort.by === ProjectListSortBy.UPDATED_AT) orderBy = { updated_at: sort.direction };
+      else if (sort.by === ProjectListSortBy.TITLE) orderBy = { title: sort.direction };
+    }
+
+    const [total, rows] = await Promise.all([
+      this.prisma.prisma().projects.count({ where }),
+      this.prisma.prisma().projects.findMany({
+        where,
+        orderBy,
+        skip,
+        take,
+        include: {
+          project_skills: {
+            select: {
+              skill_id: true,
+              skills: { select: { slug: true, name: true } },
+            },
+          },
+          project_interests: {
+            select: {
+              interest_id: true,
+              interests: { select: { slug: true, name: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const items = rows.map(mapProjectRowToGql);
+    return { items, total, page: pg.page, pageSize: pg.pageSize };
   }
 }
