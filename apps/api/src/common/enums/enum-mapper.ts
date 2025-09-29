@@ -61,3 +61,9 @@ export const mapNotificationTypeToPrisma = (s: NotificationType): any => {
 export const mapEmailFrequencyToPrisma = (s: EmailFrequency): any => {
   return s as unknown as any;
 };
+
+export const mapProjectStatusFromPrisma = (s: any) => s as unknown as ProjectStatus;
+
+export const mapProjectStageFromPrisma  = (s: any) => s as unknown as ProjectStage;
+
+export const mapVisibilityFromPrisma    = (v: any) => v as unknown as ProfileVisibility;

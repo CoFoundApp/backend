@@ -29,7 +29,7 @@ function parseTTLToSeconds(str: string | undefined, defSeconds: number): number 
 export class AuthService {
   private accessSecret = process.env.JWT_ACCESS_SECRET || 'dev-access';
   private refreshSecret = process.env.JWT_REFRESH_SECRET || 'dev-refresh';
-  private accessTtl = process.env.JWT_ACCESS_TTL || '900s';
+  private accessTtl = process.env.JWT_ACCESS_TTL || '15m';
   private refreshTtl = process.env.JWT_REFRESH_TTL || '30d';
   private refreshTtlSec = parseTTLToSeconds(this.refreshTtl, 30 * 86400);
 
@@ -82,32 +82,53 @@ export class AuthService {
   }
 
   async refresh(userId: string, jti: string, role: string) {
-    // Vérifie que le refresh JTI est encore valide dans Redis
+    console.log('🔄 Refresh attempt:', { userId, jti, role });
+
     const key = `rt:${jti}`;
-    const val = await this.redis.get(key);
-    if (val !== userId) throw new UnauthorizedException('Refresh token revoked');
+    const storedUserId = await this.redis.get(key);
+
+    console.log('🔍 Redis check:', { key, storedUserId, expectedUserId: userId });
+
+    if (storedUserId !== userId) {
+      console.log('❌ Refresh token invalid or revoked');
+      throw new UnauthorizedException('Refresh token revoked or invalid');
+    }
+
     await this.redis.del(key);
-    return this.issueTokens(userId, role);
+    console.log('🗑️ Old refresh token deleted');
+
+    const newTokens = await this.issueTokens(userId, role);
+    console.log('✅ New tokens issued');
+
+    return newTokens;
   }
 
   async logout(jti: string) {
-    await this.redis.del(`rt:${jti}`);
+    console.log('🚪 Logout JTI:', jti);
+    const key = `rt:${jti}`;
+    const result = await this.redis.del(key);
+    console.log('🗑️ Refresh token deleted:', { key, result });
     return true;
   }
 
   // --- helpers ---
   private async issueTokens(userId: string, role: string) {
-    const accessToken = jwt.sign({ sub: userId, role }, this.accessSecret, {
-      expiresIn: parseTTLToSeconds(this.accessTtl, 900),
-    } as SignOptions);
+    const accessToken = jwt.sign(
+      { sub: userId, role },
+      this.accessSecret,
+      { expiresIn: this.accessTtl } as SignOptions
+    );
 
     const jti = randomUUID();
-    const refreshToken = jwt.sign({ sub: userId, role, jti }, this.refreshSecret, {
-      expiresIn: parseTTLToSeconds(this.refreshTtl, 30 * 86400),
-    } as SignOptions);
+    const refreshToken = jwt.sign(
+      { sub: userId, role, jti },
+      this.refreshSecret,
+      { expiresIn: this.refreshTtl } as SignOptions
+    );
 
-    // allowlist du refresh dans Redis (TTL)
-    await this.redis.setex(`rt:${jti}`, this.refreshTtlSec, userId);
+    const key = `rt:${jti}`;
+    await this.redis.setex(key, this.refreshTtlSec, userId);
+    console.log('💾 Refresh token stored:', { key, userId, ttl: this.refreshTtlSec });
 
     return { accessToken, refreshToken };
   }
