@@ -19,14 +19,30 @@ async function bootstrap() {
   app.enableCors({
     origin: allowedOrigin === '*' ? true : allowedOrigin.split(','),
     credentials: true,
+    methods: ['GET','POST','OPTIONS'],
+    allowedHeaders: ['Content-Type','Authorization'],
   });
 
   app.use(cookieParser(process.env.COOKIE_SECRET));
 
-  app.use(helmet({
-    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
-    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
-  }));
+  const cspDirectives = helmet.contentSecurityPolicy.getDefaultDirectives();
+  app.use(
+    helmet({
+      contentSecurityPolicy:
+        process.env.NODE_ENV === 'production'
+          ? {
+              directives: {
+                ...cspDirectives,
+                'img-src': ["'self'", 'data:', 'https://cdn.jsdelivr.net'],
+                'script-src': ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+                'style-src': ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+                'connect-src': ["'self'", 'https://cdn.jsdelivr.net'],
+              },
+            }
+          : false,
+      crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    }),
+  );
 
   const bodyLimit = process.env.BODY_LIMIT || '1mb';
   app.use(json({ limit: bodyLimit }));
@@ -35,12 +51,14 @@ async function bootstrap() {
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
   app.use(compression());
 
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-    transformOptions: { enableImplicitConversion: true },
-  }));
+   app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
 
   const adapter = new RedisIoAdapter(app);
   await adapter.connectToRedis();
