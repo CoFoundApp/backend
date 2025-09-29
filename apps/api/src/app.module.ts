@@ -7,7 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthResolver } from './health.resolver';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { RlsInterceptor } from './infra/prisma/rls.interceptor';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -34,6 +34,7 @@ import { NotificationModule } from './modules/notifications/notification.module'
 import { EmailModule } from './infra/email/email.module';
 import { ConversationModule } from './modules/conversation/conversation.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { SessionGuard } from './modules/auth/guards/session.guard';
 
 @Module({
   imports: [
@@ -98,7 +99,7 @@ import { UploadModule } from './modules/upload/upload.module';
   providers: [
     AppService,
     HealthResolver,
-    { provide: APP_INTERCEPTOR, useClass: RlsInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: RlsInterceptor }
   ],
 })
 export class AppModule {}

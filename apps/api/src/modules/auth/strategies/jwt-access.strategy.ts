@@ -11,7 +11,10 @@ const cookieExtractor = (req: Request): string | null =>
 export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor() {
     super({
-      jwtFromRequest: ExtractJwt.fromExtractors([cookieExtractor]),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        cookieExtractor,
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       secretOrKey: process.env.JWT_ACCESS_SECRET || 'dev-access',
       ignoreExpiration: false,
     });
