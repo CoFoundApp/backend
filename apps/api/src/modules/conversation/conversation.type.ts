@@ -55,7 +55,7 @@ export class Conversation {
   updated_at!: Date;
 
   @Field(() => Message, { nullable: true })
-  last_message?: Message | null;
+  last_message_at?: Message | null;
 
   @Field(() => [ConversationParticipant])
   participants!: ConversationParticipant[];
