@@ -4,7 +4,7 @@ import { Interest } from './types/interest.type';
 import { CreateInterestInput } from './dto/create-interest.input';
 import { ListArgs } from './dto/list.args';
 import { UseGuards } from '@nestjs/common';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { JobsService } from '../../queue/jobs.service';
@@ -32,14 +32,14 @@ export class InterestsResolver {
   }
 
   // create
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Interest, { description: 'Créer un nouvel intérêt' })
   async createInterest(@Args('input') input: CreateInterestInput) {
     return this.interests.adminCreateInterest(input);
   }
 
   // Admin set user interests by slugs
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => Boolean, {
     description:
@@ -58,7 +58,7 @@ export class InterestsResolver {
   }
 
   // Authenticated: set interests for the current user
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Boolean, {
     description: 'Replace current user interests with provided IDs',
   })

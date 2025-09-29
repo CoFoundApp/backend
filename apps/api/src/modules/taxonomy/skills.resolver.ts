@@ -4,7 +4,7 @@ import { Skill } from './types/skill.type';
 import { CreateSkillInput } from './dto/create-skill.input';
 import { ListArgs } from './dto/list.args';
 import { UseGuards } from '@nestjs/common';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { JobsService } from '../../queue/jobs.service';
@@ -33,14 +33,14 @@ export class SkillsResolver {
   }
 
   // Admin create
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Skill, { description: 'Créer un nouvel skill' })
   async createSkill(@Args('input') input: CreateSkillInput) {
     return this.skills.adminCreateSkill(input);
   }
 
   // Admin set user skills
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => Boolean, { description: 'Admin: set user skills by IDs' })
   adminSetUserSkills(
@@ -52,7 +52,7 @@ export class SkillsResolver {
   }
 
   // Admin set user skills by slugs and enqueue profile embedding recompute
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => Boolean, {
     description:
@@ -71,7 +71,7 @@ export class SkillsResolver {
   }
 
   // Authenticated: set skills for the current user
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Boolean, {
     description: 'Replace current user skills with provided IDs',
   })

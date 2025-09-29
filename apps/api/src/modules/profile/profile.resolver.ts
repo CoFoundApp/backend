@@ -1,6 +1,6 @@
 import { Resolver, Query, Args, Mutation, Int, ResolveField, Parent } from '@nestjs/graphql';
 import { UseGuards, UnauthorizedException, forwardRef, Inject } from '@nestjs/common';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
@@ -41,7 +41,7 @@ export class ProfileResolver {
   }
 
   /** Admin: listing des profils */
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Query(() => [Profile], { description: 'admin: Listing des profils' })
   async adminListProfiles(
@@ -51,7 +51,7 @@ export class ProfileResolver {
   }
 
   /** Moi: lire mon profil (créé s'il n'existe pas) */
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => Profile, { description: 'Lecture de mon profil' })
   async myProfile(@CurrentUser() user: JwtUser) {
     if (!user) throw new UnauthorizedException();
@@ -59,7 +59,7 @@ export class ProfileResolver {
   }
 
   /** Moi: mise à jour de mon profil */
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Profile, { description: 'Mise à jour de mon profil' })
   async updateMyProfile(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyProfileInput) {
     if (!user) throw new UnauthorizedException();
@@ -96,7 +96,7 @@ export class ProfileResolver {
   }
 
   // Mise à jour de mes compétences
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Mise à jour de mes compétences' })
   async updateMySkills(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMySkillsInput) {
     if (!user) throw new UnauthorizedException();
@@ -107,7 +107,7 @@ export class ProfileResolver {
   }
 
   // Mise à jour de mes intérêts
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Mise à jour de mes intérêts' })
   async updateMyInterests(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyInterestsInput) {
     if (!user) throw new UnauthorizedException();
@@ -117,7 +117,7 @@ export class ProfileResolver {
   }
 
   // Admin: s'assurer qu'un profil existe
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => Boolean, { description: 'Admin: S’assurer qu’un profil existe' })
   adminEnsureProfile(@Args('userId', { type: () => String }) userId: string) {
@@ -125,7 +125,7 @@ export class ProfileResolver {
   }
 
   // Admin: Changer la visibilité d'un profil
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => Boolean, { description: 'Admin: Changer la visibilité d\'un profil' })
   adminSetProfileVisibility(

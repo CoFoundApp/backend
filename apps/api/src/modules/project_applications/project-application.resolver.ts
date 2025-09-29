@@ -1,6 +1,6 @@
 import { Resolver, Mutation, Args, Query } from '@nestjs/graphql';
 import { UseGuards, UnauthorizedException } from '@nestjs/common';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import {
   ProjectApplication,
@@ -18,7 +18,7 @@ export class ProjectApplicationResolver {
     private readonly uploadService: UploadService,
   ) {}
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => ProjectApplication, { description: 'Postuler à un projet' })
   async applyToProject(
     @CurrentUser() user: JwtUser,
@@ -33,7 +33,7 @@ export class ProjectApplicationResolver {
     return this.applications.apply(user.sub, input);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => ProjectApplicationList, { description: 'Lister mes candidatures à un projet' })
   async projectApplications(
     @CurrentUser() user: JwtUser,
@@ -56,7 +56,7 @@ export class ProjectApplicationResolver {
     );
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => ProjectApplication, { description: 'Décider d\'une candidature à un projet' })
   async decideProjectApplication(
     @CurrentUser() user: JwtUser,
@@ -69,7 +69,7 @@ export class ProjectApplicationResolver {
     return this.applications.decide(user.sub, id, status, positionId ?? undefined);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => ProjectApplication, { description: 'Retirer une candidature à un projet' })
   async withdrawProjectApplication(
     @CurrentUser() user: JwtUser,
@@ -79,7 +79,7 @@ export class ProjectApplicationResolver {
     return this.applications.withdraw(user.sub, id);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => ProjectApplication, { description: 'Annuler une candidature à un projet' })
   async cancelProjectApplication(
     @CurrentUser() user: JwtUser,
