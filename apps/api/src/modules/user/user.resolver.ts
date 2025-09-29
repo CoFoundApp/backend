@@ -2,7 +2,7 @@ import { Resolver, Query, Args, Mutation, Int, ResolveField, Parent } from '@nes
 import { forwardRef, Inject, UseGuards } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { UserService } from './user.service';
 import { User } from './user.type';
 import { CreateUserInput } from './dto/create-user.input';
@@ -19,7 +19,7 @@ export class UserResolver {
   ) {}
 
   /** Admin: liste des utilisateurs */
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Query(() => [User], { description: 'Admin: liste des utilisateurs' })
   async listUsers(
@@ -29,7 +29,7 @@ export class UserResolver {
   }
 
   /** Admin: création utilisateur */
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => User, { description: 'Admin: création utilisateur' })
   async createUser(@Args('input') input: CreateUserInput) {
@@ -37,7 +37,7 @@ export class UserResolver {
   }
 
   /** Admin: mise à jour utilisateur */
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => User, { description: 'Admin: mise à jour role/status' })
   async updateUser(@Args('input') input: UpdateUserInput) {

@@ -1,6 +1,6 @@
 import { Args, Context, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { UnauthorizedException, UseGuards } from '@nestjs/common';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { ConsentService } from './consent.service';
 import { SetConsentInput } from './dto/consent.dto';
@@ -10,7 +10,7 @@ import { ConsentCurrent, ConsentRecord } from './consent.types';
 export class ConsentResolver {
   constructor(private readonly consents: ConsentService) {}
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => ConsentRecord, { description: 'Créer un enregistrement de consentement (historisé)' })
   async setMyConsent(
     @CurrentUser() user: JwtUser,
@@ -35,13 +35,13 @@ export class ConsentResolver {
     });
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => [ConsentCurrent], { description: 'État courant de mes consentements (dernier par type)' })
   async myCurrentConsents(@CurrentUser() user: JwtUser) {
     return this.consents.getCurrentConsents(user.sub);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => [ConsentRecord], { description: 'Historique de mes consentements (optionnellement par type)' })
   async myConsentHistory(
     @CurrentUser() user: JwtUser,

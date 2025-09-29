@@ -1,6 +1,6 @@
 import { Resolver, Query, Args, Int } from '@nestjs/graphql';
 import { UseGuards, UnauthorizedException } from '@nestjs/common';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { MatchingService } from './matching.service';
 import { MatchRecommendation } from './types/match-recommendation.type';
@@ -13,7 +13,7 @@ export class MatchingResolver {
   constructor(private readonly matching: MatchingService) {}
 
   // Suggestions de profils pour moi
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => [MatchRecommendation], { description: 'Suggestions de profils pour moi (hybride sémantique + métier)' })
   async suggestProfilesForMe(
     @CurrentUser() user: JwtUser,
@@ -25,13 +25,13 @@ export class MatchingResolver {
     return this.matching.suggestProfilesForUser(user.sub, limit ?? 20, preselect ?? 200, maxDistance ?? 0.4);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => ProfileMatchConnection, { description: 'Matcher des profils selon divers critères' })
   async matchProfiles(@Args('input') input: MatchProfilesInput): Promise<ProfileMatchConnection> {
     return this.matching.matchProfiles(input);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => ProjectMatchConnection, { description: 'Matcher des projets selon divers critères' })
   async matchProjects(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
     return this.matching.matchProjects(input);
