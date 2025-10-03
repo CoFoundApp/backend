@@ -5,12 +5,15 @@ import { FileUpload, GraphQLUpload } from 'graphql-upload-ts';
 @InputType()
 export class ApplyProjectInput {
   @Field(() => String)
+  @IsString()
   project_id!: string;
 
   @Field(() => String, { nullable: true })
+  @IsString()
   note?: string;
 
   @Field(() => String, { nullable: true })
+  @IsString()
   position_id?: string;
 
   @Field(() => [String], { nullable: true })

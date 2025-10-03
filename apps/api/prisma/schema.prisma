@@ -536,6 +536,64 @@ model profiles {
   @@index([embedding], map: "hnsw_profiles_embedding")
 }
 
+/// Expériences professionnelles
+model work_experiences {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String    @db.Uuid
+  title        String
+  company      String
+  start_date   DateTime  @db.Date
+  end_date     DateTime? @db.Date
+  is_current   Boolean   @default(false)
+  description  String?
+  location     String?
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime  @default(now()) @db.Timestamptz(6)
+
+  users        users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([user_id])
+}
+
+/// Formations et études
+model educations {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String    @db.Uuid
+  school        String
+  degree        String?
+  field_of_study String?
+  start_date    DateTime  @db.Date
+  end_date      DateTime? @db.Date
+  is_current    Boolean   @default(false)
+  grade         String?
+  description   String?
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+
+  users         users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([user_id])
+}
+
+/// Expériences hors professionnelles
+model volunteer_experiences {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String    @db.Uuid
+  title         String
+  organization  String
+  start_date    DateTime  @db.Date
+  end_date      DateTime? @db.Date
+  is_current    Boolean   @default(false)
+  cause         String?
+  description   String?
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+
+  users         users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([user_id])
+}
+
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model progress {
   id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -557,7 +615,7 @@ model project_applications {
   position_id                                    String?            @db.Uuid
   applicant_id                                   String             @db.Uuid
   message                                        String?
-  role                                           String?
+  note                                           String?
   availability                                   Int?               @db.SmallInt
   links                                          String[]           @default([])
   attachment_urls                                String[]           @default([])
@@ -891,6 +949,9 @@ model users {
   user_badges                                                   user_badges[]
   user_interests                                                user_interests[]
   user_skills                                                   user_skills[]
+  work_experiences                                              work_experiences[]
+  educations                                                    educations[]
+  volunteer_experiences                                         volunteer_experiences[]
 }
 
 enum application_status {

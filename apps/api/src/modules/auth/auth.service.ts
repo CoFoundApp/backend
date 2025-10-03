@@ -82,32 +82,55 @@ export class AuthService {
   }
 
   async refresh(userId: string, jti: string, role: string) {
-    console.log('🔄 Refresh attempt:', { userId, jti, role });
+    console.log('🔄 Refresh attempt:', { userId, jti, role, timestamp: new Date().toISOString() });
 
     const key = `rt:${jti}`;
     const storedUserId = await this.redis.get(key);
+    const ttl = await this.redis.ttl(key);
 
-    console.log('🔍 Redis check:', { key, storedUserId, expectedUserId: userId });
+    console.log('🔍 Redis check:', {
+      key,
+      storedUserId,
+      expectedUserId: userId,
+      found: !!storedUserId,
+      match: storedUserId === userId,
+      ttl: ttl > 0 ? `${ttl}s (${(ttl / 86400).toFixed(2)} days)` : ttl === -1 ? 'no expiration' : 'not found'
+    });
+
+    if (!storedUserId) {
+      console.log('❌ Refresh token NOT FOUND in Redis (expired or never existed)');
+      throw new UnauthorizedException('Refresh token expired or invalid');
+    }
 
     if (storedUserId !== userId) {
-      console.log('❌ Refresh token invalid or revoked');
+      console.log('❌ Refresh token user mismatch (possible token reuse attack)');
       throw new UnauthorizedException('Refresh token revoked or invalid');
     }
 
+    // Supprime l'ancien token (rotation)
     await this.redis.del(key);
-    console.log('🗑️ Old refresh token deleted');
+    console.log('🗑️ Old refresh token deleted from Redis');
 
+    // Génère de nouveaux tokens
     const newTokens = await this.issueTokens(userId, role);
-    console.log('✅ New tokens issued');
+    console.log('✅ New tokens issued successfully');
 
     return newTokens;
   }
 
   async logout(jti: string) {
-    console.log('🚪 Logout JTI:', jti);
     const key = `rt:${jti}`;
+
+    const exists = await this.redis.get(key);
+
+    if (!exists) {
+      console.log('⚠️ Warning: Token was already missing from Redis');
+    }
+
     const result = await this.redis.del(key);
-    console.log('🗑️ Refresh token deleted:', { key, result });
+
+    const stillExists = await this.redis.get(key);
+
     return true;
   }
 
@@ -128,7 +151,6 @@ export class AuthService {
 
     const key = `rt:${jti}`;
     await this.redis.setex(key, this.refreshTtlSec, userId);
-    console.log('💾 Refresh token stored:', { key, userId, ttl: this.refreshTtlSec });
 
     return { accessToken, refreshToken };
   }

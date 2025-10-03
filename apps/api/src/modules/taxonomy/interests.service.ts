@@ -103,7 +103,7 @@ export class InterestsService {
   }
 
   // Ajout d'un embedding interet
-  async setInterestEmbedding(interestId: string, vec: number[], dim = 1536) {
+  async setInterestEmbedding(interestId: string, vec: number[], dim = 1024) {
     const lit = toVectorLiteral(vec, dim);
     await this.prisma.prisma().$executeRawUnsafe(
       `UPDATE interests SET embedding = '${lit}'::vector WHERE id = $1`,
@@ -113,7 +113,7 @@ export class InterestsService {
   }
 
   // Recherche d'intérêts par embedding
-  async searchInterestsByEmbedding(vec: number[], limit = 10, dim = 1536) {
+  async searchInterestsByEmbedding(vec: number[], limit = 10, dim = 1024) {
     const lit = toVectorLiteral(vec, dim);
     return this.prisma.prisma().$queryRawUnsafe<
       Array<{ id: string; name: string; category: string | null; slug: string | null; distance: number }>

@@ -9,7 +9,7 @@ import { GqlRefreshGuard } from './guards/gql-refresh.guard';
 import { CurrentUser, JwtUser } from './current-user.decorator';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
-import { buildAuthSetCookies, buildAuthClearCookies } from '../../common/utils/cookies.util';
+import { buildAuthSetCookies, clearAuthCookies, setAuthCookies } from '../../common/utils/cookies.util';
 
 @Resolver()
 export class AuthResolver {
@@ -22,13 +22,11 @@ export class AuthResolver {
 
   @Mutation(() => TokensOutput, { description: 'Login + set cookies' })
   async login(@Args('input') input: LoginInput, @Context() ctx: any): Promise<TokensOutput> {
-    console.log('🚪 Login attempt for:', input.email);
 
     const { accessToken, refreshToken } = await this.auth.login(input);
-    const setCookies = buildAuthSetCookies(ctx.req, { accessToken, refreshToken });
-    setCookies.forEach((c: any) => ctx.res.append('Set-Cookie', c));
 
-    console.log('✅ Login successful, cookies set');
+    setAuthCookies(ctx.res, ctx.req, { accessToken, refreshToken });
+
     return { accessToken, refreshToken };
   }
 
@@ -47,20 +45,19 @@ export class AuthResolver {
     return { accessToken, refreshToken };
   }
 
-  @Mutation(() => Boolean, { description: 'Logout (clear cookies)' })
-  @UseGuards(GqlRefreshGuard)
+  @Mutation(() => Boolean)
+  @UseGuards(SessionGuard)
   async logout(@CurrentUser() user: JwtUser, @Context() ctx: any): Promise<boolean> {
-    console.log('🚪 Logout for user:', user?.sub, 'JTI:', user?.jti);
-
-    if (user?.jti) {
-      await this.auth.logout(user.jti);
+    try {
+      if (user?.jti) {
+        await this.auth.logout(user.jti);
+      }
+      clearAuthCookies(ctx.res, ctx.req);
+      return true;
+    } catch (error) {
+      clearAuthCookies(ctx.res, ctx.req);
+      return true;
     }
-
-    const clears = buildAuthClearCookies(ctx.req);
-    clears.forEach((c: any) => ctx.res.append('Set-Cookie', c));
-
-    console.log('✅ Logout completed, cookies cleared');
-    return true;
   }
 
   @Query(() => String, { description: 'Who am I (requires access cookie)' })

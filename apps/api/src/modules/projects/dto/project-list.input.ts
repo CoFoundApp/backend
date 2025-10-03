@@ -1,6 +1,7 @@
-import { InputType, Field, Int, registerEnumType, ObjectType } from '@nestjs/graphql';
-import { ProjectStage, ProjectStatus, ProfileVisibility } from '../../../common/enums/domain.enums';
+import { InputType, Field, Int, registerEnumType, ObjectType, Float } from '@nestjs/graphql';
+import { ProjectStage, ProjectStatus } from '../../../common/enums/domain.enums';
 import { Project } from '../project.type';
+import { IsEnum, IsOptional, IsDateString } from 'class-validator';
 
 export enum ProjectListSortBy {
   CREATED_AT = 'CREATED_AT',
@@ -11,61 +12,45 @@ registerEnumType(ProjectListSortBy, { name: 'ProjectListSortBy' });
 
 @InputType()
 export class ProjectListFiltersInput {
-  @Field(() => [ProfileVisibility], { nullable: true })
-  visibilities?: ProfileVisibility[]; // défaut: ['public','unlisted']
-
   @Field(() => [ProjectStage], { nullable: true })
+  @IsOptional()
+  @IsEnum(ProjectStage, { each: true })
   stages?: ProjectStage[];
 
   @Field(() => [ProjectStatus], { nullable: true })
+  @IsOptional()
+  @IsEnum(ProjectStatus, { each: true })
   statuses?: ProjectStatus[];
 
-  @Field(() => [String], { nullable: true })
-  industries?: string[];
-
-  @Field(() => [String], { nullable: true })
-  tagsAny?: string[];       // au moins un des tags
-
-  @Field(() => [String], { nullable: true })
-  skillsAny?: string[];     // au moins une skill
-
-  @Field(() => [String], { nullable: true })
-  skillsAll?: string[];     // doit contenir toutes ces skills
-
-  @Field(() => [String], { nullable: true })
-  interestsAny?: string[];
-
-  @Field(() => [String], { nullable: true })
-  ownerIds?: string[];
-
   @Field({ nullable: true })
+  @IsOptional()
+  @IsDateString()
   createdFrom?: Date;
 
   @Field({ nullable: true })
+  @IsOptional()
+  @IsDateString()
   createdTo?: Date;
 
   @Field({ nullable: true })
+  @IsOptional()
+  @IsDateString()
   updatedFrom?: Date;
 
   @Field({ nullable: true })
+  @IsOptional()
+  @IsDateString()
   updatedTo?: Date;
-
-  @Field({ nullable: true })
-  hasAttachment?: boolean;
-
-  @Field({ nullable: true })
-  hasBanner?: boolean;
-
-  @Field({ nullable: true })
-  hasAvatar?: boolean;
 }
 
 @InputType()
 export class ProjectListSortInput {
   @Field(() => ProjectListSortBy, { defaultValue: ProjectListSortBy.CREATED_AT })
+  @IsEnum(ProjectListSortBy)
   by!: ProjectListSortBy;
 
   @Field({ defaultValue: 'desc' })
+  @IsEnum(['asc', 'desc'])
   direction!: 'asc' | 'desc';
 }
 

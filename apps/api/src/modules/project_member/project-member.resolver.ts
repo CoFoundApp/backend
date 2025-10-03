@@ -1,10 +1,11 @@
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ResolveField, Parent } from '@nestjs/graphql';
 import { UseGuards, UnauthorizedException } from '@nestjs/common';
 import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { ProjectMember, ProjectInvitation } from './project-member.type';
 import { ProjectMemberService } from './project-member.service';
 import { MemberRole } from '../../common/enums/domain.enums';
+import { User } from '../user/user.type';
 
 @Resolver(() => ProjectMember)
 export class ProjectMemberResolver {
@@ -95,5 +96,10 @@ export class ProjectMemberResolver {
   ) {
     if (!user) throw new UnauthorizedException();
     return this.members.updateRole(user.sub, projectId, userId, role);
+  }
+
+  @ResolveField(() => User)
+  async users(@Parent() member: ProjectMember) {
+    return member.users;
   }
 }

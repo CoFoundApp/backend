@@ -16,11 +16,16 @@ async function bootstrap() {
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   const allowedOrigin = process.env.CORS_ORIGIN || '*';
+  const origins = allowedOrigin === '*' ? true : allowedOrigin.split(',').map(o => o.trim());
+
+  console.log('🌐 CORS enabled for origins:', origins);
+
   app.enableCors({
-    origin: allowedOrigin === '*' ? true : allowedOrigin.split(','),
+    origin: origins,
     credentials: true,
-    methods: ['GET','POST','OPTIONS'],
-    allowedHeaders: ['Content-Type','Authorization'],
+    methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie'],
   });
 
   app.use(cookieParser(process.env.COOKIE_SECRET));
@@ -33,7 +38,7 @@ async function bootstrap() {
           ? {
               directives: {
                 ...cspDirectives,
-                'img-src': ["'self'", 'data:', 'https://cdn.jsdelivr.net'],
+                'img-src': ["'self'", '', 'https://cdn.jsdelivr.net'],
                 'script-src': ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
                 'style-src': ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
                 'connect-src': ["'self'", 'https://cdn.jsdelivr.net'],
@@ -51,7 +56,7 @@ async function bootstrap() {
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
   app.use(compression());
 
-   app.useGlobalPipes(
+  app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
@@ -67,5 +72,7 @@ async function bootstrap() {
   const port = Number(process.env.PORT || 3000);
   await app.listen(port);
   console.log(`🎉 API running on http://localhost:${port}/graphql 🎉`);
+  console.log(`📝 NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`🍪 COOKIE_BASE_DOMAIN: ${process.env.COOKIE_BASE_DOMAIN}`);
 }
 bootstrap();

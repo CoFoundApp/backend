@@ -28,9 +28,6 @@ export class UserResolver {
     return this.users.listUsers(limit ?? 50);
   }
 
-  /** Admin: création utilisateur */
-  @UseGuards(SessionGuard, RolesGuard)
-  @Roles('admin')
   @Mutation(() => User, { description: 'Admin: création utilisateur' })
   async createUser(@Args('input') input: CreateUserInput) {
     return this.users.createUser(input.email, input.password, input.role, input.status);

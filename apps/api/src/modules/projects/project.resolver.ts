@@ -25,7 +25,7 @@ export class ProjectResolver {
   async projectById(@CurrentUser() user: JwtUser, @Args('id', { type: () => String }) id: string) {
     if (!user) throw new UnauthorizedException();
     const p = await this.projects.findById(id);
-    if (!p || p.owner_id !== user.sub) return null;
+    if (!p) return null;
     return mapProjectRowToGql(p);
   }
 
@@ -33,7 +33,7 @@ export class ProjectResolver {
   @Query(() => [Project], { description: 'Lister mes projets avec skills et interests' })
   async listMyProjects(@CurrentUser() user: JwtUser) {
     if (!user) throw new UnauthorizedException();
-    const projects = await this.projects.listByOwner(user.sub);
+    const projects = await this.projects.listByOwnerOrMember(user.sub);
     return projects.map(mapProjectRowToGql);
   }
 
