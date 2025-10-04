@@ -238,19 +238,19 @@ export class MatchingService {
         }
         if (threshold != null) {
           const idx = values.push(threshold);
-          where.push(`(embedding <=> '${lit}'::vector) <= $${idx}`);
+          where.push(`(embedding <=> '${lit}'::halfvec) <= $${idx}`);
         }
         if (cursorD != null && cursorId) {
           const idxD = values.push(cursorD);
           const idxI = values.push(cursorId);
-          where.push(`((embedding <=> '${lit}'::vector), id) > ($${idxD}::float, $${idxI}::uuid)`);
+          where.push(`((embedding <=> '${lit}'::halfvec), id) > ($${idxD}::float, $${idxI}::uuid)`);
         }
 
         const sql = `
-          SELECT id, user_id, (embedding <=> '${lit}'::vector) AS distance
+          SELECT id, user_id, (embedding <=> '${lit}'::halfvec) AS distance
           FROM profiles
           WHERE ${where.join(' AND ')}
-          ORDER BY (embedding <=> '${lit}'::vector) ASC, id ASC
+          ORDER BY (embedding <=> '${lit}'::halfvec) ASC, id ASC
           LIMIT $1::int
         `;
         candidates = await db.$queryRawUnsafe(sql, ...values);
@@ -493,19 +493,19 @@ export class MatchingService {
         }
         if (threshold != null) {
           const idx = values.push(threshold);
-          where.push(`(embedding <=> '${lit}'::vector) <= $${idx}`);
+          where.push(`(embedding <=> '${lit}'::halfvec) <= $${idx}`);
         }
         if (cursorD != null && cursorId) {
           const idxD = values.push(cursorD);
           const idxI = values.push(cursorId);
-          where.push(`((embedding <=> '${lit}'::vector), id) > ($${idxD}::float, $${idxI}::uuid)`);
+          where.push(`((embedding <=> '${lit}'::halfvec), id) > ($${idxD}::float, $${idxI}::uuid)`);
         }
 
         const sql = `
-          SELECT id, owner_id, (embedding <=> '${lit}'::vector) AS distance
+          SELECT id, owner_id, (embedding <=> '${lit}'::halfvec) AS distance
           FROM projects
           WHERE ${where.join(' AND ')}
-          ORDER BY (embedding <=> '${lit}'::vector) ASC, id ASC
+          ORDER BY (embedding <=> '${lit}'::halfvec) ASC, id ASC
           LIMIT $1::int
         `;
         candidates = await db.$queryRawUnsafe(sql, ...values);

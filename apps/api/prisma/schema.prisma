@@ -22,7 +22,7 @@ model assistant_cache {
   id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   cache_key       String                 @unique
   payload         Json                   @default("{}")
-  query_embedding Unsupported("vector")?
+  query_embedding Unsupported("halfvec(1024)")?
   created_at      DateTime               @default(now()) @db.Timestamptz(6)
   last_used_at    DateTime               @default(now()) @db.Timestamptz(6)
 
@@ -164,7 +164,7 @@ model courses {
   published      Boolean                  @default(false)
   published_at   DateTime?                @db.Timestamptz(6)
   visibility     visibility               @default(public)
-  embedding      Unsupported("vector")?
+  embedding      Unsupported("halfvec(1024)")?
   search_tsv     Unsupported("tsvector")?
   created_at     DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at     DateTime                 @default(now()) @db.Timestamptz(6)
@@ -253,7 +253,7 @@ model events {
   meeting_url         String?
   capacity            Int?
   visibility          visibility               @default(public)
-  embedding           Unsupported("vector")?
+  embedding           Unsupported("halfvec(1024)")?
   search_tsv          Unsupported("tsvector")?
   created_at          DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at          DateTime                 @default(now()) @db.Timestamptz(6)
@@ -283,7 +283,7 @@ model interests {
   name           String                 @unique @db.Citext
   category       String?
   slug           String?                @unique @db.Citext
-  embedding      Unsupported("vector")?
+  embedding      Unsupported("halfvec(1024)")?
   user_interests user_interests[]
   project_interests project_interests[]
 
@@ -349,7 +349,7 @@ model lessons {
   video_url        String?
   duration_seconds Int?
   position         Int                      @default(1)
-  embedding        Unsupported("vector")?
+  embedding        Unsupported("halfvec(1024)")?
   search_tsv       Unsupported("tsvector")?
   lesson_assets    lesson_assets[]
   course_modules   course_modules           @relation(fields: [module_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -388,7 +388,7 @@ model messages {
   content             String?
   is_read             Boolean                  @default(false)
   reply_to_id         String?                  @db.Uuid
-  embedding           Unsupported("vector")?
+  embedding           Unsupported("halfvec(1024)")?
   search_tsv          Unsupported("tsvector")?
   metadata            Json                     @default("{}")
   created_at          DateTime                 @default(now()) @db.Timestamptz(6)
@@ -523,7 +523,7 @@ model profiles {
   looking_for        String?
   availability_hours Int?
   tags               String[]               @default([])
-  embedding          Unsupported("vector")?
+  embedding          Unsupported("halfvec(1024)")?
   embedding_text_hash String?
   embedding_at        DateTime? @db.Timestamptz(6)
   embedding_model     String?
@@ -706,7 +706,7 @@ model projects {
   attachment_urls      String[]                 @default([])
   banner_url           String?
   avatar_url           String?
-  embedding            Unsupported("vector")?
+  embedding            Unsupported("halfvec(1024)")?
   search_tsv           Unsupported("tsvector")?
   created_at           DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at           DateTime                 @default(now()) @db.Timestamptz(6)
@@ -796,7 +796,7 @@ model resources {
   url         String?
   tags        String[]                 @default([])
   visibility  visibility               @default(public)
-  embedding   Unsupported("vector")?
+  embedding   Unsupported("halfvec(1024)")?
   search_tsv  Unsupported("tsvector")?
   created_at  DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at  DateTime                 @default(now()) @db.Timestamptz(6)
@@ -812,7 +812,7 @@ model skills {
   name        String                 @unique @db.Citext
   category    String?
   slug        String?                @unique @db.Citext
-  embedding   Unsupported("vector")?
+  embedding   Unsupported("halfvec(1024)")?
   user_skills user_skills[]
   project_skills project_skills[]
 

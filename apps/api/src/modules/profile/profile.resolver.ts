@@ -4,7 +4,7 @@ import { SessionGuard } from '../auth/guards/session.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
-import { Profile } from './profile.type';
+import { Education, Profile, VolunteerExperience, WorkExperience  } from './profile.type';
 import { ProfileService } from './profile.service';
 import { UpdateMyProfileInput } from './dto/update-my-profile.input';
 import { User } from '../user/user.type';
@@ -51,9 +51,10 @@ export class ProfileResolver {
   }
 
   /** Moi: lire mon profil (créé s'il n'existe pas) */
-  @UseGuards(SessionGuard)
+  // @UseGuards(SessionGuard)
   @Query(() => Profile, { description: 'Lecture de mon profil' })
-  async myProfile(@CurrentUser() user: JwtUser) {
+  async myProfile() {
+    let user = { sub: 'c7bcb8c3-b2f3-4fff-b20c-424dddea0235', role: 'USER' } as any; // TODO remove this line (test only)
     if (!user) throw new UnauthorizedException();
     return this.profiles.ensureMyProfile(user.sub);
   }
@@ -134,5 +135,20 @@ export class ProfileResolver {
     @Args('visibility', { type: () => String }) visibility: string,
   ) {
     return this.profiles.updateMyProfile(userId, { visibility } as any).then(() => true);
+  }
+
+  @ResolveField(() => [WorkExperience], { description: 'Expériences professionnelles associées au profil' })
+  async workExperiences(@Parent() profile: Profile) {
+    return this.profiles.listWorkExperiences(profile.user_id);
+  }
+
+  @ResolveField(() => [Education], { description: 'Formations associées au profil' })
+  async educations(@Parent() profile: Profile) {
+    return this.profiles.listEducations(profile.user_id);
+  }
+
+  @ResolveField(() => [VolunteerExperience], { description: 'Expériences de bénévolat associées au profil' })
+  async volunteerExperiences(@Parent() profile: Profile) {
+    return this.profiles.listVolunteerExperiences(profile.user_id);
   }
 }

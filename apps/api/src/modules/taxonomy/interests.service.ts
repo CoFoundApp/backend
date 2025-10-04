@@ -106,7 +106,7 @@ export class InterestsService {
   async setInterestEmbedding(interestId: string, vec: number[], dim = 1024) {
     const lit = toVectorLiteral(vec, dim);
     await this.prisma.prisma().$executeRawUnsafe(
-      `UPDATE interests SET embedding = '${lit}'::vector WHERE id = $1`,
+      `UPDATE interests SET embedding = '${lit}'::halfvec WHERE id = $1`,
       interestId,
     );
     return true;
@@ -119,10 +119,10 @@ export class InterestsService {
       Array<{ id: string; name: string; category: string | null; slug: string | null; distance: number }>
     >(
       `
-      SELECT id, name, category, slug, (embedding <=> '${lit}'::vector) AS distance
+      SELECT id, name, category, slug, (embedding <=> '${lit}'::halfvec) AS distance
       FROM interests
       WHERE embedding IS NOT NULL
-      ORDER BY embedding <=> '${lit}'::vector
+      ORDER BY embedding <=> '${lit}'::halfvec
       LIMIT $1
       `,
       limit,

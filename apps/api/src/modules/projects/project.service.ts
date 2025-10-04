@@ -543,11 +543,11 @@ export class ProjectService implements OnModuleDestroy{
             p.industry, p.tags, p.status, p.stage, p.visibility,
             p.attachment_urls, p.banner_url, p.avatar_url,
             p.created_at, p.updated_at,
-            (p.embedding <=> $1::vector) AS distance
+            (p.embedding <=> $1::halfvec) AS distance
           FROM projects p
           WHERE p.visibility IN ('public','unlisted')
             AND p.embedding IS NOT NULL
-          ORDER BY p.embedding <=> $1::vector
+          ORDER BY p.embedding <=> $1::halfvec
           LIMIT $2::int
           `,
           toVectorLiteral(vec, EMBEDDING_DIM),

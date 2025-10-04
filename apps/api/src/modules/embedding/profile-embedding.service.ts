@@ -4,6 +4,56 @@ import { EMBEDDING_PORT, EmbeddingPort } from './embedding.port';
 import { toVectorLiteral } from '../../common/utils/vector.util';
 import { createHash } from 'node:crypto';
 
+type ProfileBasics = {
+  user_id: string;
+  display_name: string | null;
+  headline: string | null;
+  bio: string | null;
+  location: string | null;
+  languages: string[];
+};
+
+type UserSkillRow = {
+  level: number | null;
+  years: number | null;
+  skills: { name: string; slug: string | null };
+};
+
+type UserInterestRow = {
+  interests: { name: string; slug: string | null };
+};
+
+type WorkExperienceRow = {
+  title: string;
+  company: string;
+  start_date: Date;
+  end_date: Date | null;
+  is_current: boolean;
+  description: string | null;
+  location: string | null;
+};
+
+type EducationRow = {
+  school: string;
+  degree: string | null;
+  field_of_study: string | null;
+  start_date: Date;
+  end_date: Date | null;
+  is_current: boolean;
+  grade: string | null;
+  description: string | null;
+};
+
+type VolunteerExperienceRow = {
+  title: string;
+  organization: string;
+  start_date: Date;
+  end_date: Date | null;
+  is_current: boolean;
+  cause: string | null;
+  description: string | null;
+};
+
 function sha256Hex(s: string) {
   return createHash('sha256').update(s, 'utf8').digest('hex');
 }
@@ -29,7 +79,14 @@ export class ProfileEmbeddingService {
     const db = this.prisma.prisma();
 
     // 1) Charger les données
-    const [p, userSkills, userInterests] = await Promise.all([
+   const [
+      p,
+      userSkills,
+      userInterests,
+      workExperiences,
+      educationEntries,
+      volunteerExperiences,
+    ] = (await Promise.all([
       db.profiles.findUnique({
         where: { user_id: userId },
         select: {
@@ -54,7 +111,54 @@ export class ProfileEmbeddingService {
         where: { user_id: userId },
         select: { interests: { select: { name: true, slug: true } } },
       }),
-    ]);
+      db.work_experiences.findMany({
+        where: { user_id: userId },
+        select: {
+          title: true,
+          company: true,
+          start_date: true,
+          end_date: true,
+          is_current: true,
+          description: true,
+          location: true,
+        },
+        orderBy: [{ start_date: 'desc' }],
+      }),
+      db.educations.findMany({
+        where: { user_id: userId },
+        select: {
+          school: true,
+          degree: true,
+          field_of_study: true,
+          start_date: true,
+          end_date: true,
+          is_current: true,
+          grade: true,
+          description: true,
+        },
+        orderBy: [{ start_date: 'desc' }],
+      }),
+      db.volunteer_experiences.findMany({
+        where: { user_id: userId },
+        select: {
+          title: true,
+          organization: true,
+          start_date: true,
+          end_date: true,
+          is_current: true,
+          cause: true,
+          description: true,
+        },
+        orderBy: [{ start_date: 'desc' }],
+      }),
+    ])) as [
+      ProfileBasics | null,
+      UserSkillRow[],
+      UserInterestRow[],
+      WorkExperienceRow[],
+      EducationRow[],
+      VolunteerExperienceRow[],
+    ];
 
     if (!p) {
       this.logger.warn(`No profile found for user ${userId} — skipping`);
@@ -62,7 +166,14 @@ export class ProfileEmbeddingService {
     }
 
     // 2) Texte & hash
-    const profileText = this.buildProfileText(p, userSkills, userInterests);
+    const profileText = this.buildProfileText(
+      p,
+      userSkills,
+      userInterests,
+      workExperiences,
+      educationEntries,
+      volunteerExperiences,
+    );
     const textHash = sha256Hex(`${this.model}::${profileText}`);
 
     // 3) Idempotence (cast UUID)
@@ -92,7 +203,7 @@ export class ProfileEmbeddingService {
     await db.$executeRawUnsafe(
       `
       UPDATE profiles
-        SET embedding           = '${vecLit}'::vector,
+        SET embedding           = '${vecLit}'::halfvec,
             embedding_text_hash = $1,
             embedding_at        = NOW(),
             embedding_model     = $2,
@@ -121,17 +232,16 @@ export class ProfileEmbeddingService {
 
 
   private buildProfileText(
-    p: {
-      display_name: string | null;
-      headline: string | null;
-      bio: string | null;
-      location: string | null;
-      languages: string[];
-    },
-    userSkills: Array<{ level: number | null; years: number | null; skills: { name: string; slug: string | null } }>,
-    userInterests: Array<{ interests: { name: string; slug: string | null } }>,
+    p: ProfileBasics,
+    userSkills: UserSkillRow[],
+    userInterests: UserInterestRow[],
+    workExperiences: WorkExperienceRow[],
+    educationEntries: EducationRow[],
+    volunteerExperiences: VolunteerExperienceRow[],
   ): string {
     const parts: string[] = [];
+    const formatDate = (date: Date | null) =>
+      date ? date.toISOString().split('T')[0] : null;
 
     if (p.display_name) parts.push(`name: ${p.display_name}`);
     if (p.headline) parts.push(`headline: ${p.headline}`);
@@ -154,6 +264,55 @@ export class ProfileEmbeddingService {
     if (userInterests.length) {
       const interestsText = userInterests.map(({ interests }) => interests.name).join(', ');
       parts.push(`interests: ${interestsText}`);
+    }
+
+    if (workExperiences.length) {
+      const workText = workExperiences
+        .map((work) => {
+          const segments: string[] = [`${work.title}`];
+          if (work.company) segments.push(`@${work.company}`);
+          if (work.location) segments.push(`in ${work.location}`);
+          const start = formatDate(work.start_date);
+          const end = work.is_current ? 'present' : formatDate(work.end_date);
+          if (start || end) segments.push(`(${start ?? '?'}-${end ?? '?'})`);
+          if (work.description) segments.push(`desc:${work.description}`);
+          return segments.join(' ');
+        })
+        .join(' || ');
+      parts.push(`work: ${workText}`);
+    }
+
+    if (educationEntries.length) {
+      const eduText = educationEntries
+        .map((edu) => {
+          const segments: string[] = [edu.school];
+          if (edu.degree) segments.push(edu.degree);
+          if (edu.field_of_study) segments.push(`field:${edu.field_of_study}`);
+          const start = formatDate(edu.start_date);
+          const end = edu.is_current ? 'present' : formatDate(edu.end_date);
+          if (start || end) segments.push(`(${start ?? '?'}-${end ?? '?'})`);
+          if (edu.grade) segments.push(`grade:${edu.grade}`);
+          if (edu.description) segments.push(`desc:${edu.description}`);
+          return segments.join(' ');
+        })
+        .join(' || ');
+      parts.push(`education: ${eduText}`);
+    }
+
+    if (volunteerExperiences.length) {
+      const volunteerText = volunteerExperiences
+        .map((vol) => {
+          const segments: string[] = [vol.title];
+          if (vol.organization) segments.push(`@${vol.organization}`);
+          const start = formatDate(vol.start_date);
+          const end = vol.is_current ? 'present' : formatDate(vol.end_date);
+          if (start || end) segments.push(`(${start ?? '?'}-${end ?? '?'})`);
+          if (vol.cause) segments.push(`cause:${vol.cause}`);
+          if (vol.description) segments.push(`desc:${vol.description}`);
+          return segments.join(' ');
+        })
+        .join(' || ');
+      parts.push(`volunteer: ${volunteerText}`);
     }
 
     return parts.join(' | ');

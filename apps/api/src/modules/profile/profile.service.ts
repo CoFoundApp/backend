@@ -168,7 +168,6 @@ export class ProfileService {
     });
   }
 
-
   async updateMyProfile(userId: string, input: UpdateMyProfileInput) {
     // Préparer les données de base du profil
     const base: any = {
@@ -391,145 +390,7 @@ export class ProfileService {
     return profile;
   }
 
-  // Fonction pour synchroniser les expériences professionnelles
-  private async syncWorkExperiences(
-    tx: PrismaTransactionClient,
-    userId: string,
-    experiences: WorkExperienceInput[]
-  ) {
-    const existingIds = experiences.filter(e => e.id).map(e => e.id!);
-
-    // Supprimer les expériences qui ne sont plus dans la liste
-    if (existingIds.length > 0) {
-      await tx.work_experiences.deleteMany({
-        where: {
-          user_id: userId,
-          id: { notIn: existingIds },
-        },
-      });
-    } else {
-      await tx.work_experiences.deleteMany({
-        where: { user_id: userId },
-      });
-    }
-
-    // Créer ou mettre à jour les expériences
-    for (const exp of experiences) {
-      const data = {
-        user_id: userId,
-        title: exp.title,
-        company: exp.company,
-        start_date: new Date(exp.start_date),
-        end_date: exp.end_date ? new Date(exp.end_date) : null,
-        is_current: exp.is_current,
-        description: exp.description,
-        location: exp.location,
-        updated_at: new Date(),
-      };
-
-      if (exp.id) {
-        await tx.work_experiences.update({
-          where: { id: exp.id },
-          data,
-        });
-      } else {
-        await tx.work_experiences.create({ data });
-      }
-    }
-  }
-
-  // Fonction pour synchroniser les formations
-  private async syncEducations(
-    tx: PrismaTransactionClient,
-    userId: string,
-    educations: EducationInput[]
-  ) {
-    const existingIds = educations.filter(e => e.id).map(e => e.id!);
-
-    if (existingIds.length > 0) {
-      await tx.educations.deleteMany({
-        where: {
-          user_id: userId,
-          id: { notIn: existingIds },
-        },
-      });
-    } else {
-      await tx.educations.deleteMany({
-        where: { user_id: userId },
-      });
-    }
-
-    for (const edu of educations) {
-      const data = {
-        user_id: userId,
-        school: edu.school,
-        degree: edu.degree,
-        field_of_study: edu.field_of_study,
-        start_date: new Date(edu.start_date),
-        end_date: edu.end_date ? new Date(edu.end_date) : null,
-        is_current: edu.is_current,
-        grade: edu.grade,
-        description: edu.description,
-        updated_at: new Date(),
-      };
-
-      if (edu.id) {
-        await tx.educations.update({
-          where: { id: edu.id },
-          data,
-        });
-      } else {
-        await tx.educations.create({ data });
-      }
-    }
-  }
-
-  // Fonction pour synchroniser les expériences de bénévolat
-  private async syncVolunteerExperiences(
-    tx: PrismaTransactionClient,
-    userId: string,
-    experiences: VolunteerExperienceInput[]
-  ) {
-    const existingIds = experiences.filter(e => e.id).map(e => e.id!);
-
-    if (existingIds.length > 0) {
-      await tx.volunteer_experiences.deleteMany({
-        where: {
-          user_id: userId,
-          id: { notIn: existingIds },
-        },
-      });
-    } else {
-      await tx.volunteer_experiences.deleteMany({
-        where: { user_id: userId },
-      });
-    }
-
-    for (const exp of experiences) {
-      const data = {
-        user_id: userId,
-        title: exp.title,
-        organization: exp.organization,
-        start_date: new Date(exp.start_date),
-        end_date: exp.end_date ? new Date(exp.end_date) : null,
-        is_current: exp.is_current,
-        cause: exp.cause,
-        description: exp.description,
-        updated_at: new Date(),
-      };
-
-      if (exp.id) {
-        await tx.volunteer_experiences.update({
-          where: { id: exp.id },
-          data,
-        });
-      } else {
-        await tx.volunteer_experiences.create({ data });
-      }
-    }
-  }
-
-/** liste des profils Admin */
+  /** liste des profils Admin */
   async adminListProfiles(limit = 50) {
     return this.prisma.prisma().profiles.findMany({
       orderBy: { created_at: 'desc' },
@@ -541,5 +402,38 @@ export class ProfileService {
   async assertOwnershipOrAdmin(requesterId: string, targetUserId: string, isAdmin: boolean) {
     if (requesterId === targetUserId || isAdmin) return true;
     throw new ForbiddenException('Not allowed');
+  }
+
+  async listWorkExperiences(userId: string) {
+    return this.prisma.prisma().work_experiences.findMany({
+      where: { user_id: userId },
+      orderBy: [
+        { is_current: 'desc' },
+        { start_date: 'desc' },
+        { updated_at: 'desc' },
+      ],
+    });
+  }
+
+  async listEducations(userId: string) {
+    return this.prisma.prisma().educations.findMany({
+      where: { user_id: userId },
+      orderBy: [
+        { is_current: 'desc' },
+        { start_date: 'desc' },
+        { updated_at: 'desc' },
+      ],
+    });
+  }
+
+  async listVolunteerExperiences(userId: string) {
+    return this.prisma.prisma().volunteer_experiences.findMany({
+      where: { user_id: userId },
+      orderBy: [
+        { is_current: 'desc' },
+        { start_date: 'desc' },
+        { updated_at: 'desc' },
+      ],
+    });
   }
 }

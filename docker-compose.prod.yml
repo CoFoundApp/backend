@@ -52,7 +52,7 @@ services:
     env_file:
       - .env
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PNPM_STORE_DIR: /usr/src/app/.pnpm-store
     # Retirez les ports exposés - NPM s'en charge
     # ports:

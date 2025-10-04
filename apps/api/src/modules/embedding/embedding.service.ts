@@ -21,7 +21,7 @@ export class EmbeddingService {
     if (!vec.length) return false;
     const lit = toVectorLiteral(vec, EMBEDDING_DIM);
     await this.prisma.prisma().$executeRawUnsafe(
-      `UPDATE skills SET embedding = '${lit}'::vector WHERE id = $1::uuid`,
+      `UPDATE skills SET embedding = '${lit}'::halfvec WHERE id = $1::uuid`,
       skillId,
     );
     return true;
@@ -38,7 +38,7 @@ export class EmbeddingService {
     if (!vec.length) return false;
     const lit = toVectorLiteral(vec, EMBEDDING_DIM);
     await this.prisma.prisma().$executeRawUnsafe(
-      `UPDATE interests SET embedding = '${lit}'::vector WHERE id = $1::uuid`,
+      `UPDATE interests SET embedding = '${lit}'::halfvec WHERE id = $1::uuid`,
       interestId,
     );
     return true;
@@ -53,10 +53,10 @@ export class EmbeddingService {
       Array<{ id: string; name: string; category: string | null; slug: string | null; distance: number }>
     >(
       `
-      SELECT id, name, category, slug, (embedding <=> '${lit}'::vector) AS distance
+      SELECT id, name, category, slug, (embedding <=> '${lit}'::halfvec) AS distance
       FROM skills
       WHERE embedding IS NOT NULL
-      ORDER BY embedding <=> '${lit}'::vector
+      ORDER BY embedding <=> '${lit}'::halfvec
       LIMIT $1::int
       `,
       limit,
@@ -72,10 +72,10 @@ export class EmbeddingService {
       Array<{ id: string; name: string; category: string | null; slug: string | null; distance: number }>
     >(
       `
-      SELECT id, name, category, slug, (embedding <=> '${lit}'::vector) AS distance
+      SELECT id, name, category, slug, (embedding <=> '${lit}'::halfvec) AS distance
       FROM interests
       WHERE embedding IS NOT NULL
-      ORDER BY embedding <=> '${lit}'::vector
+      ORDER BY embedding <=> '${lit}'::halfvec
       LIMIT $1::int
       `,
       limit,
@@ -108,7 +108,7 @@ export class EmbeddingService {
     if (!vec.length) return false;
     const lit = toVectorLiteral(vec, EMBEDDING_DIM);
     await this.prisma.prisma().$executeRawUnsafe(
-      `UPDATE projects SET embedding = '${lit}'::vector WHERE id = $1::uuid`,
+      `UPDATE projects SET embedding = '${lit}'::halfvec WHERE id = $1::uuid`,
       projectId,
     );
     return true;
