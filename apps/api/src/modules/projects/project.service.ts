@@ -115,10 +115,13 @@ export class ProjectService implements OnModuleDestroy{
   }
 
   /** Résoudre et créer automatiquement les skills manquants */
-  private async resolveOrCreateSkillSlugs(slugs: string[]): Promise<string[]> {
+  private async resolveOrCreateSkillSlugs(
+    slugs: string[],
+    tx?: Prisma.TransactionClient,
+  ): Promise<string[]> {
     if (!slugs?.length) return [];
 
-    const client = this.prisma.prisma() as PrismaClient;
+    const client = (tx ?? this.prisma.prisma()) as Prisma.TransactionClient;
     const createdIds: string[] = [];
 
     for (const slug of slugs) {
@@ -167,10 +170,13 @@ export class ProjectService implements OnModuleDestroy{
   }
 
   /** Même logique pour les interests */
-  private async resolveOrCreateInterestSlugs(slugs: string[]): Promise<string[]> {
+  private async resolveOrCreateInterestSlugs(
+    slugs: string[],
+    tx?: Prisma.TransactionClient,
+  ): Promise<string[]> {
     if (!slugs?.length) return [];
 
-    const client = this.prisma.prisma() as PrismaClient;
+    const client = (tx ?? this.prisma.prisma()) as Prisma.TransactionClient;
     const createdIds: string[] = [];
 
     for (const slug of slugs) {
@@ -373,72 +379,87 @@ export class ProjectService implements OnModuleDestroy{
     }) as Promise<ProjectRow[]>;
   }
 
+  private async executeProjectUpdate(
+    tx: Prisma.TransactionClient,
+    id: string,
+    input: UpdateProjectInput,
+  ) {
+    const updated = await tx.projects.update({
+      where: { id },
+      data: {
+        title: input.title ?? undefined,
+        summary: input.summary ?? undefined,
+        description: input.description ?? undefined,
+        industry: input.industry ?? undefined,
+        tags: Array.isArray(input.tags) ? input.tags : undefined,
+        status: input.status ? mapProjectStatusToPrisma(input.status) : undefined,
+        stage: input.stage ? mapProjectStageToPrisma(input.stage) : undefined,
+        visibility: input.visibility ? mapVisibilityToPrisma(input.visibility as ProfileVisibility) : undefined,
+        attachment_urls: Array.isArray(input.attachment_urls) ? input.attachment_urls : undefined,
+        banner_url: input.banner_url ?? undefined,
+        avatar_url: input.avatar_url ?? undefined,
+        updated_at: new Date(),
+      }
+    });
+
+    if (input.project_skills !== undefined) {
+      await tx.project_skills.deleteMany({ where: { project_id: id } });
+
+      if (input.project_skills && input.project_skills.length > 0) {
+        const skillSlugs = input.project_skills.filter(Boolean);
+        if (skillSlugs.length > 0) {
+          const skillIds = await this.resolveOrCreateSkillSlugs(skillSlugs, tx);
+          if (skillIds.length) {
+            await tx.project_skills.createMany({
+              data: skillIds.map(skill_id => ({
+                project_id: id,
+                skill_id
+              }))
+            });
+          }
+        }
+      }
+    }
+
+    if (input.project_interests !== undefined) {
+      await tx.project_interests.deleteMany({ where: { project_id: id } });
+
+      if (input.project_interests && input.project_interests.length > 0) {
+        const interestSlugs = input.project_interests.filter(Boolean);
+        if (interestSlugs.length > 0) {
+          const interestIds = await this.resolveOrCreateInterestSlugs(interestSlugs, tx);
+          if (interestIds.length) {
+            await tx.project_interests.createMany({
+              data: interestIds.map(interest_id => ({
+                project_id: id,
+                interest_id
+              }))
+            });
+          }
+        }
+      }
+    }
+
+    return updated;
+  }
+
+  private isPrismaClientWithTransaction(
+    client: Prisma.TransactionClient | PrismaService,
+  ): client is PrismaService {
+    return typeof (client as PrismaService).$transaction === 'function';
+  }
+
   async update(id: string, ownerId: string, input: UpdateProjectInput) {
-    const existing = await this.prisma.prisma().projects.findUnique({ where: { id } });
+    const client = this.prisma.prisma();
+    const existing = await client.projects.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Project not found');
     if (existing.owner_id !== ownerId) throw new ForbiddenException('Not owner');
 
-    const client = this.prisma.prisma() as PrismaClient;
+    if (this.isPrismaClientWithTransaction(client)) {
+      return client.$transaction(tx => this.executeProjectUpdate(tx, id, input));
+    }
 
-    return client.$transaction(async (tx: Prisma.TransactionClient) => {
-      const updated = await tx.projects.update({
-        where: { id },
-        data: {
-          title: input.title ?? undefined,
-          summary: input.summary ?? undefined,
-          description: input.description ?? undefined,
-          industry: input.industry ?? undefined,
-          tags: Array.isArray(input.tags) ? input.tags : undefined,
-          status: input.status ? mapProjectStatusToPrisma(input.status) : undefined,
-          stage: input.stage ? mapProjectStageToPrisma(input.stage) : undefined,
-          visibility: input.visibility ? mapVisibilityToPrisma(input.visibility as ProfileVisibility) : undefined,
-          attachment_urls: Array.isArray(input.attachment_urls) ? input.attachment_urls : undefined,
-          banner_url: input.banner_url ?? undefined,
-          avatar_url: input.avatar_url ?? undefined,
-          updated_at: new Date(),
-        }
-      });
-
-      if (input.project_skills !== undefined) {
-        await tx.project_skills.deleteMany({ where: { project_id: id } });
-
-        if (input.project_skills && input.project_skills.length > 0) {
-          const skillSlugs = input.project_skills.filter(Boolean);
-          if (skillSlugs.length > 0) {
-            const skillIds = await this.resolveOrCreateSkillSlugs(skillSlugs);
-            if (skillIds.length) {
-              await tx.project_skills.createMany({
-                data: skillIds.map(skill_id => ({
-                  project_id: id,
-                  skill_id
-                }))
-              });
-            }
-          }
-        }
-      }
-
-      if (input.project_interests !== undefined) {
-        await tx.project_interests.deleteMany({ where: { project_id: id } });
-
-        if (input.project_interests && input.project_interests.length > 0) {
-          const interestSlugs = input.project_interests.filter(Boolean);
-          if (interestSlugs.length > 0) {
-            const interestIds = await this.resolveOrCreateInterestSlugs(interestSlugs);
-            if (interestIds.length) {
-              await tx.project_interests.createMany({
-                data: interestIds.map(interest_id => ({
-                  project_id: id,
-                  interest_id
-                }))
-              });
-            }
-          }
-        }
-      }
-
-      return updated;
-    });
+    return this.executeProjectUpdate(client, id, input);
   }
 
   async delete(id: string, ownerId: string) {
