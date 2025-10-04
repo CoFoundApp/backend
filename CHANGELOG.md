@@ -1,3 +1,22 @@
+# 🚀 Changelog – CoFound v1.1.0
+
+## 💡 Projets
+- ✨ **Ajout d’upload et modification sur projet** – permettre l’ajout et la mise à jour de fichiers liés aux projets[1]
+
+***
+
+## 🌱 Core
+- 🐞 **Changement d’intercepteur et déploiement** – mise à jour des intercepteurs pour améliorer la gestion des requêtes et du déploiement[1]
+- 🐞 **Ajout du session guard pour corriger la déconnexion** – correction du bug de logout via un guard de session[1]
+- 🐞 **Modification du mapper et correction d’enum** – refactorisation du mapping des données et correction des enums pour assurer la cohérence du modèle[1]
+- 🐞 **Correction de bug sur les projets** – résolution d’un bug critique affectant la gestion des projets[1]
+
+***
+
+## 🧩 Divers
+- 🏗️ **Ajout d’un nouveau proxy Docker et du composer prod** – configuration mise à jour pour le déploiement en production avec un proxy Docker et un fichier `docker-compose.prod.yml`[1]
+- 🔧 **Développement divers** – ajustements internes et préparations pour les prochaines itérations[1]
+
 # 🚀 Changelog – CoFound v1
 
 ## 🌱 Core
