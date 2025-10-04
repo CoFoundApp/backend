@@ -47,16 +47,12 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     container_name: cofound_api
     env_file:
       - .env
     environment:
       NODE_ENV: production
-      PNPM_STORE_DIR: /usr/src/app/.pnpm-store
-    # Retirez les ports exposés - NPM s'en charge
-    # ports:
-    #   - "3000:3000"
     expose:
       - "3000"
     networks:
@@ -69,15 +65,13 @@ services:
         condition: service_healthy
       mail:
         condition: service_healthy
-    volumes:
-      - ./:/usr/src/app
-      - /usr/src/app/node_modules
-    command: ["pnpm", "--filter", "@cofound/api", "dev"]
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/readyz >/dev/null 2>&1 || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
 
 volumes:
   db_data:
