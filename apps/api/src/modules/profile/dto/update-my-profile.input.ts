@@ -1,6 +1,11 @@
 import { InputType, Field } from '@nestjs/graphql';
-import { IsArray, IsIn, IsInt, IsOptional, IsString, IsUrl, Max, Min } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsOptional, IsString, IsUrl, Max, Min, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { LanguageCode, ProfileVisibility } from '../../../common/enums/domain.enums';
+import { FileUpload, GraphQLUpload } from 'graphql-upload-ts';
+import { WorkExperienceInput } from './work-experience.input';
+import { EducationInput } from './education.input';
+import { VolunteerExperienceInput } from './volunteer-experience.input';
 
 @InputType()
 export class UpdateMyProfileInput {
@@ -40,10 +45,18 @@ export class UpdateMyProfileInput {
   @IsUrl()
   avatar_url?: string | null;
 
+  @Field(() => GraphQLUpload, { nullable: true })
+  @IsOptional()
+  avatar?: FileUpload;
+
   @Field(() => String, { nullable: true })
   @IsOptional()
   @IsUrl()
   banner_url?: string | null;
+
+  @Field(() => GraphQLUpload, { nullable: true })
+  @IsOptional()
+  banner?: FileUpload;
 
   @Field(() => String, { nullable: true })
   @IsOptional()
@@ -67,4 +80,37 @@ export class UpdateMyProfileInput {
   @IsOptional()
   @IsIn(Object.values(ProfileVisibility))
   visibility?: ProfileVisibility;
+
+  @Field(() => [String], { nullable: true, description: 'Skills slugs' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  skills?: string[];
+
+  @Field(() => [String], { nullable: true, description: 'Interests slugs' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  interests?: string[];
+
+  @Field(() => [WorkExperienceInput], { nullable: true, description: 'Expériences professionnelles' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => WorkExperienceInput)
+  work_experiences?: WorkExperienceInput[];
+
+  @Field(() => [EducationInput], { nullable: true, description: 'Formations' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EducationInput)
+  educations?: EducationInput[];
+
+  @Field(() => [VolunteerExperienceInput], { nullable: true, description: 'Expériences bénévolat' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => VolunteerExperienceInput)
+  volunteer_experiences?: VolunteerExperienceInput[];
 }

@@ -22,7 +22,7 @@ model assistant_cache {
   id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   cache_key       String                 @unique
   payload         Json                   @default("{}")
-  query_embedding Unsupported("vector")?
+  query_embedding Unsupported("halfvec(1024)")?
   created_at      DateTime               @default(now()) @db.Timestamptz(6)
   last_used_at    DateTime               @default(now()) @db.Timestamptz(6)
 
@@ -164,7 +164,7 @@ model courses {
   published      Boolean                  @default(false)
   published_at   DateTime?                @db.Timestamptz(6)
   visibility     visibility               @default(public)
-  embedding      Unsupported("vector")?
+  embedding      Unsupported("halfvec(1024)")?
   search_tsv     Unsupported("tsvector")?
   created_at     DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at     DateTime                 @default(now()) @db.Timestamptz(6)
@@ -253,7 +253,7 @@ model events {
   meeting_url         String?
   capacity            Int?
   visibility          visibility               @default(public)
-  embedding           Unsupported("vector")?
+  embedding           Unsupported("halfvec(1024)")?
   search_tsv          Unsupported("tsvector")?
   created_at          DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at          DateTime                 @default(now()) @db.Timestamptz(6)
@@ -283,7 +283,7 @@ model interests {
   name           String                 @unique @db.Citext
   category       String?
   slug           String?                @unique @db.Citext
-  embedding      Unsupported("vector")?
+  embedding      Unsupported("halfvec(1024)")?
   user_interests user_interests[]
   project_interests project_interests[]
 
@@ -349,7 +349,7 @@ model lessons {
   video_url        String?
   duration_seconds Int?
   position         Int                      @default(1)
-  embedding        Unsupported("vector")?
+  embedding        Unsupported("halfvec(1024)")?
   search_tsv       Unsupported("tsvector")?
   lesson_assets    lesson_assets[]
   course_modules   course_modules           @relation(fields: [module_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -388,7 +388,7 @@ model messages {
   content             String?
   is_read             Boolean                  @default(false)
   reply_to_id         String?                  @db.Uuid
-  embedding           Unsupported("vector")?
+  embedding           Unsupported("halfvec(1024)")?
   search_tsv          Unsupported("tsvector")?
   metadata            Json                     @default("{}")
   created_at          DateTime                 @default(now()) @db.Timestamptz(6)
@@ -523,7 +523,7 @@ model profiles {
   looking_for        String?
   availability_hours Int?
   tags               String[]               @default([])
-  embedding          Unsupported("vector")?
+  embedding          Unsupported("halfvec(1024)")?
   embedding_text_hash String?
   embedding_at        DateTime? @db.Timestamptz(6)
   embedding_model     String?
@@ -534,6 +534,64 @@ model profiles {
   users              users                  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([embedding], map: "hnsw_profiles_embedding")
+}
+
+/// Expériences professionnelles
+model work_experiences {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String    @db.Uuid
+  title        String
+  company      String
+  start_date   DateTime  @db.Date
+  end_date     DateTime? @db.Date
+  is_current   Boolean   @default(false)
+  description  String?
+  location     String?
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime  @default(now()) @db.Timestamptz(6)
+
+  users        users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([user_id])
+}
+
+/// Formations et études
+model educations {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String    @db.Uuid
+  school        String
+  degree        String?
+  field_of_study String?
+  start_date    DateTime  @db.Date
+  end_date      DateTime? @db.Date
+  is_current    Boolean   @default(false)
+  grade         String?
+  description   String?
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+
+  users         users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([user_id])
+}
+
+/// Expériences hors professionnelles
+model volunteer_experiences {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String    @db.Uuid
+  title         String
+  organization  String
+  start_date    DateTime  @db.Date
+  end_date      DateTime? @db.Date
+  is_current    Boolean   @default(false)
+  cause         String?
+  description   String?
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+
+  users         users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([user_id])
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -557,9 +615,10 @@ model project_applications {
   position_id                                    String?            @db.Uuid
   applicant_id                                   String             @db.Uuid
   message                                        String?
-  role                                           String?
+  note                                           String?
   availability                                   Int?               @db.SmallInt
   links                                          String[]           @default([])
+  attachment_urls                                String[]           @default([])
   status                                         application_status @default(pending)
   decision_reason                                String?
   decided_by                                     String?            @db.Uuid
@@ -644,7 +703,10 @@ model projects {
   status               project_status           @default(draft)
   stage                project_stage            @default(idea)
   visibility           visibility               @default(public)
-  embedding            Unsupported("vector")?
+  attachment_urls      String[]                 @default([])
+  banner_url           String?
+  avatar_url           String?
+  embedding            Unsupported("halfvec(1024)")?
   search_tsv           Unsupported("tsvector")?
   created_at           DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at           DateTime                 @default(now()) @db.Timestamptz(6)
@@ -734,7 +796,7 @@ model resources {
   url         String?
   tags        String[]                 @default([])
   visibility  visibility               @default(public)
-  embedding   Unsupported("vector")?
+  embedding   Unsupported("halfvec(1024)")?
   search_tsv  Unsupported("tsvector")?
   created_at  DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at  DateTime                 @default(now()) @db.Timestamptz(6)
@@ -750,7 +812,7 @@ model skills {
   name        String                 @unique @db.Citext
   category    String?
   slug        String?                @unique @db.Citext
-  embedding   Unsupported("vector")?
+  embedding   Unsupported("halfvec(1024)")?
   user_skills user_skills[]
   project_skills project_skills[]
 
@@ -887,6 +949,9 @@ model users {
   user_badges                                                   user_badges[]
   user_interests                                                user_interests[]
   user_skills                                                   user_skills[]
+  work_experiences                                              work_experiences[]
+  educations                                                    educations[]
+  volunteer_experiences                                         volunteer_experiences[]
 }
 
 enum application_status {

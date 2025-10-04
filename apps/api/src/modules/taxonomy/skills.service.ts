@@ -103,28 +103,28 @@ export class SkillsService {
   }
 
   /** Met à jour l'embedding d'un skill (par ex. après calcul en worker) */
-  async setSkillEmbedding(skillId: string, vec: number[], dim = 1536) {
+  async setSkillEmbedding(skillId: string, vec: number[], dim = 1024) {
     const lit = toVectorLiteral(vec, dim);
     // UPDATE via SQL brut (pgvector)
     await this.prisma.prisma().$executeRawUnsafe(
-      `UPDATE skills SET embedding = '${lit}'::vector WHERE id = $1`,
+      `UPDATE skills SET embedding = '${lit}'::halfvec WHERE id = $1`,
       skillId,
     );
     return true;
   }
 
   // Recherche de compétences par embedding
-  async searchSkillsByEmbedding(vec: number[], limit = 10, dim = 1536) {
+  async searchSkillsByEmbedding(vec: number[], limit = 10, dim = 1024) {
     const lit = toVectorLiteral(vec, dim);
 
     return this.prisma.prisma().$queryRawUnsafe<
       Array<{ id: string; name: string; category: string | null; slug: string | null; distance: number }>
     >(
       `
-      SELECT id, name, category, slug, (embedding <=> '${lit}'::vector) AS distance
+      SELECT id, name, category, slug, (embedding <=> '${lit}'::halfvec) AS distance
       FROM skills
       WHERE embedding IS NOT NULL
-      ORDER BY embedding <=> '${lit}'::vector
+      ORDER BY embedding <=> '${lit}'::halfvec
       LIMIT $1
       `,
       limit,

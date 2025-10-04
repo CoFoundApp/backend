@@ -1,5 +1,6 @@
 import { ObjectType, Field, GraphQLISODateTime, ID } from '@nestjs/graphql';
 import { MemberRole, MemberStatus, InvitationStatus } from '../../common/enums/domain.enums';
+import { User } from '../user/user.type';
 
 @ObjectType()
 export class ProjectMember {
@@ -17,6 +18,8 @@ export class ProjectMember {
 
   @Field(() => GraphQLISODateTime, { name: 'created_at' })
   joined_at!: Date;
+
+  users!: User;
 }
 
 @ObjectType()

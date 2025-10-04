@@ -5,12 +5,17 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuthModule } from '../auth/auth.module';
 import { EmbeddingModule } from '../embedding/embedding.module';
 import { QueuesFeatureModule } from '../../queue/queues.module';
+import { UploadModule } from '../upload/upload.module';
+import { TaxonomyModule } from '../taxonomy/taxonomy.module';
+
 
 @Module({
   imports: [
     forwardRef(() => AuthModule),
     EmbeddingModule,
     QueuesFeatureModule,
+    UploadModule,
+    TaxonomyModule,
   ],
   providers: [PrismaService, ProjectService, ProjectResolver],
   exports: [ProjectService],

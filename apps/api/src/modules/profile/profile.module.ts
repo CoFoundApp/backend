@@ -7,6 +7,7 @@ import { EmbeddingModule } from '../embedding/embedding.module';
 import { AuthModule } from '../auth/auth.module';
 import { QueuesFeatureModule } from '../../queue/queues.module';
 import { UserModule } from '../user/user.module';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { UserModule } from '../user/user.module';
     TaxonomyModule,
     EmbeddingModule,
     QueuesFeatureModule,
+    UploadModule,
   ],
   providers: [PrismaService, ProfileService, ProfileResolver],
   exports: [ProfileService],

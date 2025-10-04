@@ -1,0 +1,84 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: cofound_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cofound}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    networks:
+      - cofound_network
+      - nginx_proxy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: cofound_redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - cofound_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  mail:
+    image: mailhog/mailhog:v1.0.1
+    container_name: cofound_mail
+    networks:
+      - cofound_network
+      - nginx_proxy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:8025"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: cofound_api
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    expose:
+      - "3000"
+    networks:
+      - cofound_network
+      - nginx_proxy
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mail:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/readyz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  db_data:
+  redis_data:
+
+networks:
+  cofound_network:
+    driver: bridge
+  nginx_proxy:
+    external: true

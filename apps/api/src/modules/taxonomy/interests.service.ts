@@ -103,26 +103,26 @@ export class InterestsService {
   }
 
   // Ajout d'un embedding interet
-  async setInterestEmbedding(interestId: string, vec: number[], dim = 1536) {
+  async setInterestEmbedding(interestId: string, vec: number[], dim = 1024) {
     const lit = toVectorLiteral(vec, dim);
     await this.prisma.prisma().$executeRawUnsafe(
-      `UPDATE interests SET embedding = '${lit}'::vector WHERE id = $1`,
+      `UPDATE interests SET embedding = '${lit}'::halfvec WHERE id = $1`,
       interestId,
     );
     return true;
   }
 
   // Recherche d'intérêts par embedding
-  async searchInterestsByEmbedding(vec: number[], limit = 10, dim = 1536) {
+  async searchInterestsByEmbedding(vec: number[], limit = 10, dim = 1024) {
     const lit = toVectorLiteral(vec, dim);
     return this.prisma.prisma().$queryRawUnsafe<
       Array<{ id: string; name: string; category: string | null; slug: string | null; distance: number }>
     >(
       `
-      SELECT id, name, category, slug, (embedding <=> '${lit}'::vector) AS distance
+      SELECT id, name, category, slug, (embedding <=> '${lit}'::halfvec) AS distance
       FROM interests
       WHERE embedding IS NOT NULL
-      ORDER BY embedding <=> '${lit}'::vector
+      ORDER BY embedding <=> '${lit}'::halfvec
       LIMIT $1
       `,
       limit,

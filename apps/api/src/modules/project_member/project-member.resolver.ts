@@ -1,16 +1,17 @@
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ResolveField, Parent } from '@nestjs/graphql';
 import { UseGuards, UnauthorizedException } from '@nestjs/common';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { ProjectMember, ProjectInvitation } from './project-member.type';
 import { ProjectMemberService } from './project-member.service';
 import { MemberRole } from '../../common/enums/domain.enums';
+import { User } from '../user/user.type';
 
 @Resolver(() => ProjectMember)
 export class ProjectMemberResolver {
   constructor(private readonly members: ProjectMemberService) {}
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => [ProjectMember], { description: 'Lister les membres d\'un projet' })
   async projectMembers(
     @CurrentUser() user: JwtUser,
@@ -20,7 +21,7 @@ export class ProjectMemberResolver {
     return this.members.listMembers(user.sub, projectId);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => [ProjectInvitation], { description: 'Lister les invitations à un projet' })
   async projectInvitations(
     @CurrentUser() user: JwtUser,
@@ -30,7 +31,7 @@ export class ProjectMemberResolver {
     return this.members.listInvitations(user.sub, projectId);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => ProjectInvitation, { description: 'Inviter un utilisateur à un projet' })
   async inviteUser(
     @CurrentUser() user: JwtUser,
@@ -42,7 +43,7 @@ export class ProjectMemberResolver {
     return this.members.invite(user.sub, projectId, inviteeId, role ?? MemberRole.MEMBER);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => ProjectMember, { description: 'Accepter une invitation à un projet' })
   async acceptInvitation(
     @CurrentUser() user: JwtUser,
@@ -53,7 +54,7 @@ export class ProjectMemberResolver {
     return this.members.accept(user.sub, projectId, invitationId);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => ProjectInvitation, { description: 'Décliner une invitation à un projet' })
   async declineInvitation(
     @CurrentUser() user: JwtUser,
@@ -64,7 +65,7 @@ export class ProjectMemberResolver {
     return this.members.decline(user.sub, projectId, invitationId);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Quitter un projet' })
   async leaveProject(
     @CurrentUser() user: JwtUser,
@@ -74,7 +75,7 @@ export class ProjectMemberResolver {
     return this.members.leave(user.sub, projectId);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Retirer un membre d\'un projet' })
   async removeProjectMember(
     @CurrentUser() user: JwtUser,
@@ -85,7 +86,7 @@ export class ProjectMemberResolver {
     return this.members.remove(user.sub, projectId, userId);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => ProjectMember, { description: 'Mettre à jour le rôle d\'un membre de projet' })
   async updateProjectMemberRole(
     @CurrentUser() user: JwtUser,
@@ -95,5 +96,10 @@ export class ProjectMemberResolver {
   ) {
     if (!user) throw new UnauthorizedException();
     return this.members.updateRole(user.sub, projectId, userId, role);
+  }
+
+  @ResolveField(() => User)
+  async users(@Parent() member: ProjectMember) {
+    return member.users;
   }
 }

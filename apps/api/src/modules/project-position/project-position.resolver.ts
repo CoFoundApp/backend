@@ -1,6 +1,6 @@
 import { Resolver, Mutation, Args, Query } from '@nestjs/graphql';
 import { UseGuards, UnauthorizedException } from '@nestjs/common';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { ProjectPosition } from './project-position.type';
 import { ProjectPositionService } from './project-position.service';
@@ -10,7 +10,7 @@ import { CreateProjectPositionInput } from './dto/create-project-position.input'
 export class ProjectPositionResolver {
   constructor(private readonly positions: ProjectPositionService) {}
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => ProjectPosition, { description: 'Créer une position de projet' })
   async createProjectPosition(
     @CurrentUser() user: JwtUser,
@@ -20,7 +20,7 @@ export class ProjectPositionResolver {
     return this.positions.create(user.sub, input);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => [ProjectPosition], { description: 'Lister les positions d\'un projet' })
   async listProjectPositions(
     @CurrentUser() user: JwtUser,
@@ -30,7 +30,7 @@ export class ProjectPositionResolver {
     return this.positions.list(user.sub, projectId);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => ProjectPosition, { description: 'Clore une position de projet' })
   async closeProjectPosition(
     @CurrentUser() user: JwtUser,

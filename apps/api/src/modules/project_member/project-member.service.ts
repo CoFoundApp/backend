@@ -34,7 +34,6 @@ export class ProjectMemberService {
     try {
       await this.mail.sendTemplate(to, template, 'en', payload);
     } catch (e) {
-      // logger.warn('mail send failed', { template, to, e });
       console.log('mail send failed', { template, to, e });
     }
   }
@@ -46,10 +45,17 @@ export class ProjectMemberService {
   }
 
   async listMembers(userId: string, projectId: string) {
-    const me = await this.getMembership(projectId, userId);
-    if (!me) throw new ForbiddenException('Not a member');
     return this.prisma.prisma().project_members.findMany({
       where: { project_id: projectId, status: 'active' },
+      include: {
+        users: {
+          select: {
+            id: true,
+            email: true,
+            profiles: true
+          }
+        }
+      },
     });
   }
 
@@ -148,7 +154,7 @@ export class ProjectMemberService {
     await this.safeSend(user?.email, 'invitation_accepted', {
       app_name: process.env.APP_NAME,
       project_title: project?.title ?? projectId,
-      role: 'member', // ou inv.role si tu veux la valeur exacte: lis 'inv' avant la txn
+      role: 'member',
     });
 
     // Owner (nouveau membre)
@@ -156,7 +162,7 @@ export class ProjectMemberService {
       app_name: process.env.APP_NAME,
       project_title: project?.title ?? projectId,
       invitee_name: this.displayName(user),
-      role: 'member', // idem remarque ci-dessus
+      role: 'member',
     });
 
     return this.getMembership(projectId, userId);

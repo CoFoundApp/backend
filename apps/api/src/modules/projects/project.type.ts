@@ -34,6 +34,15 @@ export class Project {
   visibility!: ProfileVisibility;
 
   @Field(() => [String])
+  attachment_urls!: string[];
+
+  @Field(() => String, { nullable: true })
+  banner_url?: string | null;
+
+  @Field(() => String, { nullable: true })
+  avatar_url?: string | null;
+
+  @Field(() => [String])
   project_skills!: string[];
 
   @Field(() => [String])

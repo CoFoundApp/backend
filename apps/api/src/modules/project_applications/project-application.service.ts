@@ -69,6 +69,7 @@ export class ProjectApplicationService {
         applicant_id: applicantId,
         position_id: input.position_id ?? null,
         note: input.note ?? null,
+        attachment_urls: Array.isArray(input.attachment_urls) ? input.attachment_urls : [],
       } as any,
       include: { project_positions: true },
     })) as any;
@@ -108,20 +109,12 @@ export class ProjectApplicationService {
   }
 
   async list(
-    ownerId: string,
-    projectId: string,
+    applicantId: string,
     status?: ApplicationStatus,
     positionId?: string,
     cursor?: string,
     limit = 20,
   ) {
-    const project = await this.prisma.prisma().projects.findUnique({
-      where: { id: projectId },
-      select: { owner_id: true },
-    });
-    if (!project) throw new NotFoundException('Project not found');
-    if (project.owner_id !== ownerId) throw new ForbiddenException('Not owner');
-
     let cursorFilter: any = {};
     if (cursor) {
       const c = this.decodeCursor(cursor);
@@ -138,6 +131,82 @@ export class ProjectApplicationService {
       };
     }
 
+    const results = await this.prisma.prisma().project_applications.findMany({
+      where: {
+        applicant_id: applicantId,
+        status: status ?? undefined,
+        position_id: positionId ?? undefined,
+        ...cursorFilter,
+      },
+      orderBy: [
+        { created_at: 'desc' },
+        { id: 'desc' },
+      ],
+      take: limit + 1,
+      // Pas besoin d'include, les field resolvers s'en chargent
+    });
+
+    const items = results.slice(0, limit);
+    const nextCursor = results.length > limit
+      ? this.encodeCursor(results[limit])
+      : undefined;
+
+    return {
+      items,
+      nextCursor
+    };
+  }
+
+  async listProjectApplications(
+    projectId: string,
+    requesterId: string, // L'utilisateur qui fait la demande
+    status?: ApplicationStatus,
+    positionId?: string,
+    cursor?: string,
+    limit = 20,
+  ) {
+    // ✅ 1. Vérifier que le projet existe et que l'utilisateur y a accès
+    const project = await this.prisma.prisma().projects.findUnique({
+      where: { id: projectId },
+      select: {
+        owner_id: true,
+        project_members: {
+          select: { user_id: true },
+          where: { user_id: requesterId }
+        }
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    // ✅ 2. Vérifier que l'utilisateur est propriétaire ou membre
+    const isOwner = project.owner_id === requesterId;
+    const isMember = project.project_members.length > 0;
+
+    if (!isOwner && !isMember) {
+      throw new ForbiddenException('Access denied. You must be a project member to view applications.');
+    }
+
+    // ✅ 3. Construire le filtre de pagination
+    let cursorFilter: any = {};
+    if (cursor) {
+      const c = this.decodeCursor(cursor);
+      cursorFilter = {
+        OR: [
+          { created_at: { gt: c.created_at } },
+          {
+            AND: [
+              { created_at: c.created_at },
+              { id: { gt: c.id } },
+            ],
+          },
+        ],
+      };
+    }
+
+    // ✅ 4. Récupérer les applications
     const results = (await this.prisma.prisma().project_applications.findMany({
       where: {
         project_id: projectId,
@@ -146,22 +215,69 @@ export class ProjectApplicationService {
         ...cursorFilter,
       },
       orderBy: [
-        { created_at: 'asc' },
-        { id: 'asc' },
+        { created_at: 'desc' }, // Plus récent en premier
+        { id: 'desc' },
       ],
       take: limit + 1,
-      include: { project_positions: true },
+      include: {
+        project_positions: true,
+        users_project_applications_applicant_idTousers: { // Infos du candidat
+          select: {
+            id: true,
+            email: true,
+            profiles: {
+              select: {
+                display_name: true,
+                avatar_url: true,
+                headline: true,
+              }
+            }
+          }
+        },
+        users_project_applications_decided_byTousers: { // Qui a pris la décision
+          select: {
+            id: true,
+            email: true,
+            profiles: {
+              select: {
+                display_name: true,
+              }
+            }
+          }
+        }
+      },
     })) as any[];
 
+    // ✅ 5. Formater les résultats
     const items = results.slice(0, limit).map((a) => ({
       ...a,
       position: a.project_positions,
+      applicant: {
+        id: a.users_project_applications_applicant_idTousers?.id,
+        email: a.users_project_applications_applicant_idTousers?.email,
+        display_name: a.users_project_applications_applicant_idTousers?.profiles?.display_name,
+        avatar_url: a.users_project_applications_applicant_idTousers?.profiles?.avatar_url,
+        headline: a.users_project_applications_applicant_idTousers?.profiles?.headline,
+        skills: a.users_project_applications_applicant_idTousers?.skills?.map((s: any) => s.skills) || []
+      },
+      decidedBy: a.users_project_applications_decided_byTousers ? {
+        id: a.users_project_applications_decided_byTousers.id,
+        email: a.users_project_applications_decided_byTousers.email,
+        display_name: a.users_project_applications_decided_byTousers.profiles?.display_name,
+      } : null,
     }));
-    const next =
-      results.length > limit
-        ? this.encodeCursor(results[limit])
-        : undefined;
-    return { items, nextCursor: next };
+
+    const next = results.length > limit ? this.encodeCursor(results[limit]) : undefined;
+
+    return {
+      items,
+      nextCursor: next,
+      projectInfo: {
+        id: projectId,
+        isOwner,
+        isMember: !isOwner && isMember, // Membre mais pas propriétaire
+      }
+    };
   }
 
   async withdraw(applicantId: string, id: string) {

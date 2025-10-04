@@ -1,0 +1,34 @@
+FROM node:24-alpine
+
+RUN apk add --no-cache git openssh wget
+WORKDIR /usr/src/app
+
+# Setup pnpm
+RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
+
+# Copy dependency files first (better caching)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/
+
+# Install ALL dependencies (including devDependencies for build)
+RUN pnpm install --frozen-lockfile
+
+# Copy Prisma schema
+COPY apps/api/prisma ./apps/api/prisma
+
+# Generate Prisma Client
+RUN cd apps/api && pnpm exec prisma generate
+
+# Copy source code
+COPY apps ./apps
+
+# Build application
+RUN pnpm --filter @cofound/api build
+
+# Prune dev dependencies after build (optional, saves space)
+RUN pnpm prune --prod
+
+EXPOSE 3000
+
+# Start in production mode
+CMD ["node", "apps/api/dist/main.js"]

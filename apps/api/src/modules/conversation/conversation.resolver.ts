@@ -2,7 +2,7 @@ import { Resolver, Query, Mutation, Args, Subscription } from '@nestjs/graphql';
 import { UseGuards, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { ConversationService } from './conversation.service';
 import { Conversation, Message, MessageConnection } from './conversation.type';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { Inject } from '@nestjs/common';
 import { PUB_SUB } from './conversation.constants';
@@ -15,14 +15,14 @@ export class ConversationResolver {
     @Inject(PUB_SUB) private readonly pubsub: PubSubEngine,
   ) {}
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => [Conversation], { description: 'List my conversations' })
   async conversationsQuery(@CurrentUser() user: JwtUser) {
     if (!user) throw new UnauthorizedException();
     return this.conversations.listConversations(user.sub);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Conversation, { description: 'Create or return existing DM conversation' })
   async createConversation(
     @CurrentUser() user: JwtUser,
@@ -32,7 +32,7 @@ export class ConversationResolver {
     return this.conversations.createConversation(user.sub, user_id);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => MessageConnection, { description: 'List messages of a conversation' })
   async messages(
     @CurrentUser() user: JwtUser,
@@ -44,7 +44,7 @@ export class ConversationResolver {
     return this.conversations.listMessages(user.sub, conversation_id, limit ?? 20, cursor);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Message, { description: 'Send a message' })
   async sendMessage(
     @CurrentUser() user: JwtUser,
@@ -55,7 +55,7 @@ export class ConversationResolver {
     return this.conversations.sendMessage(user.sub, conversation_id, content);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Mark a conversation as read' })
   async markConversationRead(
     @CurrentUser() user: JwtUser,
@@ -65,7 +65,7 @@ export class ConversationResolver {
     return this.conversations.markRead(user.sub, conversation_id);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Subscription(() => Message, {
     filter: (payload, variables) => payload.messageAdded.conversation_id === variables.conversation_id,
   })

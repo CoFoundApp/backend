@@ -1,10 +1,10 @@
 import { Resolver, Query, Args, Mutation, Int, ResolveField, Parent } from '@nestjs/graphql';
 import { UseGuards, UnauthorizedException, forwardRef, Inject } from '@nestjs/common';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
-import { Profile } from './profile.type';
+import { Education, Profile, VolunteerExperience, WorkExperience  } from './profile.type';
 import { ProfileService } from './profile.service';
 import { UpdateMyProfileInput } from './dto/update-my-profile.input';
 import { User } from '../user/user.type';
@@ -18,7 +18,7 @@ import { UpdateMyInterestsInput } from '../taxonomy/dto/update-my-interests.inpu
 import { ProfileEmbeddingService } from '../embedding/profile-embedding.service';
 import { JobsService } from '../../queue/jobs.service';
 import { Logger } from '@nestjs/common';
-
+import { UploadService } from '../upload/upload.service';
 
 @Resolver(() => Profile)
 export class ProfileResolver {
@@ -31,6 +31,7 @@ export class ProfileResolver {
     private readonly interestsService: InterestsService,
     private readonly profileEmbedding: ProfileEmbeddingService,
     private readonly jobs: JobsService,
+    private readonly uploads: UploadService,
   ) {}
 
   /** Public: lecture d'un profil public/unlisted par id */
@@ -40,7 +41,7 @@ export class ProfileResolver {
   }
 
   /** Admin: listing des profils */
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Query(() => [Profile], { description: 'admin: Listing des profils' })
   async adminListProfiles(
@@ -50,7 +51,7 @@ export class ProfileResolver {
   }
 
   /** Moi: lire mon profil (créé s'il n'existe pas) */
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => Profile, { description: 'Lecture de mon profil' })
   async myProfile(@CurrentUser() user: JwtUser) {
     if (!user) throw new UnauthorizedException();
@@ -58,10 +59,16 @@ export class ProfileResolver {
   }
 
   /** Moi: mise à jour de mon profil */
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Profile, { description: 'Mise à jour de mon profil' })
   async updateMyProfile(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyProfileInput) {
     if (!user) throw new UnauthorizedException();
+    if (input.avatar) {
+      input.avatar_url = await this.uploads.save(input.avatar);
+    }
+    if (input.banner) {
+      input.banner_url = await this.uploads.save(input.banner);
+    }
     const p = await this.profiles.updateMyProfile(user.sub, input);
 
     await this.jobs.enqueueRecomputeProfileDebounced(user.sub);
@@ -89,7 +96,7 @@ export class ProfileResolver {
   }
 
   // Mise à jour de mes compétences
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Mise à jour de mes compétences' })
   async updateMySkills(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMySkillsInput) {
     if (!user) throw new UnauthorizedException();
@@ -100,7 +107,7 @@ export class ProfileResolver {
   }
 
   // Mise à jour de mes intérêts
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Mise à jour de mes intérêts' })
   async updateMyInterests(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyInterestsInput) {
     if (!user) throw new UnauthorizedException();
@@ -110,7 +117,7 @@ export class ProfileResolver {
   }
 
   // Admin: s'assurer qu'un profil existe
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => Boolean, { description: 'Admin: S’assurer qu’un profil existe' })
   adminEnsureProfile(@Args('userId', { type: () => String }) userId: string) {
@@ -118,7 +125,7 @@ export class ProfileResolver {
   }
 
   // Admin: Changer la visibilité d'un profil
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => Boolean, { description: 'Admin: Changer la visibilité d\'un profil' })
   adminSetProfileVisibility(
@@ -126,5 +133,20 @@ export class ProfileResolver {
     @Args('visibility', { type: () => String }) visibility: string,
   ) {
     return this.profiles.updateMyProfile(userId, { visibility } as any).then(() => true);
+  }
+
+  @ResolveField(() => [WorkExperience], { description: 'Expériences professionnelles associées au profil' })
+  async workExperiences(@Parent() profile: Profile) {
+    return this.profiles.listWorkExperiences(profile.user_id);
+  }
+
+  @ResolveField(() => [Education], { description: 'Formations associées au profil' })
+  async educations(@Parent() profile: Profile) {
+    return this.profiles.listEducations(profile.user_id);
+  }
+
+  @ResolveField(() => [VolunteerExperience], { description: 'Expériences de bénévolat associées au profil' })
+  async volunteerExperiences(@Parent() profile: Profile) {
+    return this.profiles.listVolunteerExperiences(profile.user_id);
   }
 }

@@ -51,7 +51,6 @@ export class ProjectPositionService {
       select: { owner_id: true },
     });
     if (!project) throw new NotFoundException('Project not found');
-    if (project.owner_id !== ownerId) throw new ForbiddenException('Not owner');
 
     return this.prisma.prisma().project_positions.findMany({ where: { project_id: projectId } });
   }

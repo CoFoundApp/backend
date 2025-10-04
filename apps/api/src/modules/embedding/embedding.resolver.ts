@@ -1,7 +1,7 @@
 import { Resolver, Mutation, Args, Query, Int } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { EmbeddingService } from './embedding.service';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { SkillMatch } from './types/skill-match.type';
@@ -16,7 +16,7 @@ export class EmbeddingResolver {
   ) {}
 
   // --- ADMIN: forcer calcul embedding ---
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => Boolean, {description: "Forcer le calcul de l'embedding de compétence"})
   async computeSkillEmbedding(@Args('id', { type: () => String }) id: string) {
@@ -24,7 +24,7 @@ export class EmbeddingResolver {
   }
 
   // --- ADMIN: forcer calcul embedding ---
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => Boolean, {description: "Forcer le calcul de l'embedding d'intérêt"})
   async computeInterestEmbedding(@Args('id', { type: () => String }) id: string) {
@@ -33,7 +33,7 @@ export class EmbeddingResolver {
 
   // --- ADMIN/DEV: recherche sémantique par texte (pas d’exposition du vecteur) ---
   // NB: n’expose pas embedding
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Query(() => [SkillMatch], {description: "Recherche sémantique de compétences par texte"})
   async searchSkillsByText(
@@ -46,7 +46,7 @@ export class EmbeddingResolver {
 
   // --- ADMIN/DEV: recherche sémantique par texte (pas d’exposition du vecteur) ---
   // NB: n’expose pas embedding
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Query(() => [InterestMatch], {description: "Recherche sémantique d'intérêts par texte"})
   async searchInterestsByText(
@@ -58,7 +58,7 @@ export class EmbeddingResolver {
   }
 
   // --- ADMIN: forcer recalcul de l'embedding de profil ---
-  @UseGuards(GqlAuthGuard, RolesGuard)
+  @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => Boolean, {description: "Forcer le recalcul de l'embedding de profil"})
   adminRecomputeProfileEmbedding(@Args('userId', { type: () => String }) userId: string) {

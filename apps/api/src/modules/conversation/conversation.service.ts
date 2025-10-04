@@ -64,6 +64,7 @@ export class ConversationService {
         participants: existing.participants.map((p: any) => ({
           conversation_id: p.conversation_id,
           user_id: p.user_id,
+          role: p.role,
           last_read_at: p.last_read_at,
           user: p.users,
         })),
@@ -101,6 +102,7 @@ export class ConversationService {
       participants: conv.participants.map((p: any) => ({
         conversation_id: p.conversation_id,
         user_id: p.user_id,
+        role: p.role,
         last_read_at: p.last_read_at,
         user: p.users,
       })),
@@ -126,11 +128,13 @@ export class ConversationService {
       },
       orderBy: { updated_at: 'desc' },
     });
+
     return convs.map((c: any) => ({
       ...c,
       participants: c.participants.map((p: any) => ({
         conversation_id: p.conversation_id,
         user_id: p.user_id,
+        role: p.role,
         last_read_at: p.last_read_at,
         user: p.users,
       })),
@@ -179,6 +183,7 @@ export class ConversationService {
         conversation_id: conversationId,
         sender_id: userId,
         content,
+        type: 'text',
       },
     });
 

@@ -1,6 +1,6 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { UseGuards, UnauthorizedException } from '@nestjs/common';
-import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import {
   Notification,
@@ -14,7 +14,7 @@ import { NotificationService } from './notification.service';
 export class NotificationResolver {
   constructor(private readonly notifications: NotificationService) {}
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => NotificationConnection, { description: 'List user notifications' })
   async notificationsQuery(
     @CurrentUser() user: JwtUser,
@@ -27,14 +27,14 @@ export class NotificationResolver {
     return this.notifications.list(user.sub, limit ?? 20, cursor ?? undefined, type, unreadOnly);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => Number, { description: 'Unread notifications count' })
   async unreadCount(@CurrentUser() user: JwtUser) {
     if (!user) throw new UnauthorizedException();
     return this.notifications.unreadCount(user.sub);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Mark a notification as read' })
   async markNotificationRead(
     @CurrentUser() user: JwtUser,
@@ -44,21 +44,21 @@ export class NotificationResolver {
     return this.notifications.markRead(user.sub, id);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Mark all notifications as read' })
   async markAllNotificationsRead(@CurrentUser() user: JwtUser) {
     if (!user) throw new UnauthorizedException();
     return this.notifications.markAllRead(user.sub);
   }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Query(() => [NotificationPreference], { description: 'Get notification preferences' })
   async notificationPreferences(@CurrentUser() user: JwtUser) {
     if (!user) throw new UnauthorizedException();
     return this.notifications.getPreferences(user.sub);
     }
 
-  @UseGuards(GqlAuthGuard)
+  @UseGuards(SessionGuard)
   @Mutation(() => NotificationPreference, { description: 'Update notification preference' })
   async updateNotificationPreference(
     @CurrentUser() user: JwtUser,
