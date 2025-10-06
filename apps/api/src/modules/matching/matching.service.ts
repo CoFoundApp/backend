@@ -1,4 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { EMBEDDING_PORT, EmbeddingPort, EMBEDDING_DIM } from '../embedding/embedding.port';
 import { toVectorLiteral } from '../../common/utils/vector.util';
@@ -7,40 +8,34 @@ import { ProfileMatch } from './types/profile-match.type';
 import { MatchProjectsInput } from './types/match-projects-input.type';
 import { ProjectMatch } from './types/project-match.type';
 import { MatchMode } from './types/match-mode.enum';
-import { LanguageCode } from '../../common/enums/domain.enums';
-import { Prisma, PrismaClient } from '@prisma/client';
-import { ProfileMatchConnection, ProjectMatchConnection } from './types/connection.input'
+import { ProfileMatchConnection, ProjectMatchConnection } from './types/connection.input';
+import { MatchRecommendation } from './types/match-recommendation.type';
+import { CompositeScoreService, CompositeScoreInput, CompositeScoreOutput } from './services/composite-score.service';
+import { SuccessPredictionService } from './services/success-prediction.service';
+import { MatchDetailLevel } from './types/match-detail-level.enum';
+import { weightFor, weightedJaccard } from './services/score.utils';
+import { TimeSlotLike } from './services/logistics-score.service';
+import { DimensionScoreResult } from './services/dimension-score.interface';
+import { ExplainabilityPayload } from './services/explainability.service';
 
 const EMPTY_PROFILE_CONN: ProfileMatchConnection = {
   items: [] as ProfileMatch[],
   nextCursor: undefined,
 };
+
 const EMPTY_PROJECT_CONN: ProjectMatchConnection = {
   items: [] as ProjectMatch[],
   nextCursor: undefined,
 };
+
+const MATCH_ALGO_VERSION = '2024.11.0';
+const DEFAULT_DETAIL_LEVEL = MatchDetailLevel.ENRICHED;
 
 type DbLike = {
   $executeRawUnsafe: (query: string, ...params: any[]) => Promise<any>;
   $queryRawUnsafe: <T = any>(query: string, ...params: any[]) => Promise<T>;
 };
 
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, hi));
-const weightFor = (level?: number | null, years?: number | null) =>
-  1 + 0.7 * (clamp(level ?? 0, 0, 5) / 5) + 0.3 * (clamp(years ?? 0, 0, 10) / 10);
-
-const weightedJaccard = (a: Map<string, number>, b: Map<string, number>) => {
-  let inter = 0, uni = 0;
-  const keys = new Set([...a.keys(), ...b.keys()]);
-  for (const k of keys) {
-    const va = a.get(k) ?? 0, vb = b.get(k) ?? 0;
-    inter += Math.min(va, vb);
-    uni   += Math.max(va, vb);
-  }
-  return uni === 0 ? 0 : inter / uni;
-};
-
-// cursor utils: base64("distance:id")
 function parseCursor(cur?: string): { d: number | null; id: string | null } {
   if (!cur) return { d: null, id: null };
   try {
@@ -56,19 +51,23 @@ function parseCursor(cur?: string): { d: number | null; id: string | null } {
   }
 }
 
+function encodeCursor(distance: number, id: string): string {
+  return Buffer.from(`${distance}:${id}`).toString('base64');
+}
+
 @Injectable()
 export class MatchingService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(EMBEDDING_PORT) private readonly port: EmbeddingPort,
+    private readonly compositeScore: CompositeScoreService,
+    private readonly successPrediction: SuccessPredictionService,
   ) {}
 
-  /** Wrap SET LOCAL ef_search + KNN query on the same connection */
   private async withEfSearch<T>(
     efSearch: number | undefined | null,
     run: (db: DbLike) => Promise<T>,
   ): Promise<T> {
-    // Typage explicite: on récupère bien un PrismaClient
     const client = this.prisma.prisma() as unknown as PrismaClient;
 
     if (efSearch && Number.isInteger(efSearch) && efSearch > 0) {
@@ -81,13 +80,12 @@ export class MatchingService {
     return run(client as unknown as DbLike);
   }
 
-  // --- déjà existant (laisse comme avant) ---
   async suggestProfilesForUser(
     meUserId: string,
     limit = 20,
     preselect = 200,
     maxDistance = 0.4,
-  ) {
+  ): Promise<MatchRecommendation[]> {
     const has = await this.prisma.prisma().$queryRawUnsafe<{ exists: boolean }[]>(
       `SELECT EXISTS (
          SELECT 1 FROM profiles WHERE user_id = $1::uuid AND embedding IS NOT NULL
@@ -113,16 +111,44 @@ export class MatchingService {
       preselect,
     );
 
-    const profileIds = candidates.map(c => c.id);
-    const userIds    = candidates.map(c => c.user_id);
+    const profileIds = candidates.map((c) => c.id);
+    const userIds = candidates.map((c) => c.user_id);
 
     const [candProfiles, mySkills, candSkills, myInterests, candInterests] = await Promise.all([
       this.prisma.prisma().profiles.findMany({
         where: { id: { in: profileIds } },
         select: {
-          id: true, user_id: true, display_name: true, headline: true,
-          languages: true, availability_hours: true, visibility: true,
-          created_at: true, updated_at: true,
+          id: true,
+          user_id: true,
+          display_name: true,
+          headline: true,
+          location: true,
+          languages: true,
+          availability_hours: true,
+          visibility: true,
+          tags: true,
+          created_at: true,
+          updated_at: true,
+          preferred_work_styles: true,
+          core_values: true,
+          primary_motivations: true,
+          preferred_environments: true,
+          preferred_team_size: true,
+          desired_team_role: true,
+          communication_style: true,
+          communication_frequency: true,
+          preferred_collaboration_mode: true,
+          timezone: true,
+          timezone_flexibility_minutes: true,
+          remote_preference_percent: true,
+          availability_time_slots: true,
+          mission_duration_min_weeks: true,
+          mission_duration_max_weeks: true,
+          success_rate: true,
+          average_rating: true,
+          average_response_time_minutes: true,
+          last_active_at: true,
+          activity_score: true,
         },
       }),
       this.prisma.prisma().user_skills.findMany({
@@ -143,9 +169,9 @@ export class MatchingService {
       }),
     ]);
 
-    const candProfileByUser = new Map(candProfiles.map(p => [p.user_id, p]));
-    const myW = new Map(mySkills.map(r => [r.skill_id, weightFor(r.level, r.years)]));
-    const myInterSet = new Set(myInterests.map(r => r.interest_id));
+    const candProfileByUser = new Map(candProfiles.map((p) => [p.user_id, p]));
+    const myW = new Map(mySkills.map((r) => [r.skill_id, weightFor(r.level, r.years)]));
+    const myInterSet = new Set(myInterests.map((r) => r.interest_id));
 
     const skillsByUser = new Map<string, { skill_id: string; weight: number }[]>();
     for (const r of candSkills) {
@@ -161,28 +187,30 @@ export class MatchingService {
       interestsByUser.set(r.user_id, set);
     }
 
-    const results = [];
+    const results: MatchRecommendation[] = [];
     for (const c of candidates) {
       if (c.distance > maxDistance) continue;
       const p = candProfileByUser.get(c.user_id);
       if (!p) continue;
 
       const wArr = skillsByUser.get(c.user_id) ?? [];
-      const wMap = new Map(wArr.map(x => [x.skill_id, x.weight]));
+      const wMap = new Map(wArr.map((x) => [x.skill_id, x.weight]));
       const skillOverlap = weightedJaccard(myW, wMap);
 
       const candInt = interestsByUser.get(c.user_id) ?? new Set<string>();
-      let interI = 0, uniI = 0;
+      let interI = 0;
+      let uniI = 0;
       const interKeys = new Set([...myInterSet, ...candInt]);
       for (const k of interKeys) {
-        const a = myInterSet.has(k), b = candInt.has(k);
+        const a = myInterSet.has(k);
+        const b = candInt.has(k);
         interI += a && b ? 1 : 0;
-        uniI   += a || b ? 1 : 0;
+        uniI += a || b ? 1 : 0;
       }
       const interestOverlap = uniI ? interI / uniI : 0;
 
       const semanticSim = 1 - c.distance;
-      const score = 0.60 * skillOverlap + 0.15 * interestOverlap + 0.25 * semanticSim;
+      const score = 0.6 * skillOverlap + 0.15 * interestOverlap + 0.25 * semanticSim;
 
       const reasons: string[] = [];
       if (skillOverlap >= 0.15) reasons.push('Compétences communes');
@@ -190,7 +218,7 @@ export class MatchingService {
       if (semanticSim >= 0.7) reasons.push('Proximité sémantique');
       if (!reasons.length) reasons.push('Proximité générale');
 
-      results.push({ profile: p, score, distance: c.distance, reasons });
+      results.push({ profile: p as unknown as any, score, distance: c.distance, reasons });
     }
 
     results.sort((a, b) => b.score - a.score);
@@ -199,6 +227,7 @@ export class MatchingService {
 
   async matchProfiles(input: MatchProfilesInput): Promise<ProfileMatchConnection> {
     const { mode, text, projectId, k = 20, threshold, efSearch, filters, cursor } = input;
+    const detailLevel = input.detailLevel ?? DEFAULT_DETAIL_LEVEL;
     const preselect = Math.max(k * 5, 100);
     const { d: cursorD, id: cursorId } = parseCursor(cursor);
 
@@ -206,9 +235,9 @@ export class MatchingService {
       let candidates: Array<{ id: string; user_id: string; distance: number }> = [];
 
       if (mode === MatchMode.BY_TEXT) {
-        if (!text) return EMPTY_PROFILE_CONN;;
+        if (!text) return EMPTY_PROFILE_CONN;
         const vec = await this.port.embedText(text);
-        if (!vec.length) return EMPTY_PROFILE_CONN;;
+        if (!vec.length) return EMPTY_PROFILE_CONN;
         const lit = toVectorLiteral(vec, EMBEDDING_DIM);
 
         const values: any[] = [preselect];
@@ -255,13 +284,13 @@ export class MatchingService {
         `;
         candidates = await db.$queryRawUnsafe(sql, ...values);
       } else if (mode === MatchMode.BY_PROJECT) {
-        if (!projectId) return EMPTY_PROFILE_CONN;;
+        if (!projectId) return EMPTY_PROFILE_CONN;
 
         const src = await db.$queryRawUnsafe<{ ok: boolean }[]>(
           `SELECT EXISTS (SELECT 1 FROM projects WHERE id = $1::uuid AND embedding IS NOT NULL) AS ok`,
           projectId,
         );
-        if (!src[0]?.ok) return EMPTY_PROFILE_CONN;;
+        if (!src[0]?.ok) return EMPTY_PROFILE_CONN;
 
         const values: any[] = [projectId, preselect];
         const where: string[] = [
@@ -295,7 +324,9 @@ export class MatchingService {
         if (cursorD != null && cursorId) {
           const idxD = values.push(cursorD);
           const idxI = values.push(cursorId);
-          where.push(`((embedding <=> (SELECT embedding FROM projects WHERE id = $1::uuid)), id) > ($${idxD}::float, $${idxI}::uuid)`);
+          where.push(
+            `((embedding <=> (SELECT embedding FROM projects WHERE id = $1::uuid)), id) > ($${idxD}::float, $${idxI}::uuid)`,
+          );
         }
 
         const sql = `
@@ -308,11 +339,56 @@ export class MatchingService {
         `;
         candidates = await db.$queryRawUnsafe(sql, ...values);
       } else {
-        return EMPTY_PROFILE_CONN;;
+        return EMPTY_PROFILE_CONN;
       }
 
-      const profileIds = candidates.map(c => c.id);
-      const userIds = candidates.map(c => c.user_id);
+      if (!candidates.length) return EMPTY_PROFILE_CONN;
+
+      const profileIds = candidates.map((c) => c.id);
+      const userIds = candidates.map((c) => c.user_id);
+
+      const project = projectId
+        ? await this.prisma.prisma().projects.findUnique({
+            where: { id: projectId },
+            select: {
+              id: true,
+              owner_id: true,
+              title: true,
+              summary: true,
+              industry: true,
+              tags: true,
+              stage: true,
+              status: true,
+              culture_work_styles: true,
+              culture_values: true,
+              preferred_team_role: true,
+              preferred_team_size: true,
+              management_style: true,
+              environment: true,
+              collaboration_mode: true,
+              communication_style: true,
+              communication_frequency: true,
+              project_members: {
+                where: { status: 'active' },
+                select: { role: true },
+              },
+              timezone: true,
+              required_hours_min: true,
+              required_hours_max: true,
+              critical_time_slots: true,
+              remote_ratio_min: true,
+              remote_ratio_max: true,
+              duration_weeks_min: true,
+              duration_weeks_max: true,
+              urgency: true,
+              acceptance_rate: true,
+              average_project_rating: true,
+              average_response_time_minutes: true,
+              created_at: true,
+              updated_at: true,
+            },
+          })
+        : null;
 
       const candProfiles = await this.prisma.prisma().profiles.findMany({
         where: { id: { in: profileIds } },
@@ -321,45 +397,63 @@ export class MatchingService {
           user_id: true,
           display_name: true,
           headline: true,
+          location: true,
           languages: true,
           availability_hours: true,
           visibility: true,
           tags: true,
           created_at: true,
           updated_at: true,
+          preferred_work_styles: true,
+          core_values: true,
+          primary_motivations: true,
+          preferred_environments: true,
+          preferred_team_size: true,
+          desired_team_role: true,
+          communication_style: true,
+          communication_frequency: true,
+          preferred_collaboration_mode: true,
+          timezone: true,
+          timezone_flexibility_minutes: true,
+          remote_preference_percent: true,
+          availability_time_slots: true,
+          mission_duration_min_weeks: true,
+          mission_duration_max_weeks: true,
+          success_rate: true,
+          average_rating: true,
+          average_response_time_minutes: true,
+          last_active_at: true,
+          activity_score: true,
         },
       });
 
-      const candProfileByUser = new Map(candProfiles.map(p => [p.user_id, p]));
+      const candProfileByUser = new Map(candProfiles.map((p) => [p.user_id, p]));
 
-      let projSkills: Array<{ skill_id: string; importance: number | null }> = [];
-      let projInterests: Array<{ interest_id: string }> = [];
-      if (mode === MatchMode.BY_PROJECT && projectId) {
-        [projSkills, projInterests] = await Promise.all([
-          this.prisma.prisma().project_skills.findMany({
-            where: { project_id: projectId },
-            select: { skill_id: true, importance: true },
-          }),
-          this.prisma.prisma().project_interests.findMany({
-            where: { project_id: projectId },
-            select: { interest_id: true },
-          }),
-        ]);
-      }
+      const [projSkills, projInterests] = projectId
+        ? await Promise.all([
+            this.prisma.prisma().project_skills.findMany({
+              where: { project_id: projectId },
+              select: { skill_id: true, importance: true },
+            }),
+            this.prisma.prisma().project_interests.findMany({
+              where: { project_id: projectId },
+              select: { interest_id: true },
+            }),
+          ])
+        : [[], []];
 
       const candSkills = await this.prisma.prisma().user_skills.findMany({
         where: { user_id: { in: userIds } },
         select: { user_id: true, skill_id: true, level: true, years: true },
       });
+
       const candInterests = await this.prisma.prisma().user_interests.findMany({
         where: { user_id: { in: userIds } },
         select: { user_id: true, interest_id: true },
       });
 
-      const projW = new Map(
-        projSkills.map(s => [s.skill_id, weightFor(s.importance ?? 0, null)]),
-      );
-      const projInterSet = new Set(projInterests.map(i => i.interest_id));
+      const projSkillWeights = new Map(projSkills.map((s) => [s.skill_id, weightFor(s.importance ?? 0, null)]));
+      const projInterestSet = new Set(projInterests.map((i) => i.interest_id));
 
       const skillsByUser = new Map<string, { skill_id: string; weight: number }[]>();
       for (const r of candSkills) {
@@ -375,95 +469,203 @@ export class MatchingService {
         interestsByUser.set(r.user_id, set);
       }
 
-      const results: ProfileMatch[] = [];
-      for (const c of candidates) {
-        if (threshold != null && c.distance > threshold) continue;
-        const p = candProfileByUser.get(c.user_id);
-        if (!p) continue;
+      const aggregated: Array<{ match: ProfileMatch; candidate: { id: string; user_id: string; distance: number } }> = [];
+      for (const candidate of candidates) {
+        if (threshold != null && candidate.distance > threshold) continue;
+        const profile = candProfileByUser.get(candidate.user_id);
+        if (!profile) continue;
 
-        const wArr = skillsByUser.get(c.user_id) ?? [];
-        const wMap = new Map(wArr.map(x => [x.skill_id, x.weight]));
-        const skillOverlap = projW.size ? weightedJaccard(projW, wMap) : 0;
+        const wArr = skillsByUser.get(candidate.user_id) ?? [];
+        const candidateSkillMap = new Map(wArr.map((x) => [x.skill_id, x.weight]));
+        const skillOverlap = projSkillWeights.size ? weightedJaccard(projSkillWeights, candidateSkillMap) : 0;
 
-        const candInt = interestsByUser.get(c.user_id) ?? new Set<string>();
-        let interI = 0, uniI = 0;
-        const interKeys = new Set([...projInterSet, ...candInt]);
-        for (const k2 of interKeys) {
-          const a = projInterSet.has(k2), b = candInt.has(k2);
+        const candInt = interestsByUser.get(candidate.user_id) ?? new Set<string>();
+        let interI = 0;
+        let uniI = 0;
+        const interKeys = new Set([...projInterestSet, ...candInt]);
+        for (const k of interKeys) {
+          const a = projInterestSet.has(k);
+          const b = candInt.has(k);
           interI += a && b ? 1 : 0;
-          uniI   += a || b ? 1 : 0;
+          uniI += a || b ? 1 : 0;
         }
         const interestOverlap = uniI ? interI / uniI : 0;
 
-        const semanticSim = 1 - c.distance;
-        const score = 0.6 * skillOverlap + 0.15 * interestOverlap + 0.25 * semanticSim;
+        const semanticSim = 1 - candidate.distance;
 
-        const reasons: string[] = [];
-        if (skillOverlap >= 0.15) reasons.push('Compétences communes');
-        if (interestOverlap >= 0.2) reasons.push("Centres d’intérêt partagés");
-        if (semanticSim >= 0.7) reasons.push('Proximité sémantique');
+        const compositeInput: CompositeScoreInput = {
+          detailLevel,
+          context: {
+            sector: project?.industry ?? null,
+            projectType: project?.stage ?? null,
+            urgency: project?.urgency ?? null,
+          },
+          technical: {
+            projectSkills: projSkillWeights,
+            candidateSkills: candidateSkillMap,
+            semanticSimilarity: semanticSim,
+            hasProjectSkills: projSkillWeights.size > 0,
+          },
+          culture: {
+            profileValues: profile.core_values ?? [],
+            projectValues: project?.culture_values ?? [],
+            profileWorkStyles: profile.preferred_work_styles ?? [],
+            projectWorkStyles: project?.culture_work_styles ?? [],
+            preferredEnvironments: profile.preferred_environments ?? [],
+            projectEnvironment: project?.environment ?? null,
+          },
+          team: {
+            preferredTeamSize: profile.preferred_team_size ?? null,
+            projectPreferredSize: project?.preferred_team_size ?? null,
+            desiredRole: profile.desired_team_role ?? null,
+            projectRoleNeed: project?.preferred_team_role ?? null,
+            communicationStyle: profile.communication_style ?? null,
+            projectCommunicationStyle: project?.communication_style ?? null,
+            communicationFrequency: profile.communication_frequency ?? null,
+            projectCommunicationFrequency: project?.communication_frequency ?? null,
+            teamRoles:
+              project?.project_members
+                ? project.project_members
+                    .filter((member) => member.role)
+                    .map((member) => member.role as string)
+                : null,
+          },
+          logistics: {
+            availabilityHours: profile.availability_hours ?? null,
+            requiredHoursMin: project?.required_hours_min ?? null,
+            requiredHoursMax: project?.required_hours_max ?? null,
+            availabilitySlots: this.parseSlots(profile.availability_time_slots),
+            requiredSlots: this.parseSlots(project?.critical_time_slots),
+            profileTimezone: profile.timezone ?? null,
+            projectTimezone: project?.timezone ?? null,
+            remotePreference: profile.remote_preference_percent ?? null,
+            remoteRatioMin: project?.remote_ratio_min ?? null,
+            remoteRatioMax: project?.remote_ratio_max ?? null,
+            missionMinWeeks: profile.mission_duration_min_weeks ?? null,
+            missionMaxWeeks: profile.mission_duration_max_weeks ?? null,
+            projectMinWeeks: project?.duration_weeks_min ?? null,
+            projectMaxWeeks: project?.duration_weeks_max ?? null,
+          },
+          experience: {
+            profileSuccessRate: profile.success_rate ?? null,
+            profileAverageRating: profile.average_rating ?? null,
+            profileActivityScore: profile.activity_score ?? null,
+            projectAcceptanceRate: project?.acceptance_rate ?? null,
+            projectAverageRating: project?.average_project_rating ?? null,
+            historicalSimilarity: semanticSim,
+            goalsAlignment: interestOverlap,
+          },
+          semantic: {
+            similarity: semanticSim,
+            hasEmbeddings: true,
+          },
+          contact: {
+            profileLocation: profile.location ?? null,
+            profileTimezone: profile.timezone ?? null,
+            projectTimezone: project?.timezone ?? null,
+            profileCollaborationMode: profile.preferred_collaboration_mode ?? null,
+            projectCollaborationMode: project?.collaboration_mode ?? null,
+            profileCommunicationStyle: profile.communication_style ?? null,
+            projectCommunicationStyle: project?.communication_style ?? null,
+            profileCommunicationFrequency: profile.communication_frequency ?? null,
+            projectCommunicationFrequency: project?.communication_frequency ?? null,
+            profileRemotePreference: profile.remote_preference_percent ?? null,
+            projectRemoteRatioMin: project?.remote_ratio_min ?? null,
+            projectRemoteRatioMax: project?.remote_ratio_max ?? null,
+            projectEnvironment: project?.environment ?? null,
+          },
+        };
 
-        if (filters) {
-          let all = true;
-          let partial = false;
-          if (filters.languages?.length) {
-            const langs: string[] = p.languages ?? [];
-            const allLang = filters.languages.every(l => langs.includes(l));
-            if (!allLang) {
-              all = false;
-              if (langs.some(l => (filters.languages as LanguageCode[]).includes(l as LanguageCode)))
-                partial = true;
-            }
-          }
-          if (filters.minAvailabilityHours != null) {
-            if ((p.availability_hours ?? 0) < filters.minAvailabilityHours) all = false;
-          }
-          if (filters.country) {
-            if ((p as any).country !== filters.country) all = false;
-          }
-          if (filters.remote != null) {
-            if ((p as any).remote !== filters.remote) all = false;
-          }
-          if (filters.tagsAny?.length) {
-            const tags = p.tags ?? [];
-            const matchCount = tags.filter(t => filters.tagsAny!.includes(t)).length;
-            if (matchCount < filters.tagsAny.length) {
-              if (matchCount > 0) partial = true;
-              all = false;
-            }
-          }
-          if (all) reasons.push('Contraintes compatibles');
-          else if (partial) reasons.push('Contraintes partiellement compatibles');
-        }
+        const composite = await this.compositeScore.evaluate(compositeInput);
+        const match = this.buildProfileMatchOutput(profile, candidate.distance, composite, detailLevel);
+        aggregated.push({ match, candidate });
 
-        if (!reasons.length) reasons.push('Proximité générale');
-
-        results.push({ profile: p as any, distance: c.distance, score, reasons });
+        await this.persistExplanation({
+          entityType: 'project',
+          profileId: profile.id,
+          projectId: project?.id ?? null,
+          counterpartProfileId: null,
+          counterpartProjectId: project?.id ?? null,
+          detailLevel,
+          composite,
+        });
       }
 
-      results.sort((a, b) => b.score - a.score);
-      const sliced = results.slice(0, k);
-
+      aggregated.sort((a, b) => b.match.score - a.match.score);
+      const sliced = aggregated.slice(0, k);
       const nextCursor = sliced.length
-        ? Buffer.from(`${sliced[sliced.length - 1].distance}:${(sliced[sliced.length - 1].profile as any).id}`).toString('base64')
+        ? encodeCursor(sliced[sliced.length - 1].candidate.distance, sliced[sliced.length - 1].candidate.id)
         : undefined;
 
-      return { items: sliced, nextCursor };
+      return { items: sliced.map((entry) => entry.match), nextCursor };
     });
   }
 
   async matchProjects(input: MatchProjectsInput): Promise<ProjectMatchConnection> {
     const { mode, text, profileId, k = 20, threshold, efSearch, filters, cursor } = input;
+    const detailLevel = input.detailLevel ?? DEFAULT_DETAIL_LEVEL;
     const preselect = Math.max(k * 5, 100);
     const { d: cursorD, id: cursorId } = parseCursor(cursor);
+
+    const profile = profileId
+      ? await this.prisma.prisma().profiles.findUnique({
+          where: { id: profileId },
+          select: {
+            id: true,
+            user_id: true,
+            display_name: true,
+            headline: true,
+            location: true,
+            languages: true,
+            availability_hours: true,
+            tags: true,
+            preferred_work_styles: true,
+            core_values: true,
+            primary_motivations: true,
+            preferred_environments: true,
+            preferred_team_size: true,
+            desired_team_role: true,
+            communication_style: true,
+            communication_frequency: true,
+            preferred_collaboration_mode: true,
+            timezone: true,
+            timezone_flexibility_minutes: true,
+            remote_preference_percent: true,
+            availability_time_slots: true,
+            mission_duration_min_weeks: true,
+            mission_duration_max_weeks: true,
+            success_rate: true,
+            average_rating: true,
+            average_response_time_minutes: true,
+            activity_score: true,
+          },
+        })
+      : null;
+
+    const profileSkills = profile
+      ? await this.prisma.prisma().user_skills.findMany({
+          where: { user_id: profile.user_id },
+          select: { skill_id: true, level: true, years: true },
+        })
+      : [];
+
+    const profileSkillMap = new Map(profileSkills.map((s) => [s.skill_id, weightFor(s.level, s.years)]));
+
+    const profileInterests = profile
+      ? await this.prisma.prisma().user_interests.findMany({
+          where: { user_id: profile.user_id },
+          select: { interest_id: true },
+        })
+      : [];
+    const profileInterestSet = new Set(profileInterests.map((i) => i.interest_id));
 
     return this.withEfSearch(efSearch, async (db) => {
       let candidates: Array<{ id: string; owner_id: string; distance: number }> = [];
 
       if (mode === MatchMode.BY_TEXT) {
-        if (!text) return EMPTY_PROJECT_CONN;;
+        if (!text) return EMPTY_PROJECT_CONN;
         const vec = await this.port.embedText(text);
-        if (!vec.length) return EMPTY_PROJECT_CONN;;
+        if (!vec.length) return EMPTY_PROJECT_CONN;
         const lit = toVectorLiteral(vec, EMBEDDING_DIM);
 
         const values: any[] = [preselect];
@@ -471,22 +673,6 @@ export class MatchingService {
           "embedding IS NOT NULL",
           "visibility IN ('public','unlisted')",
         ];
-        if (filters?.languages?.length) {
-          const idx = values.push(filters.languages);
-          where.push(`languages && $${idx}::text[]`);
-        }
-        if (filters?.minAvailabilityHours != null) {
-          const idx = values.push(filters.minAvailabilityHours);
-          where.push(`availability_hours >= $${idx}`);
-        }
-        if (filters?.country) {
-          const idx = values.push(filters.country);
-          where.push(`country = $${idx}`);
-        }
-        if (filters?.remote != null) {
-          const idx = values.push(filters.remote);
-          where.push(`remote = $${idx}`);
-        }
         if (filters?.tagsAny?.length) {
           const idx = values.push(filters.tagsAny);
           where.push(`tags && $${idx}::text[]`);
@@ -510,36 +696,10 @@ export class MatchingService {
         `;
         candidates = await db.$queryRawUnsafe(sql, ...values);
       } else if (mode === MatchMode.BY_PROFILE) {
-        if (!profileId) return EMPTY_PROJECT_CONN;;
-
-        const prof = await db.$queryRawUnsafe<{ ok: boolean }[]>(
-          `SELECT EXISTS (SELECT 1 FROM profiles WHERE id = $1::uuid AND embedding IS NOT NULL) AS ok`,
-          profileId,
-        );
-        if (!prof[0]?.ok) return EMPTY_PROJECT_CONN;;
+        if (!profileId || !profile) return EMPTY_PROJECT_CONN;
 
         const values: any[] = [profileId, preselect];
-        const where: string[] = [
-          "embedding IS NOT NULL",
-          "visibility IN ('public','unlisted')",
-          "owner_id <> (SELECT user_id FROM profiles WHERE id = $1::uuid)",
-        ];
-        if (filters?.languages?.length) {
-          const idx = values.push(filters.languages);
-          where.push(`languages && $${idx}::text[]`);
-        }
-        if (filters?.minAvailabilityHours != null) {
-          const idx = values.push(filters.minAvailabilityHours);
-          where.push(`availability_hours >= $${idx}`);
-        }
-        if (filters?.country) {
-          const idx = values.push(filters.country);
-          where.push(`country = $${idx}`);
-        }
-        if (filters?.remote != null) {
-          const idx = values.push(filters.remote);
-          where.push(`remote = $${idx}`);
-        }
+        const where: string[] = ["embedding IS NOT NULL", "visibility IN ('public','unlisted')"];
         if (filters?.tagsAny?.length) {
           const idx = values.push(filters.tagsAny);
           where.push(`tags && $${idx}::text[]`);
@@ -551,7 +711,9 @@ export class MatchingService {
         if (cursorD != null && cursorId) {
           const idxD = values.push(cursorD);
           const idxI = values.push(cursorId);
-          where.push(`((embedding <=> (SELECT embedding FROM profiles WHERE id = $1::uuid)), id) > ($${idxD}::float, $${idxI}::uuid)`);
+          where.push(
+            `((embedding <=> (SELECT embedding FROM profiles WHERE id = $1::uuid)), id) > ($${idxD}::float, $${idxI}::uuid)`,
+          );
         }
 
         const sql = `
@@ -564,10 +726,12 @@ export class MatchingService {
         `;
         candidates = await db.$queryRawUnsafe(sql, ...values);
       } else {
-        return EMPTY_PROJECT_CONN;;
+        return EMPTY_PROJECT_CONN;
       }
 
-      const projectIds = candidates.map(c => c.id);
+      if (!candidates.length) return EMPTY_PROJECT_CONN;
+
+      const projectIds = candidates.map((c) => c.id);
 
       const candProjects = await this.prisma.prisma().projects.findMany({
         where: { id: { in: projectIds } },
@@ -581,138 +745,375 @@ export class MatchingService {
           tags: true,
           status: true,
           stage: true,
-          visibility: true,
+          culture_work_styles: true,
+          culture_values: true,
+          preferred_team_role: true,
+          preferred_team_size: true,
+          management_style: true,
+          environment: true,
+          collaboration_mode: true,
+          communication_style: true,
+          communication_frequency: true,
+          project_members: {
+            where: { status: 'active' },
+            select: {
+              role: true,
+              status: true,
+            },
+          },
+          timezone: true,
+          required_hours_min: true,
+          required_hours_max: true,
+          critical_time_slots: true,
+          remote_ratio_min: true,
+          remote_ratio_max: true,
+          duration_weeks_min: true,
+          duration_weeks_max: true,
+          urgency: true,
+          acceptance_rate: true,
+          average_project_rating: true,
+          average_response_time_minutes: true,
           created_at: true,
           updated_at: true,
         },
       });
 
-      const candProjectById = new Map(candProjects.map(p => [p.id, p]));
+      const projectById = new Map(candProjects.map((p) => [p.id, p]));
 
-      let profSkills: Array<{ skill_id: string; level: number | null; years: number | null }> = [];
-      let profInterests: Array<{ interest_id: string }> = [];
-      if (mode === MatchMode.BY_PROFILE && profileId) {
-        const profile = await this.prisma.prisma().profiles.findUnique({
-          where: { id: profileId },
-          select: { user_id: true },
-        });
-        const userId = profile?.user_id;
-        if (userId) {
-          [profSkills, profInterests] = await Promise.all([
-            this.prisma.prisma().user_skills.findMany({
-              where: { user_id: userId },
-              select: { skill_id: true, level: true, years: true },
-            }),
-            this.prisma.prisma().user_interests.findMany({
-              where: { user_id: userId },
-              select: { interest_id: true },
-            }),
-          ]);
-        }
-      }
-
-      const projSkills = await this.prisma.prisma().project_skills.findMany({
+      const projectSkills = await this.prisma.prisma().project_skills.findMany({
         where: { project_id: { in: projectIds } },
         select: { project_id: true, skill_id: true, importance: true },
       });
-      const projInterests = await this.prisma.prisma().project_interests.findMany({
+
+      const projectInterests = await this.prisma.prisma().project_interests.findMany({
         where: { project_id: { in: projectIds } },
         select: { project_id: true, interest_id: true },
       });
 
-      const profW = new Map(
-        profSkills.map(s => [s.skill_id, weightFor(s.level, s.years)]),
-      );
-      const profInterSet = new Set(profInterests.map(i => i.interest_id));
-
-      const skillsByProject = new Map<string, { skill_id: string; weight: number }[]>();
-      for (const r of projSkills) {
-        const arr = skillsByProject.get(r.project_id) ?? [];
-        arr.push({ skill_id: r.skill_id, weight: weightFor(r.importance ?? 0, null) });
-        skillsByProject.set(r.project_id, arr);
+      const skillsByProject = new Map<string, Map<string, number>>();
+      for (const skill of projectSkills) {
+        const map = skillsByProject.get(skill.project_id) ?? new Map<string, number>();
+        map.set(skill.skill_id, weightFor(skill.importance ?? 0, null));
+        skillsByProject.set(skill.project_id, map);
       }
 
       const interestsByProject = new Map<string, Set<string>>();
-      for (const r of projInterests) {
-        const set = interestsByProject.get(r.project_id) ?? new Set<string>();
-        set.add(r.interest_id);
-        interestsByProject.set(r.project_id, set);
+      for (const interest of projectInterests) {
+        const set = interestsByProject.get(interest.project_id) ?? new Set<string>();
+        set.add(interest.interest_id);
+        interestsByProject.set(interest.project_id, set);
       }
 
-      const results: ProjectMatch[] = [];
-      for (const c of candidates) {
-        if (threshold != null && c.distance > threshold) continue;
-        const proj = candProjectById.get(c.id);
-        if (!proj) continue;
+      const aggregated: Array<{ match: ProjectMatch; candidate: { id: string; owner_id: string; distance: number } }> = [];
+      for (const candidate of candidates) {
+        if (threshold != null && candidate.distance > threshold) continue;
+        const project = projectById.get(candidate.id);
+        if (!project) continue;
 
-        const wArr = skillsByProject.get(c.id) ?? [];
-        const wMap = new Map(wArr.map(x => [x.skill_id, x.weight]));
-        const skillOverlap = profW.size ? weightedJaccard(profW, wMap) : 0;
+        const projectSkillMap = skillsByProject.get(project.id) ?? new Map<string, number>();
+        const projectInterestSet = interestsByProject.get(project.id) ?? new Set<string>();
 
-        const candInt = interestsByProject.get(c.id) ?? new Set<string>();
-        let interI = 0, uniI = 0;
-        const interKeys = new Set([...profInterSet, ...candInt]);
-        for (const k2 of interKeys) {
-          const a = profInterSet.has(k2), b = candInt.has(k2);
+        const skillOverlap = profile ? weightedJaccard(projectSkillMap, profileSkillMap) : 0;
+
+        let interI = 0;
+        let uniI = 0;
+        const interKeys = new Set([...projectInterestSet, ...profileInterestSet]);
+        for (const key of interKeys) {
+          const a = projectInterestSet.has(key);
+          const b = profileInterestSet.has(key);
           interI += a && b ? 1 : 0;
-          uniI   += a || b ? 1 : 0;
+          uniI += a || b ? 1 : 0;
         }
         const interestOverlap = uniI ? interI / uniI : 0;
 
-        const semanticSim = 1 - c.distance;
-        const score = 0.6 * skillOverlap + 0.15 * interestOverlap + 0.25 * semanticSim;
+        const semanticSim = 1 - candidate.distance;
 
-        const reasons: string[] = [];
-        if (skillOverlap >= 0.15) reasons.push('Compétences communes');
-        if (interestOverlap >= 0.2) reasons.push("Centres d’intérêt partagés");
-        if (semanticSim >= 0.7) reasons.push('Proximité sémantique');
+        const compositeInput: CompositeScoreInput = {
+          detailLevel,
+          context: {
+            sector: project.industry ?? null,
+            projectType: project.stage ?? null,
+            urgency: project.urgency ?? null,
+          },
+          technical: {
+            projectSkills: projectSkillMap,
+            candidateSkills: profileSkillMap,
+            semanticSimilarity: semanticSim,
+            hasProjectSkills: projectSkillMap.size > 0,
+          },
+          culture: {
+            profileValues: profile?.core_values ?? [],
+            projectValues: project.culture_values ?? [],
+            profileWorkStyles: profile?.preferred_work_styles ?? [],
+            projectWorkStyles: project.culture_work_styles ?? [],
+            preferredEnvironments: profile?.preferred_environments ?? [],
+            projectEnvironment: project.environment ?? null,
+          },
+          team: {
+            preferredTeamSize: profile?.preferred_team_size ?? null,
+            projectPreferredSize: project.preferred_team_size ?? null,
+            desiredRole: profile?.desired_team_role ?? null,
+            projectRoleNeed: project.preferred_team_role ?? null,
+            communicationStyle: profile?.communication_style ?? null,
+            projectCommunicationStyle: project.communication_style ?? null,
+            communicationFrequency: profile?.communication_frequency ?? null,
+            projectCommunicationFrequency: project.communication_frequency ?? null,
+            teamRoles: (project.project_members ?? [])
+              .filter((member) => member.status === 'active' && !!member.role)
+              .map((member) => member.role as string),
+          },
+          logistics: {
+            availabilityHours: profile?.availability_hours ?? null,
+            requiredHoursMin: project.required_hours_min ?? null,
+            requiredHoursMax: project.required_hours_max ?? null,
+            availabilitySlots: this.parseSlots(profile?.availability_time_slots),
+            requiredSlots: this.parseSlots(project.critical_time_slots),
+            profileTimezone: profile?.timezone ?? null,
+            projectTimezone: project.timezone ?? null,
+            remotePreference: profile?.remote_preference_percent ?? null,
+            remoteRatioMin: project.remote_ratio_min ?? null,
+            remoteRatioMax: project.remote_ratio_max ?? null,
+            missionMinWeeks: profile?.mission_duration_min_weeks ?? null,
+            missionMaxWeeks: profile?.mission_duration_max_weeks ?? null,
+            projectMinWeeks: project.duration_weeks_min ?? null,
+            projectMaxWeeks: project.duration_weeks_max ?? null,
+          },
+          experience: {
+            profileSuccessRate: profile?.success_rate ?? null,
+            profileAverageRating: profile?.average_rating ?? null,
+            profileActivityScore: profile?.activity_score ?? null,
+            projectAcceptanceRate: project.acceptance_rate ?? null,
+            projectAverageRating: project.average_project_rating ?? null,
+            historicalSimilarity: semanticSim,
+            goalsAlignment: interestOverlap,
+          },
+          semantic: {
+            similarity: semanticSim,
+            hasEmbeddings: true,
+          },
+          contact: {
+            profileLocation: profile?.location ?? null,
+            profileTimezone: profile?.timezone ?? null,
+            projectTimezone: project.timezone ?? null,
+            profileCollaborationMode: profile?.preferred_collaboration_mode ?? null,
+            projectCollaborationMode: project.collaboration_mode ?? null,
+            profileCommunicationStyle: profile?.communication_style ?? null,
+            projectCommunicationStyle: project.communication_style ?? null,
+            profileCommunicationFrequency: profile?.communication_frequency ?? null,
+            projectCommunicationFrequency: project.communication_frequency ?? null,
+            profileRemotePreference: profile?.remote_preference_percent ?? null,
+            projectRemoteRatioMin: project.remote_ratio_min ?? null,
+            projectRemoteRatioMax: project.remote_ratio_max ?? null,
+            projectEnvironment: project.environment ?? null,
+          },
+        };
 
-        if (filters) {
-          let all = true;
-          let partial = false;
-          const langs: string[] = (proj as any).languages ?? [];
-          if (filters.languages?.length) {
-            const allLang = filters.languages.every(l => langs.includes(l));
-            if (!allLang) {
-              all = false;
-              if (langs.some(l => (filters.languages as LanguageCode[]).includes(l as LanguageCode)))
-                partial = true;
-            }
-          }
-          if (filters.minAvailabilityHours != null) {
-            if (((proj as any).availability_hours ?? 0) < filters.minAvailabilityHours) all = false;
-          }
-          if (filters.country) {
-            if ((proj as any).country !== filters.country) all = false;
-          }
-          if (filters.remote != null) {
-            if ((proj as any).remote !== filters.remote) all = false;
-          }
-          if (filters.tagsAny?.length) {
-            const tags = proj.tags ?? [];
-            const matchCount = tags.filter(t => filters.tagsAny!.includes(t)).length;
-            if (matchCount < filters.tagsAny.length) {
-              if (matchCount > 0) partial = true;
-              all = false;
-            }
-          }
-          if (all) reasons.push('Contraintes compatibles');
-          else if (partial) reasons.push('Contraintes partiellement compatibles');
-        }
+        const composite = await this.compositeScore.evaluate(compositeInput);
+        const match = this.buildProjectMatchOutput(project, candidate.distance, composite, detailLevel);
+        aggregated.push({ match, candidate });
 
-        if (!reasons.length) reasons.push('Proximité générale');
-
-        results.push({ project: proj as any, distance: c.distance, score, reasons });
+        await this.persistExplanation({
+          entityType: 'profile',
+          profileId: profile?.id ?? null,
+          projectId: project.id,
+          counterpartProfileId: profile?.id ?? null,
+          counterpartProjectId: project.id,
+          detailLevel,
+          composite,
+        });
       }
 
-      results.sort((a, b) => b.score - a.score);
-      const sliced = results.slice(0, k);
-
+      aggregated.sort((a, b) => b.match.score - a.match.score);
+      const sliced = aggregated.slice(0, k);
       const nextCursor = sliced.length
-        ? Buffer.from(`${sliced[sliced.length - 1].distance}:${(sliced[sliced.length - 1].project as any).id}`).toString('base64')
+        ? encodeCursor(sliced[sliced.length - 1].candidate.distance, sliced[sliced.length - 1].candidate.id)
         : undefined;
 
-      return { items: sliced, nextCursor };
+      return { items: sliced.map((entry) => entry.match), nextCursor };
     });
+  }
+
+  private buildProfileMatchOutput(
+    profile: any,
+    distance: number,
+    composite: CompositeScoreOutput,
+    detailLevel: MatchDetailLevel,
+  ): ProfileMatch {
+    const dimensionScores = composite.dimensionResults.map((dimension) => this.toDimensionGraphQL(dimension));
+    const explainability = composite.explainability;
+    return {
+      profile,
+      distance,
+      score: composite.score,
+      confidence: explainability.confidence,
+      successProbability: composite.successProbability,
+      successConfidence: composite.successConfidence,
+      successModelVersion: composite.successModelVersion ?? null,
+      detailLevel,
+      dimensionScores,
+      forces: explainability.forces,
+      gaps: explainability.gaps,
+      recommendations: explainability.recommendations,
+      chemistry: explainability.chemistry,
+      competitive: explainability.competitive ?? null,
+      bidirectional: explainability.bidirectional ?? null,
+      contactPlan: explainability.contactPlan,
+    } as ProfileMatch;
+  }
+
+  private buildProjectMatchOutput(
+    project: any,
+    distance: number,
+    composite: CompositeScoreOutput,
+    detailLevel: MatchDetailLevel,
+  ): ProjectMatch {
+    const dimensionScores = composite.dimensionResults.map((dimension) => this.toDimensionGraphQL(dimension));
+    const explainability = composite.explainability;
+    return {
+      project,
+      distance,
+      score: composite.score,
+      confidence: explainability.confidence,
+      successProbability: composite.successProbability,
+      successConfidence: composite.successConfidence,
+      successModelVersion: composite.successModelVersion ?? null,
+      detailLevel,
+      dimensionScores,
+      forces: explainability.forces,
+      gaps: explainability.gaps,
+      recommendations: explainability.recommendations,
+      chemistry: explainability.chemistry,
+      competitive: explainability.competitive ?? null,
+      bidirectional: explainability.bidirectional ?? null,
+      contactPlan: explainability.contactPlan,
+    } as ProjectMatch;
+  }
+
+  private toDimensionGraphQL(dimension: DimensionScoreResult) {
+    const { actions: _actions, ...rest } = dimension;
+    return {
+      key: rest.key,
+      score: rest.score,
+      confidence: rest.confidence,
+      weight: rest.weight ?? null,
+      strengths: rest.strengths,
+      gaps: rest.gaps,
+      debug: rest.debug ?? null,
+    };
+  }
+
+  private parseSlots(source: unknown): TimeSlotLike[] {
+    if (!Array.isArray(source)) return [];
+    const slots: TimeSlotLike[] = [];
+    for (const item of source) {
+      if (!item) continue;
+      const day = (item as any).day ?? (item as any).weekday ?? (item as any).d;
+      const start = (item as any).start ?? (item as any).from;
+      const end = (item as any).end ?? (item as any).to;
+      if (typeof day === 'undefined' || typeof start !== 'string' || typeof end !== 'string') continue;
+      slots.push({ day, start, end });
+    }
+    return slots;
+  }
+
+  private sanitizeJson<T>(value: T): Prisma.InputJsonValue {
+    return JSON.parse(JSON.stringify(value ?? null)) as Prisma.InputJsonValue;
+  }
+
+  private async persistExplanation(params: {
+    entityType: 'profile' | 'project';
+    profileId: string | null;
+    projectId: string | null;
+    counterpartProfileId: string | null;
+    counterpartProjectId: string | null;
+    detailLevel: MatchDetailLevel;
+    composite: CompositeScoreOutput;
+  }) {
+    const { entityType, profileId, projectId, counterpartProfileId, counterpartProjectId, detailLevel, composite } = params;
+    const explainability: ExplainabilityPayload = composite.explainability;
+    try {
+      await this.prisma.prisma().match_explanations.create({
+        data: {
+          profile_id: profileId,
+          project_id: projectId,
+          counterpart_profile_id: counterpartProfileId,
+          counterpart_project_id: counterpartProjectId,
+          entity_type: entityType as Prisma.match_entity_type,
+          algorithm_version: MATCH_ALGO_VERSION,
+          detail_level: detailLevel,
+          score: composite.score,
+          confidence: explainability.confidence,
+          chemistry_score: composite.chemistryScore,
+          success_probability: composite.successProbability,
+          success_confidence: composite.successConfidence,
+          success_model_version: composite.successModelVersion ?? null,
+          dimension_scores: this.sanitizeJson(
+            composite.dimensionResults.map((dimension) => ({
+              key: dimension.key,
+              score: dimension.score,
+              confidence: dimension.confidence,
+              weight: dimension.weight ?? null,
+              strengths: dimension.strengths,
+              gaps: dimension.gaps,
+              actions: dimension.actions,
+              debug: dimension.debug ?? null,
+            })),
+          ),
+          forces: this.sanitizeJson(explainability.forces),
+          gaps: this.sanitizeJson(explainability.gaps),
+          recommendations: this.sanitizeJson(explainability.recommendations),
+          contact_plan: this.sanitizeJson(explainability.contactPlan),
+          competitive_context: explainability.competitive
+            ? this.sanitizeJson(explainability.competitive)
+            : Prisma.JsonNull,
+          bidirectional_context: explainability.bidirectional
+            ? this.sanitizeJson(explainability.bidirectional)
+            : Prisma.JsonNull,
+          metadata: this.sanitizeJson({
+            generatedAt: new Date().toISOString(),
+            successModelVersion: composite.successModelVersion ?? null,
+            successConfidence: composite.successConfidence,
+          }),
+        },
+      });
+      void this.successPrediction
+        .triggerTrainingIfNeeded()
+        .catch((error) => console.warn('Unable to schedule success model training', error));
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn('Unable to persist match explanation', error);
+    }
+  }
+
+  async precomputeProjectMatchesForProfile(
+    profileId: string,
+    detailLevel: MatchDetailLevel = DEFAULT_DETAIL_LEVEL,
+    limit = 20,
+  ): Promise<number> {
+    if (!profileId) return 0;
+    const k = Math.min(100, Math.max(1, Math.floor(limit ?? 20)));
+    const result = await this.matchProjects({
+      mode: MatchMode.BY_PROFILE,
+      profileId,
+      k,
+      detailLevel,
+    });
+    return result.items.length;
+  }
+
+  async precomputeProfileMatchesForProject(
+    projectId: string,
+    detailLevel: MatchDetailLevel = DEFAULT_DETAIL_LEVEL,
+    limit = 20,
+  ): Promise<number> {
+    if (!projectId) return 0;
+    const k = Math.min(100, Math.max(1, Math.floor(limit ?? 20)));
+    const result = await this.matchProfiles({
+      mode: MatchMode.BY_PROJECT,
+      projectId,
+      k,
+      detailLevel,
+    });
+    return result.items.length;
   }
 }
