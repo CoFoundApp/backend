@@ -1,7 +1,20 @@
 import { ObjectType, Field, ID, GraphQLISODateTime } from '@nestjs/graphql';
-import { ProfileVisibility, LanguageCode } from '../../common/enums/domain.enums';
+import {
+  ProfileVisibility,
+  LanguageCode,
+  WorkStyle,
+  CoreValue,
+  Motivation,
+  EnvironmentPreference,
+  TeamRolePreference,
+  CommunicationStylePreference,
+  CommunicationFrequencyPreference,
+  TeamSizePreference,
+  CollaborationMode,
+} from '../../common/enums/domain.enums';
 import { Skill } from '../taxonomy/types/skill.type';
 import { Interest } from '../taxonomy/types/interest.type';
+import { JSONScalar } from '../../common/scalars/json.scalar';
 
 @ObjectType()
 export class WorkExperience {
@@ -148,6 +161,66 @@ export class Profile {
 
   @Field(() => ProfileVisibility)
   visibility!: ProfileVisibility;
+
+  @Field(() => [WorkStyle])
+  preferred_work_styles!: WorkStyle[];
+
+  @Field(() => [CoreValue])
+  core_values!: CoreValue[];
+
+  @Field(() => [Motivation])
+  primary_motivations!: Motivation[];
+
+  @Field(() => [EnvironmentPreference])
+  preferred_environments!: EnvironmentPreference[];
+
+  @Field(() => TeamSizePreference, { nullable: true })
+  preferred_team_size?: TeamSizePreference | null;
+
+  @Field(() => TeamRolePreference, { nullable: true })
+  desired_team_role?: TeamRolePreference | null;
+
+  @Field(() => CommunicationStylePreference, { nullable: true })
+  communication_style?: CommunicationStylePreference | null;
+
+  @Field(() => CommunicationFrequencyPreference, { nullable: true })
+  communication_frequency?: CommunicationFrequencyPreference | null;
+
+  @Field(() => CollaborationMode, { nullable: true })
+  preferred_collaboration_mode?: CollaborationMode | null;
+
+  @Field(() => String, { nullable: true })
+  timezone?: string | null;
+
+  @Field(() => Number, { nullable: true })
+  timezone_flexibility_minutes?: number | null;
+
+  @Field(() => Number, { nullable: true })
+  remote_preference_percent?: number | null;
+
+  @Field(() => JSONScalar, { nullable: true })
+  availability_time_slots?: any;
+
+  @Field(() => Number, { nullable: true })
+  mission_duration_min_weeks?: number | null;
+
+  @Field(() => Number, { nullable: true })
+  mission_duration_max_weeks?: number | null;
+
+  @Field(() => Number, { nullable: true })
+  success_rate?: number | null;
+
+  @Field(() => Number, { nullable: true })
+  average_rating?: number | null;
+
+  @Field(() => Number, { nullable: true })
+  average_response_time_minutes?: number | null;
+
+  @Field(() => GraphQLISODateTime, { nullable: true })
+  last_active_at?: Date | null;
+
+  @Field(() => Number, { nullable: true })
+  activity_score?: number | null;
 
   @Field(() => GraphQLISODateTime)
   created_at!: Date;

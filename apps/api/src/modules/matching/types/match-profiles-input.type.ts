@@ -1,6 +1,7 @@
 import { Field, InputType, Int, Float } from '@nestjs/graphql';
 import { MatchMode } from './match-mode.enum';
 import { MatchFiltersInput } from './match-filters.input';
+import { MatchDetailLevel } from './match-detail-level.enum';
 
 @InputType()
 export class MatchProfilesInput {
@@ -27,4 +28,7 @@ export class MatchProfilesInput {
 
   @Field({ nullable: true })
   cursor?: string;
+
+  @Field(() => MatchDetailLevel, { nullable: true })
+  detailLevel?: MatchDetailLevel;
 }
