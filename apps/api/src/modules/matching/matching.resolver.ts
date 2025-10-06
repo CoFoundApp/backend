@@ -7,6 +7,7 @@ import { MatchRecommendation } from './types/match-recommendation.type';
 import { ProfileMatchConnection, ProjectMatchConnection } from './types/connection.input'
 import { MatchProfilesInput } from './types/match-profiles-input.type';
 import { MatchProjectsInput } from './types/match-projects-input.type';
+import { MatchDetailLevel } from './types/match-detail-level.enum';
 
 @Resolver()
 export class MatchingResolver {
@@ -31,9 +32,57 @@ export class MatchingResolver {
     return this.matching.matchProfiles(input);
   }
 
+    @UseGuards(SessionGuard)
+  @Query(() => ProfileMatchConnection, { description: 'Matching profil basique (scores + dimensions)' })
+  async getBasicProfileMatches(@Args('input') input: MatchProfilesInput): Promise<ProfileMatchConnection> {
+    return this.matching.matchProfiles({ ...input, detailLevel: MatchDetailLevel.BASIC });
+  }
+
+  @UseGuards(SessionGuard)
+  @Query(() => ProfileMatchConnection, { description: 'Matching enrichi avec explications' })
+  async getEnrichedProfileMatches(@Args('input') input: MatchProfilesInput): Promise<ProfileMatchConnection> {
+    return this.matching.matchProfiles({ ...input, detailLevel: MatchDetailLevel.ENRICHED });
+  }
+
+  @UseGuards(SessionGuard)
+  @Query(() => ProfileMatchConnection, { description: 'Matching avec analyse compétitive' })
+  async getCompetitiveProfileMatches(@Args('input') input: MatchProfilesInput): Promise<ProfileMatchConnection> {
+    return this.matching.matchProfiles({ ...input, detailLevel: MatchDetailLevel.COMPETITIVE });
+  }
+
+  @UseGuards(SessionGuard)
+  @Query(() => ProfileMatchConnection, { description: 'Matching bidirectionnel complet' })
+  async getBidirectionalProfileMatches(@Args('input') input: MatchProfilesInput): Promise<ProfileMatchConnection> {
+    return this.matching.matchProfiles({ ...input, detailLevel: MatchDetailLevel.BIDIRECTIONAL });
+  }
+
   @UseGuards(SessionGuard)
   @Query(() => ProjectMatchConnection, { description: 'Matcher des projets selon divers critères' })
   async matchProjects(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
     return this.matching.matchProjects(input);
+  }
+
+  @UseGuards(SessionGuard)
+  @Query(() => ProjectMatchConnection, { description: 'Matching projet basique (scores + dimensions)' })
+  async getBasicProjectMatches(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
+    return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.BASIC });
+  }
+
+  @UseGuards(SessionGuard)
+  @Query(() => ProjectMatchConnection, { description: 'Matching projet enrichi avec explications' })
+  async getEnrichedProjectMatches(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
+    return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.ENRICHED });
+  }
+
+  @UseGuards(SessionGuard)
+  @Query(() => ProjectMatchConnection, { description: 'Matching projet avec analyse compétitive' })
+  async getCompetitiveProjectMatches(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
+    return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.COMPETITIVE });
+  }
+
+  @UseGuards(SessionGuard)
+  @Query(() => ProjectMatchConnection, { description: 'Matching projet bidirectionnel complet' })
+  async getBidirectionalProjectMatches(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
+    return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.BIDIRECTIONAL });
   }
 }

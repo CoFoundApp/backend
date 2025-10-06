@@ -18,9 +18,16 @@ export class SessionGuard implements CanActivate {
     const { req, res } = ctx.getContext<{ req: Request; res: Response }>();
 
     const access = readAccess(req);
+    const rt = readRefresh(req);
+
+    if (!access && rt) {
+      console.log('⚠️ No access token but refresh token present, attempting refresh...');
+      return this.attemptRefresh(req, res, rt);
+    }
 
     if (!access) {
-      console.log('⚠️ No access token provided');
+      console.log('❌ No access token and no refresh token');
+      this.clearCookiesSafely(req, res);
       throw new UnauthorizedException('No access token');
     }
 
@@ -31,98 +38,93 @@ export class SessionGuard implements CanActivate {
     } catch (e: any) {
       if (e?.name !== 'TokenExpiredError') {
         console.log('❌ Invalid access token:', e?.message);
+        this.clearCookiesSafely(req, res);
         throw new UnauthorizedException('Invalid token');
       }
 
       console.log('🔄 Access token expired, attempting refresh...');
 
-      const rt = readRefresh(req);
       if (!rt) {
         console.log('❌ No refresh token available');
+        this.clearCookiesSafely(req, res);
         throw new UnauthorizedException('No refresh token');
       }
 
-      let refreshPayload: any;
-      try {
-        refreshPayload = jwt.verify(rt, process.env.JWT_REFRESH_SECRET || 'dev-refresh');
-      } catch (jwtError: any) {
-        console.log('❌ Invalid refresh token JWT:', jwtError?.message);
-
-        // ✅ CORRIGÉ: Ne supprime les cookies que si le JWT est invalide/expiré
-        this.clearCookiesSafely(req, res);
-        throw new UnauthorizedException('Invalid refresh token');
-      }
-
-      const sub = refreshPayload?.sub;
-      const jti = refreshPayload?.jti;
-      const role = String(refreshPayload?.role ?? 'user');
-
-      if (!sub || !jti) {
-        console.log('❌ Bad refresh payload:', { sub, jti });
-        this.clearCookiesSafely(req, res);
-        throw new UnauthorizedException('Bad refresh payload');
-      }
-
-      try {
-        console.log('🔄 Refreshing tokens...', { sub, jti, role });
-
-        const { accessToken, refreshToken } = await this.auth.refresh(sub, jti, role);
-
-        const cookiePolicy = computeCookiePolicy(req);
-
-        const baseCookieOptions = {
-          httpOnly: true,
-          secure: cookiePolicy.secure,
-          sameSite: cookiePolicy.sameSite as 'lax' | 'none' | 'strict',
-          path: '/',
-          ...(cookiePolicy.domain ? { domain: cookiePolicy.domain } : {}),
-        };
-
-        res.cookie('access_token', accessToken, {
-          ...baseCookieOptions,
-          maxAge: 15 * 60 * 1000,
-        });
-
-        res.cookie('refresh_token', refreshToken, {
-          ...baseCookieOptions,
-          maxAge: 30 * 24 * 60 * 60 * 1000,
-        });
-
-        console.log('✅ Tokens refreshed successfully');
-
-        const newPayload = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET || 'dev-access');
-        (req as any).user = newPayload;
-
-        return true;
-      } catch (refreshError: any) {
-        console.log('❌ Auto-refresh failed:', {
-          error: refreshError?.message || refreshError,
-          type: refreshError?.constructor?.name,
-          sub,
-          jti,
-        });
-
-        // ✅ CORRIGÉ: Ne supprime les cookies que si c'est une erreur d'authentification
-        // Pas en cas d'erreur Redis temporaire
-        const isAuthError =
-          refreshError instanceof UnauthorizedException ||
-          refreshError?.message?.includes('revoked') ||
-          refreshError?.message?.includes('invalid');
-
-        if (isAuthError) {
-          console.log('🗑️ Auth error detected, clearing cookies');
-          this.clearCookiesSafely(req, res);
-          throw new UnauthorizedException('Session expired, please login again');
-        } else {
-          console.log('⚠️ Temporary error, NOT clearing cookies');
-          throw new UnauthorizedException('Service temporarily unavailable, please retry');
-        }
-      }
+      return this.attemptRefresh(req, res, rt);
     }
   }
 
   /**
-   * ✅ NOUVEAU: Méthode sécurisée pour supprimer les cookies
+   * ✅ NOUVEAU: Méthode centralisée pour tenter le refresh
+   */
+  private async attemptRefresh(req: Request, res: Response, rt: string): Promise<boolean> {
+    let refreshPayload: any;
+    try {
+      refreshPayload = jwt.verify(rt, process.env.JWT_REFRESH_SECRET || 'dev-refresh');
+    } catch (jwtError: any) {
+      console.log('❌ Invalid refresh token JWT:', jwtError?.message);
+      this.clearCookiesSafely(req, res);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const sub = refreshPayload?.sub;
+    const jti = refreshPayload?.jti;
+    const role = String(refreshPayload?.role ?? 'user');
+
+    if (!sub || !jti) {
+      console.log('❌ Bad refresh payload:', { sub, jti });
+      this.clearCookiesSafely(req, res);
+      throw new UnauthorizedException('Bad refresh payload');
+    }
+
+    try {
+      console.log('🔄 Refreshing tokens...', { sub, jti, role });
+
+      const { accessToken, refreshToken } = await this.auth.refresh(sub, jti, role);
+
+      const cookiePolicy = computeCookiePolicy(req);
+
+      const baseCookieOptions = {
+        httpOnly: true,
+        secure: cookiePolicy.secure,
+        sameSite: cookiePolicy.sameSite as 'lax' | 'none' | 'strict',
+        path: '/',
+        ...(cookiePolicy.domain ? { domain: cookiePolicy.domain } : {}),
+      };
+
+      res.cookie('access_token', accessToken, {
+        ...baseCookieOptions,
+        maxAge: 15 * 60 * 1000,
+      });
+
+      res.cookie('refresh_token', refreshToken, {
+        ...baseCookieOptions,
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
+      console.log('✅ Tokens refreshed successfully');
+
+      const newPayload = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET || 'dev-access');
+      (req as any).user = newPayload;
+
+      return true;
+    } catch (refreshError: any) {
+      console.log('❌ Auto-refresh failed:', {
+        error: refreshError?.message || refreshError,
+        type: refreshError?.constructor?.name,
+        sub,
+        jti,
+      });
+
+      console.log('🗑️ Clearing cookies to prevent redirect loop');
+      this.clearCookiesSafely(req, res);
+
+      throw new UnauthorizedException('Session expired, please login again');
+    }
+  }
+
+  /**
+   * ✅ Méthode sécurisée pour supprimer les cookies
    */
   private clearCookiesSafely(req: Request, res: Response): void {
     const cookiePolicy = computeCookiePolicy(req);
