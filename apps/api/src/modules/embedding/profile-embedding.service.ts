@@ -11,6 +11,21 @@ type ProfileBasics = {
   bio: string | null;
   location: string | null;
   languages: string[];
+  preferred_work_styles: string[];
+  core_values: string[];
+  primary_motivations: string[];
+  preferred_environments: string[];
+  preferred_team_size: string | null;
+  desired_team_role: string | null;
+  communication_style: string | null;
+  communication_frequency: string | null;
+  preferred_collaboration_mode: string | null;
+  timezone: string | null;
+  timezone_flexibility_minutes: number | null;
+  remote_preference_percent: number | null;
+  availability_time_slots: unknown;
+  mission_duration_min_weeks: number | null;
+  mission_duration_max_weeks: number | null;
 };
 
 type UserSkillRow = {
@@ -96,6 +111,21 @@ export class ProfileEmbeddingService {
           bio: true,
           location: true,
           languages: true,
+          preferred_work_styles: true,
+          core_values: true,
+          primary_motivations: true,
+          preferred_environments: true,
+          preferred_team_size: true,
+          desired_team_role: true,
+          communication_style: true,
+          communication_frequency: true,
+          preferred_collaboration_mode: true,
+          timezone: true,
+          timezone_flexibility_minutes: true,
+          remote_preference_percent: true,
+          availability_time_slots: true,
+          mission_duration_min_weeks: true,
+          mission_duration_max_weeks: true,
         },
       }),
       db.user_skills.findMany({
@@ -248,7 +278,38 @@ export class ProfileEmbeddingService {
     if (p.bio) parts.push(`bio: ${p.bio}`);
     if (p.location) parts.push(`location: ${p.location}`);
     if (p.languages?.length) parts.push(`languages: ${p.languages.join(', ')}`);
-
+    if (p.preferred_work_styles?.length) parts.push(`work_styles: ${p.preferred_work_styles.join(', ')}`);
+    if (p.core_values?.length) parts.push(`values: ${p.core_values.join(', ')}`);
+    if (p.primary_motivations?.length) parts.push(`motivations: ${p.primary_motivations.join(', ')}`);
+    if (p.preferred_environments?.length) parts.push(`environments: ${p.preferred_environments.join(', ')}`);
+    if (p.preferred_team_size) parts.push(`team_size: ${p.preferred_team_size}`);
+    if (p.desired_team_role) parts.push(`team_role: ${p.desired_team_role}`);
+    if (p.communication_style) parts.push(`communication_style: ${p.communication_style}`);
+    if (p.communication_frequency) parts.push(`communication_frequency: ${p.communication_frequency}`);
+    if (p.preferred_collaboration_mode) parts.push(`collaboration: ${p.preferred_collaboration_mode}`);
+    if (p.timezone) parts.push(`timezone: ${p.timezone}`);
+    if (typeof p.timezone_flexibility_minutes === 'number') {
+      parts.push(`tz_flex: ${p.timezone_flexibility_minutes}min`);
+    }
+    if (typeof p.remote_preference_percent === 'number') {
+      parts.push(`remote_pref: ${p.remote_preference_percent}%`);
+    }
+    if (p.mission_duration_min_weeks || p.mission_duration_max_weeks) {
+      parts.push(
+        `mission_duration: ${p.mission_duration_min_weeks ?? '?'}-${p.mission_duration_max_weeks ?? '?'} weeks`,
+      );
+    }
+    if (p.availability_time_slots) {
+      const serialized = Array.isArray(p.availability_time_slots)
+        ? p.availability_time_slots
+            .slice(0, 10)
+            .map((slot: any) => JSON.stringify(slot))
+            .join(' | ')
+        : JSON.stringify(p.availability_time_slots);
+      if (serialized) {
+        parts.push(`availability_slots: ${serialized}`);
+      }
+    }
     if (userSkills.length) {
       const skillsText = userSkills
         .map(({ skills, level, years }) => {
