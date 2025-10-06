@@ -529,9 +529,32 @@ model profiles {
   embedding_model     String?
   embedding_dim       Int?      @db.SmallInt
   visibility         visibility             @default(public)
+  preferred_work_styles      work_style[]             @default([])
+  core_values                core_value[]             @default([])
+  primary_motivations        motivation[]             @default([])
+  preferred_environments     environment_preference[] @default([])
+  preferred_team_size        team_size_preference?
+  desired_team_role          team_role?
+  communication_style        communication_style?
+  communication_frequency    communication_frequency?
+  preferred_collaboration_mode collaboration_mode?
+  timezone                   String?
+  timezone_flexibility_minutes Int?      @db.SmallInt
+  remote_preference_percent  Int?        @db.SmallInt
+  availability_time_slots    Json?       @default("[]")
+  mission_duration_min_weeks Int?        @db.SmallInt
+  mission_duration_max_weeks Int?        @db.SmallInt
+  success_rate               Float?
+  average_rating             Float?
+  average_response_time_minutes Int?     @db.Integer
+  last_active_at             DateTime?   @db.Timestamptz(6)
+  activity_score             Float?
   created_at         DateTime               @default(now()) @db.Timestamptz(6)
   updated_at         DateTime               @default(now()) @db.Timestamptz(6)
   users              users                  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  match_explanations        match_explanations[]       @relation("match_explanations_profile")
+  counterpart_match_explanations match_explanations[]  @relation("match_explanations_counterpart_profile")
+  match_outcomes            match_outcomes[]        @relation("match_outcomes_profile")
 
   @@index([embedding], map: "hnsw_profiles_embedding")
 }
@@ -708,6 +731,27 @@ model projects {
   avatar_url           String?
   embedding            Unsupported("halfvec(1024)")?
   search_tsv           Unsupported("tsvector")?
+  culture_work_styles  work_style[]             @default([])
+  culture_values       core_value[]             @default([])
+  preferred_team_role  team_role?
+  preferred_team_size  team_size_preference?
+  management_style     management_style?
+  environment          environment_preference?
+  collaboration_mode   collaboration_mode?
+  communication_style  communication_style?
+  communication_frequency communication_frequency?
+  timezone             String?
+  required_hours_min   Int?                     @db.SmallInt
+  required_hours_max   Int?                     @db.SmallInt
+  critical_time_slots  Json?                    @default("[]")
+  remote_ratio_min     Int?                     @db.SmallInt
+  remote_ratio_max     Int?                     @db.SmallInt
+  duration_weeks_min   Int?                     @db.SmallInt
+  duration_weeks_max   Int?                     @db.SmallInt
+  urgency              urgency_level?
+  acceptance_rate      Float?
+  average_project_rating Float?
+  average_response_time_minutes Int?            @db.Integer
   created_at           DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at           DateTime                 @default(now()) @db.Timestamptz(6)
   conversations        conversations[]
@@ -719,6 +763,9 @@ model projects {
   project_skills       project_skills[]
   project_interests    project_interests[]
   users                users                    @relation(fields: [owner_id], references: [id], onUpdate: NoAction)
+  match_explanations   match_explanations[]     @relation("match_explanations_project")
+  counterpart_match_explanations match_explanations[] @relation("match_explanations_counterpart_project")
+  match_outcomes       match_outcomes[]       @relation("match_outcomes_project")
 
   @@index([embedding], map: "hnsw_projects_embedding")
   @@index([search_tsv], map: "idx_projects_fts", type: Gin)
@@ -817,6 +864,110 @@ model skills {
   project_skills project_skills[]
 
   @@index([embedding], map: "hnsw_skills_embedding")
+}
+
+model match_explanations {
+  id                      String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profile_id              String?            @db.Uuid
+  project_id              String?            @db.Uuid
+  counterpart_profile_id  String?            @db.Uuid
+  counterpart_project_id  String?            @db.Uuid
+  entity_type             match_entity_type
+  algorithm_version       String
+  detail_level            String
+  score                   Float?
+  confidence              Float?
+  chemistry_score         Float?
+  success_probability     Float?
+  success_confidence      Float?
+  success_model_version   String?
+  dimension_scores        Json               @default("{}")
+  forces                  Json               @default("[]")
+  gaps                    Json               @default("[]")
+  recommendations         Json               @default("[]")
+  contact_plan            Json               @default("[]")
+  competitive_context     Json               @default("{}")
+  bidirectional_context   Json               @default("{}")
+  debug_trace             Json?
+  metadata                Json               @default("{}")
+  expires_at              DateTime?          @db.Timestamptz(6)
+  created_at              DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime           @default(now()) @db.Timestamptz(6)
+  profile                 profiles?          @relation("match_explanations_profile", fields: [profile_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  project                 projects?          @relation("match_explanations_project", fields: [project_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  counterpart_profile     profiles?          @relation("match_explanations_counterpart_profile", fields: [counterpart_profile_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  counterpart_project     projects?          @relation("match_explanations_counterpart_project", fields: [counterpart_project_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  match_outcomes        match_outcomes[]
+
+  @@index([profile_id], map: "idx_match_expl_profile")
+  @@index([project_id], map: "idx_match_expl_project")
+  @@index([entity_type, detail_level], map: "idx_match_expl_entity_level")
+  @@index([counterpart_profile_id], map: "idx_match_expl_counter_profile")
+  @@index([counterpart_project_id], map: "idx_match_expl_counter_project")
+}
+
+model match_outcomes {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  match_explanation_id  String?       @db.Uuid
+  profile_id            String?       @db.Uuid
+  project_id            String?       @db.Uuid
+  status                match_status  @default(unknown)
+  rejection_reason      String?
+  success_notes         Json?         @default("{}")
+  profile_feedback      Json?         @default("{}")
+  project_feedback      Json?         @default("{}")
+  viewed_at             DateTime?     @db.Timestamptz(6)
+  applied_at            DateTime?     @db.Timestamptz(6)
+  interviewed_at        DateTime?     @db.Timestamptz(6)
+  hired_at              DateTime?     @db.Timestamptz(6)
+  completed_at          DateTime?     @db.Timestamptz(6)
+  created_at            DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime      @default(now()) @db.Timestamptz(6)
+  match_explanations    match_explanations? @relation(fields: [match_explanation_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  profile               profiles?     @relation("match_outcomes_profile", fields: [profile_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  project               projects?     @relation("match_outcomes_project", fields: [project_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([profile_id], map: "idx_match_outcome_profile")
+  @@index([project_id], map: "idx_match_outcome_project")
+  @@index([match_explanation_id], map: "idx_match_outcome_expl")
+}
+
+model algorithm_weights {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sector                String?
+  project_type          String?
+  urgency               urgency_level?
+  dimension_technical   Float         @default(0)
+  dimension_culture     Float         @default(0)
+  dimension_team        Float         @default(0)
+  dimension_logistics   Float         @default(0)
+  dimension_experience  Float         @default(0)
+  dimension_semantic    Float         @default(0)
+  confidence            Float?
+  sample_size           Int?
+  is_active             Boolean       @default(true)
+  created_at            DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime      @default(now()) @db.Timestamptz(6)
+
+  @@index([sector, project_type, urgency], map: "idx_algo_weights_context")
+}
+
+model matching_models {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  model_type       String
+  version          String
+  feature_names    String[]
+  coefficients     Json     @default("[]")
+  bias             Float    @default(0)
+  confidence       Float?
+  sample_size      Int      @default(0)
+  trained_at       DateTime @default(now()) @db.Timestamptz(6)
+  training_metrics Json     @default("{}")
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([model_type, is_active, trained_at], map: "idx_matching_models_active")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1164,4 +1315,96 @@ enum visibility {
 enum position_status {
   open
   closed
+}
+
+enum work_style {
+  autonomous
+  collaborative
+  structured
+  agile
+}
+
+enum core_value {
+  innovation
+  stability
+  social_impact
+  growth
+}
+
+enum motivation {
+  learn
+  earn
+  create
+  help
+}
+
+enum environment_preference {
+  startup
+  scaleup
+  enterprise
+  solo
+}
+
+enum team_role {
+  leader
+  contributor
+  mentor
+  learner
+}
+
+enum communication_style {
+  direct
+  diplomatic
+  formal
+  casual
+}
+
+enum communication_frequency {
+  daily
+  weekly
+  biweekly
+  async
+}
+
+enum team_size_preference {
+  small
+  medium
+  large
+  flexible
+}
+
+enum management_style {
+  hands_on
+  hands_off
+  coaching
+  self_managed
+}
+
+enum collaboration_mode {
+  synchronous
+  asynchronous
+  hybrid
+}
+
+enum urgency_level {
+  low
+  medium
+  high
+  critical
+}
+
+enum match_entity_type {
+  profile
+  project
+}
+
+enum match_status {
+  unknown
+  viewed
+  applied
+  interviewing
+  hired
+  completed
+  rejected
+  withdrawn
 }

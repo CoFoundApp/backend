@@ -34,7 +34,6 @@ import { NotificationModule } from './modules/notifications/notification.module'
 import { EmailModule } from './infra/email/email.module';
 import { ConversationModule } from './modules/conversation/conversation.module';
 import { UploadModule } from './modules/upload/upload.module';
-import { SessionGuard } from './modules/auth/guards/session.guard';
 
 @Module({
   imports: [
