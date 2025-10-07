@@ -1,17 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { DimensionScoreResult } from './dimension-score.interface';
-
-export interface TeamChemistryInput {
-  preferredTeamSize?: string | null;
-  projectPreferredSize?: string | null;
-  desiredRole?: string | null;
-  projectRoleNeed?: string | null;
-  communicationStyle?: string | null;
-  projectCommunicationStyle?: string | null;
-  communicationFrequency?: string | null;
-  projectCommunicationFrequency?: string | null;
-  teamRoles?: string[] | null;
-}
+import { DimensionScoreResult } from '../interfaces/dimension-score.interface';
+import { TeamChemistryInput } from '../interfaces/team-chemistry.interface';
 
 const COMPATIBILITY_TABLE: Record<string, Record<string, number>> = {
   leader: { leader: 0.6, contributor: 0.8, mentor: 0.7, learner: 0.5 },

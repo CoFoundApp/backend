@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from './../../../infra/prisma/prisma.service';
-import { DimensionKey, DimensionScoreResult } from './dimension-score.interface';
+import { DimensionKey, DimensionScoreResult } from '../interfaces/dimension-score.interface';
+import { SuccessPredictionInput, SuccessPredictionResult, CachedModel, TrainingSample } from '../interfaces/prediction.interface';
 
 const MODEL_TYPE_SUCCESS = 'success_probability';
 const DIMENSION_ORDER: DimensionKey[] = ['technical', 'culture', 'team', 'logistics', 'experience', 'semantic'];
@@ -20,33 +21,6 @@ const FEATURE_NAMES: string[] = (() => {
   base.push('score_variance');
   return base;
 })();
-
-interface TrainingSample {
-  features: number[];
-  label: number;
-}
-
-interface CachedModel {
-  id: string;
-  version: string;
-  weights: number[];
-  bias: number;
-  confidence: number;
-  featureNames: string[];
-  sampleSize: number;
-  trainedAt: Date;
-}
-
-export interface SuccessPredictionInput {
-  dimensionResults: DimensionScoreResult[];
-  chemistryScore: number;
-}
-
-export interface SuccessPredictionResult {
-  probability: number;
-  confidence: number;
-  modelVersion: string | null;
-}
 
 const MIN_SAMPLE_SIZE = 40;
 const MAX_SAMPLES = 5000;

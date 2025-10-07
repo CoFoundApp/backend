@@ -1,47 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { MatchDetailLevel } from '../types/match-detail-level.enum';
-import { DimensionScoreResult, DimensionKey } from './dimension-score.interface';
-import { TechnicalScoreService, TechnicalScoreInput } from './technical-score.service';
-import { CultureScoreService, CultureScoreInput } from './culture-score.service';
-import { TeamChemistryService, TeamChemistryInput } from './team-chemistry.service';
-import { LogisticsScoreService, LogisticsScoreInput } from './logistics-score.service';
-import { ExperienceScoreService, ExperienceScoreInput } from './experience-score.service';
-import { SemanticScoreService, SemanticScoreInput } from './semantic-score.service';
-import {
-  ExplainabilityService,
-  BidirectionalInsight,
-  ExplainabilityPayload,
-  ContactContext,
-} from './explainability.service';
+import { DimensionScoreResult, DimensionKey } from '../interfaces/dimension-score.interface';
+import { TechnicalScoreService } from './technical-score.service';
+import { CultureScoreService } from './culture-score.service';
+import { TeamChemistryService } from './team-chemistry.service';
+import { LogisticsScoreService } from './logistics-score.service';
+import { ExperienceScoreService } from './experience-score.service';
+import { SemanticScoreService } from './semantic-score.service';
+import { ExplainabilityService} from './explainability.service';
 import { WeightAdaptationService } from './weight-adaptation.service';
 import { SuccessPredictionService } from './success-prediction.service';
-import { UrgencyLevel } from '../../../common/enums/domain.enums';
-
-export interface CompositeScoreInput {
-  detailLevel: MatchDetailLevel;
-  context: {
-    sector?: string | null;
-    projectType?: string | null;
-    urgency?: UrgencyLevel | null;
-  };
-  technical: TechnicalScoreInput;
-  culture: CultureScoreInput;
-  team: TeamChemistryInput;
-  logistics: LogisticsScoreInput;
-  experience: ExperienceScoreInput;
-  semantic: SemanticScoreInput;
-  contact?: ContactContext;
-}
-
-export interface CompositeScoreOutput {
-  score: number;
-  dimensionResults: DimensionScoreResult[];
-  chemistryScore: number;
-  successProbability: number;
-  successConfidence: number;
-  successModelVersion: string | null;
-  explainability: ExplainabilityPayload;
-}
+import { CompositeScoreInput, CompositeScoreOutput } from '../interfaces/composite.interface';
+import { BidirectionalInsight } from '../interfaces/explainability.interface';
 
 const DIMENSION_PRIORITY: DimensionKey[] = ['technical', 'culture', 'team', 'logistics', 'experience', 'semantic'];
 

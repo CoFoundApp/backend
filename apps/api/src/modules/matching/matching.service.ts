@@ -10,14 +10,15 @@ import { ProjectMatch } from './types/project-match.type';
 import { MatchMode } from './types/match-mode.enum';
 import { ProfileMatchConnection, ProjectMatchConnection } from './types/connection.input';
 import { MatchRecommendation } from './types/match-recommendation.type';
-import { CompositeScoreService, CompositeScoreInput, CompositeScoreOutput } from './services/composite-score.service';
+import { CompositeScoreService } from './services/composite-score.service';
 import { SuccessPredictionService } from './services/success-prediction.service';
 import { MatchDetailLevel } from './types/match-detail-level.enum';
-import { weightFor, weightedJaccard } from './services/score.utils';
-import { TimeSlotLike } from './services/logistics-score.service';
-import { DimensionScoreResult } from './services/dimension-score.interface';
-import { ExplainabilityPayload } from './services/explainability.service';
+import { weightFor, weightedJaccard } from './utils/score.utils';
+import { TimeSlotLike } from './interfaces/score.interface';
+import { DimensionScoreResult } from './interfaces/dimension-score.interface';
+import { ExplainabilityPayload } from './interfaces/explainability.interface';
 import { UrgencyLevel } from '../../common/enums/domain.enums';
+import { CompositeScoreInput, CompositeScoreOutput } from './interfaces/composite.interface';
 
 const EMPTY_PROFILE_CONN: ProfileMatchConnection = {
   items: [] as ProfileMatch[],
@@ -29,7 +30,7 @@ const EMPTY_PROJECT_CONN: ProjectMatchConnection = {
   nextCursor: undefined,
 };
 
-const MATCH_ALGO_VERSION = '2024.11.0';
+const MATCH_ALGO_VERSION = '2025.10.7';
 const DEFAULT_DETAIL_LEVEL = MatchDetailLevel.ENRICHED;
 
 const URGENCY_VALUES = new Set<string>(Object.values(UrgencyLevel));

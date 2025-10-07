@@ -1,14 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { DimensionScoreResult } from './dimension-score.interface';
-
-export interface CultureScoreInput {
-  profileValues: string[];
-  projectValues: string[];
-  profileWorkStyles: string[];
-  projectWorkStyles: string[];
-  preferredEnvironments: string[];
-  projectEnvironment?: string | null;
-}
+import { DimensionScoreResult } from '../interfaces/dimension-score.interface';
+import { CultureScoreInput } from '../interfaces/culture.interface';
 
 const overlapRatio = (a: string[], b: string[]) => {
   if (!a.length || !b.length) return 0;

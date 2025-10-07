@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DimensionScoreResult } from './dimension-score.interface';
+import { DimensionScoreResult } from '../interfaces/dimension-score.interface';
 
 export interface SemanticScoreInput {
   similarity: number;

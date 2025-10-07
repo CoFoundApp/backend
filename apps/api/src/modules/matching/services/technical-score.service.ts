@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { DimensionScoreResult } from './dimension-score.interface';
-import { weightedJaccard } from './score.utils';
+import { DimensionScoreResult } from '../interfaces/dimension-score.interface';
+import { weightedJaccard } from '../utils/score.utils';
 
 export interface TechnicalScoreInput {
   projectSkills: Map<string, number>;

@@ -1,16 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { DimensionScoreResult } from './dimension-score.interface';
-import { ratio } from './score.utils';
-
-export interface ExperienceScoreInput {
-  profileSuccessRate?: number | null;
-  profileAverageRating?: number | null;
-  profileActivityScore?: number | null;
-  projectAcceptanceRate?: number | null;
-  projectAverageRating?: number | null;
-  historicalSimilarity?: number;
-  goalsAlignment?: number;
-}
+import { DimensionScoreResult } from '../interfaces/dimension-score.interface';
+import { ratio } from '../utils/score.utils';
+import { ExperienceScoreInput } from '../interfaces/Experience.interface';
 
 @Injectable()
 export class ExperienceScoreService {

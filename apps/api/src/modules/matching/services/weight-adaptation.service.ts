@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { UrgencyLevel } from '../../../common/enums/domain.enums';
-import { CompositeScoreContext, DimensionKey, WeightingScheme } from './dimension-score.interface';
+import { CompositeScoreContext, DimensionKey, WeightingScheme } from '../interfaces/dimension-score.interface';
 
 const DIMENSION_ORDER: DimensionKey[] = ['technical', 'culture', 'team', 'logistics', 'experience', 'semantic'];
 
