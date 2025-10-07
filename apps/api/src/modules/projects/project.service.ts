@@ -10,7 +10,7 @@ import {
   mapProjectStageFromPrisma,
   mapVisibilityFromPrisma,
 } from '../../common/enums/enum-mapper';
-import { ProfileVisibility } from '../../common/enums/domain.enums';
+import { CoreValue, ProfileVisibility, UrgencyLevel, WorkStyle } from '../../common/enums/domain.enums';
 
 import { EMBEDDING_PORT, EmbeddingPort } from '../embedding/embedding.port';
 import { toVectorLiteral } from '../../common/utils/vector.util';
@@ -18,8 +18,7 @@ import { TemplateMailerService } from '../../infra/email/template-mailer.service
 import { ProjectListFiltersInput, ProjectListPageInput, ProjectListResult, ProjectListSortBy, ProjectListSortInput } from './dto/project-list.input';
 import { Project as GqlProject } from './project.type';
 
-import { PrismaClient } from '@prisma/client';
-import type { Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { JobsService } from '../../queue/jobs.service';
 import { MatchDetailLevel } from '../matching/types/match-detail-level.enum';
 
@@ -37,8 +36,8 @@ type ProjectRow = {
   attachment_urls: string[] | null;
   banner_url: string | null;
   avatar_url: string | null;
-  culture_work_styles: string[] | null;
-  culture_values: string[] | null;
+  culture_work_styles: WorkStyle[] | null;
+  culture_values: CoreValue[] | null;
   preferred_team_role: string | null;
   preferred_team_size: string | null;
   management_style: string | null;
@@ -54,7 +53,7 @@ type ProjectRow = {
   remote_ratio_max: number | null;
   duration_weeks_min: number | null;
   duration_weeks_max: number | null;
-  urgency: string | null;
+  urgency: UrgencyLevel | null;
   acceptance_rate: number | null;
   average_project_rating: number | null;
   average_response_time_minutes: number | null;
@@ -110,7 +109,7 @@ export function mapProjectRowToGql(row: ProjectRow): GqlProject {
     remote_ratio_max: row.remote_ratio_max ?? null,
     duration_weeks_min: row.duration_weeks_min ?? null,
     duration_weeks_max: row.duration_weeks_max ?? null,
-    urgency: (row.urgency as any) ?? null,
+    urgency: row.urgency ?? null,
     acceptance_rate: row.acceptance_rate ?? null,
     average_project_rating: row.average_project_rating ?? null,
     average_response_time_minutes: row.average_response_time_minutes ?? null,
@@ -166,19 +165,19 @@ export class ProjectService implements OnModuleDestroy{
   ): Promise<string[]> {
     if (!slugs?.length) return [];
 
-    const client = (tx ?? this.prisma.prisma()) as Prisma.TransactionClient;
+    const client = tx ?? this.prisma.prisma();
     const createdIds: string[] = [];
 
     for (const slug of slugs) {
       try {
-        let skill = await prismaClient.skills.findUnique({
+        let skill = await client.skills.findUnique({
           where: { slug },
           select: { id: true }
         });
 
         if (!skill) {
           try {
-            skill = await prismaClient.skills.create({
+            skill = await client.skills.create({
               data: {
                 name: this.slugToName(slug),
                 slug: slug,
@@ -188,7 +187,7 @@ export class ProjectService implements OnModuleDestroy{
             });
           } catch (createError: any) {
             if (createError?.code === 'P2002') {
-              skill = await prismaClient.skills.findUnique({
+              skill = await client.skills.findUnique({
                 where: { slug },
                 select: { id: true }
               });
@@ -221,19 +220,19 @@ export class ProjectService implements OnModuleDestroy{
   ): Promise<string[]> {
     if (!slugs?.length) return [];
 
-    const client = (tx ?? this.prisma.prisma()) as Prisma.TransactionClient;
+    const client = tx ?? this.prisma.prisma();
     const createdIds: string[] = [];
 
     for (const slug of slugs) {
       try {
-        let interest = await prismaClient.interests.findUnique({
+        let interest = await client.interests.findUnique({
           where: { slug },
           select: { id: true }
         });
 
         if (!interest) {
           try {
-            interest = await prismaClient.interests.create({
+            interest = await client.interests.create({
               data: {
                 name: this.slugToName(slug),
                 slug: slug,
@@ -243,7 +242,7 @@ export class ProjectService implements OnModuleDestroy{
             });
           } catch (createError: any) {
             if (createError?.code === 'P2002') {
-              interest = await prismaClient.interests.findUnique({
+              interest = await client.interests.findUnique({
                 where: { slug },
                 select: { id: true }
               });
@@ -271,9 +270,7 @@ export class ProjectService implements OnModuleDestroy{
 
   async create(ownerId: string, input: CreateProjectInput) {
     try {
-      const db = this.prisma.prisma();
-
-      const project = await db.$transaction(async (tx) => {
+      const project = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const skillSlugs = Array.isArray(input.project_skills)
           ? input.project_skills.filter(Boolean)
           : [];
@@ -1020,7 +1017,12 @@ export class ProjectService implements OnModuleDestroy{
       }),
     ]);
 
-    const items = rows.map(mapProjectRowToGql);
+    const items = rows.map(row => mapProjectRowToGql({
+      ...row,
+      culture_work_styles: row.culture_work_styles?.map(style => style as WorkStyle) ?? [],
+      culture_values: row.culture_values?.map(value => value as CoreValue) ?? [],
+      urgency: (row.urgency as UrgencyLevel | null) ?? null,
+    }));
     return { items, total, page: pg.page, pageSize: pg.pageSize };
   }
 }
