@@ -67,7 +67,7 @@ export class MatchRecommendationActionType {
   @Field(() => Float)
   effort!: number;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   eta?: string | null;
 
   @Field(() => MatchDetailLevel, { nullable: true })
@@ -79,13 +79,13 @@ export class MatchRecommendationActionType {
 
 @ObjectType()
 export class CompetitiveInsightType {
-  @Field({ nullable: true })
+  @Field(() => Float, { nullable: true })
   rank?: number | null;
 
   @Field(() => Float, { nullable: true })
   percentile?: number | null;
 
-  @Field({ nullable: true })
+  @Field(() => Float, { nullable: true })
   totalCandidates?: number | null;
 
   @Field(() => [String])
