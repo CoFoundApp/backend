@@ -271,8 +271,11 @@ export class MatchingService {
           where.push(`country = $${idx}`);
         }
         if (filters?.remote != null) {
-          const idx = values.push(filters.remote);
-          where.push(`remote = $${idx}`);
+          if (filters.remote) {
+            where.push(`COALESCE(remote_preference_percent, 0) >= 70`);
+          } else {
+            where.push(`COALESCE(remote_preference_percent, 100) <= 30`);
+          }
         }
         if (filters?.tagsAny?.length) {
           const idx = values.push(filters.tagsAny);
@@ -323,8 +326,11 @@ export class MatchingService {
           where.push(`country = $${idx}`);
         }
         if (filters?.remote != null) {
-          const idx = values.push(filters.remote);
-          where.push(`remote = $${idx}`);
+          if (filters.remote) {
+            where.push(`COALESCE(remote_preference_percent, 0) >= 70`);
+          } else {
+            where.push(`COALESCE(remote_preference_percent, 100) <= 30`);
+          }
         }
         if (filters?.tagsAny?.length) {
           const idx = values.push(filters.tagsAny);
