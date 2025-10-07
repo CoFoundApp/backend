@@ -1,0 +1,10 @@
+Hello{{#if customer_name}} {{customer_name}}{{/if}},
+
+Your {{#if invoice_number}}invoice {{invoice_number}}{{else}}CoFound invoice{{/if}} for {{amount_formatted}} is available.{{#if due_date}}
+Due date: {{due_date}}.{{/if}}
+{{#if invoice_url}}
+View it here: {{invoice_url}}{{/if}}{{#if pdf_url}}
+Download the PDF: {{pdf_url}}{{/if}}
+
+Thank you for being with us.
+The CoFound team

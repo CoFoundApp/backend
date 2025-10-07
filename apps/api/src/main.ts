@@ -30,6 +30,8 @@ async function bootstrap() {
 
   app.use(cookieParser(process.env.COOKIE_SECRET));
 
+  app.use('/stripe/webhook', express.raw({ type: '*/*' }));
+
   const cspDirectives = helmet.contentSecurityPolicy.getDefaultDirectives();
   app.use(
     helmet({

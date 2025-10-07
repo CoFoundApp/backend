@@ -1,0 +1,16 @@
+{{#> layout }}
+  <p>Hello{{#if customer_name}} {{customer_name}}{{/if}},</p>
+  <p>We have received your payment of {{amount_formatted}} for {{#if invoice_number}}<strong>invoice {{invoice_number}}</strong>{{else}}your CoFound invoice{{/if}}.</p>
+  {{#if payment_method}}
+    <p>Payment method: {{payment_method}}.</p>
+  {{/if}}
+  {{#if receipt_url}}
+    <p>You can download the receipt <a href="{{receipt_url}}">from this link</a>.</p>
+  {{/if}}
+  {{#if invoice_url}}
+    <p>You can review the invoice <a href="{{invoice_url}}">online</a>{{#if pdf_url}} or <a href="{{pdf_url}}">download the PDF</a>{{/if}}.</p>
+  {{else if pdf_url}}
+    <p>You can download the invoice PDF <a href="{{pdf_url}}">here</a>.</p>
+  {{/if}}
+  <p>Thank you for choosing CoFound.<br/>The CoFound team</p>
+{{/layout}}
