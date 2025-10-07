@@ -32,7 +32,7 @@ export class MatchingResolver {
     return this.matching.matchProfiles(input);
   }
 
-    @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard)
   @Query(() => ProfileMatchConnection, { description: 'Matching profil basique (scores + dimensions)' })
   async getBasicProfileMatches(@Args('input') input: MatchProfilesInput): Promise<ProfileMatchConnection> {
     return this.matching.matchProfiles({ ...input, detailLevel: MatchDetailLevel.BASIC });
