@@ -51,6 +51,8 @@ export interface SuccessPredictionResult {
 const MIN_SAMPLE_SIZE = 40;
 const MAX_SAMPLES = 5000;
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const INSUFFICIENT_SAMPLE_LOG_INTERVAL_MS = 60 * 1000;
+const FALLBACK_MODEL_VERSION = 'heuristic-baseline';
 
 type MatchStatus =
   | 'unknown'
@@ -68,6 +70,7 @@ export class SuccessPredictionService {
   private cache: CachedModel | null = null;
   private lastCheckedAt = 0;
   private trainingInProgress = false;
+  private lastInsufficientDataLogAt = 0;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -81,7 +84,7 @@ export class SuccessPredictionService {
       return {
         probability: fallbackProbability,
         confidence: fallbackConfidence,
-        modelVersion: null,
+        modelVersion: FALLBACK_MODEL_VERSION,
       };
     }
 
@@ -149,7 +152,13 @@ export class SuccessPredictionService {
     try {
       const samples = await this.fetchSamples();
       if (samples.length < MIN_SAMPLE_SIZE) {
-        this.logger.debug(`Not enough samples to train success model (${samples.length}/${MIN_SAMPLE_SIZE}).`);
+        const now = Date.now();
+        if (now - this.lastInsufficientDataLogAt > INSUFFICIENT_SAMPLE_LOG_INTERVAL_MS) {
+          this.logger.debug(
+            `Not enough samples to train success model (${samples.length}/${MIN_SAMPLE_SIZE}).`,
+          );
+          this.lastInsufficientDataLogAt = now;
+        }
         return;
       }
       const { weights, bias, loss, accuracy, iterations } = this.runGradientDescent(samples, FEATURE_NAMES.length);
