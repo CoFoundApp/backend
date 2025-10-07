@@ -5,78 +5,18 @@ import {
   DimensionKey,
   DimensionScoreResult,
   MatchImprovementAction,
-} from './dimension-score.interface';
-
-export interface MatchForceInsight {
-  dimension: DimensionKey;
-  label: string;
-  description: string;
-}
-
-export interface MatchGapInsight {
-  dimension: DimensionKey;
-  label: string;
-  description: string;
-  impact: number;
-}
-
-export interface RecommendationInsight extends MatchImprovementAction {
-  dimension: DimensionKey;
-  priority: number;
-}
-
-export interface CompetitiveInsight {
-  rank?: number;
-  percentile?: number;
-  totalCandidates?: number;
-  uniqueAdvantages: string[];
-  confidence: number;
-}
-
-export interface BidirectionalInsight {
-  forProfile: string[];
-  forProject: string[];
-}
-
-export interface ChemistryInsight {
-  score: number;
-  successProbability: number;
-  successConfidence: number;
-  modelVersion?: string | null;
-  notes: string[];
-}
-
-export interface ContactPlanStep {
-  title: string;
-  description: string;
-}
-
-export interface ContactContext {
-  profileLocation?: string | null;
-  profileTimezone?: string | null;
-  projectTimezone?: string | null;
-  profileCollaborationMode?: string | null;
-  projectCollaborationMode?: string | null;
-  profileCommunicationStyle?: string | null;
-  projectCommunicationStyle?: string | null;
-  profileCommunicationFrequency?: string | null;
-  projectCommunicationFrequency?: string | null;
-  profileRemotePreference?: number | null;
-  projectRemoteRatioMin?: number | null;
-  projectRemoteRatioMax?: number | null;
-  projectEnvironment?: string | null;
-}
-
-export interface ExplainabilityPayload {
-  forces: MatchForceInsight[];
-  gaps: MatchGapInsight[];
-  recommendations: RecommendationInsight[];
-  competitive?: CompetitiveInsight;
-  bidirectional?: BidirectionalInsight;
-  chemistry: ChemistryInsight;
-  confidence: number;
-  contactPlan: ContactPlanStep[];
-}
+} from '../interfaces/dimension-score.interface';
+import {
+  MatchForceInsight,
+  MatchGapInsight,
+  RecommendationInsight,
+  CompetitiveInsight,
+  BidirectionalInsight,
+  ChemistryInsight,
+  ContactPlanStep,
+  ContactContext,
+  ExplainabilityPayload,
+} from '../interfaces/explainability.interface';
 
 @Injectable()
 export class ExplainabilityService {
@@ -109,7 +49,12 @@ export class ExplainabilityService {
     const gaps = this.buildGaps(dimensionResults);
     const recommendations = this.buildRecommendations(dimensionResults);
     const confidence = this.computeConfidence(dimensionResults, weightContext);
-    const contactPlan = this.buildContactPlan(dimensionResults, contactContext);
+    const contactPlan = this.buildContactPlan(
+      dimensionResults,
+      contactContext,
+      successProbability,
+      successConfidence,
+    );
 
     const chemistry: ChemistryInsight = {
       score: Number(chemistryScore.toFixed(3)),
@@ -192,21 +137,46 @@ export class ExplainabilityService {
     return normaliser ? Number((aggregated / normaliser).toFixed(3)) : 0.5;
   }
 
-  private buildContactPlan(dimensions: DimensionScoreResult[], context?: ContactContext): ContactPlanStep[] {
-    const steps: ContactPlanStep[] = [];
+  private buildContactPlan(
+    dimensions: DimensionScoreResult[],
+    context: ContactContext | undefined,
+    successProbability: number,
+    successConfidence: number,
+  ): ContactPlanStep[] {
     const introStyle = this.resolveIntroStyle(context);
     const timezoneNote = this.resolveTimezoneNote(context);
-    steps.push({
-      title: 'Étape 1 — Appel d’introduction',
-      description: `${introStyle}${timezoneNote ? ` ${timezoneNote}` : ''}`.trim(),
-    });
+    const primaryStrength = this.selectPrimaryStrength(dimensions);
+    const primaryGap = this.selectPrimaryGap(dimensions);
 
-    steps.push(this.resolveEngagementStep(context));
+    const baseSteps: ContactPlanStep[] = [
+      {
+        title: 'Appel d’introduction',
+        description: `${introStyle}${timezoneNote ? ` ${timezoneNote}` : ''}`.trim(),
+      },
+    ];
 
-    const gap = dimensions.find((dimension) => dimension.gaps.length)?.gaps[0];
-    steps.push(this.resolveFollowUpStep(context, gap));
+    if (primaryStrength) {
+      baseSteps.push(this.resolveStrengthActivationStep(primaryStrength, context));
+    }
 
-    return steps;
+    baseSteps.push(this.resolveEngagementStep(context, primaryStrength?.dimension));
+
+    baseSteps.push(this.resolveFollowUpStep(context, primaryGap));
+
+    baseSteps.push(
+      this.resolveFeedbackLoopStep(
+        context,
+        primaryStrength,
+        primaryGap,
+        successProbability,
+        successConfidence,
+      ),
+    );
+
+    return baseSteps.map((step, index) => ({
+      title: `Étape ${index + 1} — ${step.title}`,
+      description: step.description,
+    }));
   }
 
   private resolveIntroStyle(context?: ContactContext): string {
@@ -248,38 +218,45 @@ export class ExplainabilityService {
     return 'hybrid';
   }
 
-  private resolveEngagementStep(context?: ContactContext): ContactPlanStep {
+  private resolveEngagementStep(
+    context: ContactContext | undefined,
+    focusDimension?: DimensionKey,
+  ): ContactPlanStep {
     const orientation = this.resolveEngagementOrientation(context);
     const collaboration = context?.projectCollaborationMode ?? context?.profileCollaborationMode ?? 'hybrid';
     const location = context?.profileLocation?.trim();
+    const focusNote = focusDimension ? this.focusNoteForDimension(focusDimension) : '';
 
     if (orientation === 'onsite') {
       return {
-        title: 'Étape 2 — Rencontre sur le terrain',
+        title: 'Rencontre sur le terrain',
         description: `Profitez d’un évènement CoFound près de ${location || 'chez vous'} pour organiser une rencontre en personne et valider la collaboration ${
           collaboration === 'synchronous' ? 'autour d’un atelier' : 'dans un format workshop'
-        }.`,
+        }.${focusNote}`.trim(),
       };
     }
 
     if (orientation === 'remote') {
       return {
-        title: 'Étape 2 — Atelier en ligne',
+        title: 'Atelier en ligne',
         description: `Inscrivez-vous ensemble à un prochain évènement communautaire CoFound en ligne pour tester votre collaboration ${
           collaboration === 'asynchronous' ? 'avec des livrables asynchrones et un canal Slack partagé' : 'lors d’une session visio animée'
-        }.`,
+        }.${focusNote}`.trim(),
       };
     }
 
     return {
-      title: 'Étape 2 — Expérience hybride',
+      title: 'Expérience hybride',
       description: `Combinez une session visio de co-création puis retrouvez-vous lors d’un évènement CoFound (présentiel ou virtuel) afin de valider la dynamique d’équipe.${
         location ? ` Les meetups proches de ${location} sont parfaits pour un premier atelier.` : ''
-      }`,
+      }${focusNote}`.trim(),
     };
   }
 
-  private resolveFollowUpStep(context: ContactContext | undefined, gap?: string): ContactPlanStep {
+  private resolveFollowUpStep(
+    context: ContactContext | undefined,
+    gap?: { dimension: DimensionKey; label: string },
+  ): ContactPlanStep {
     const frequency = context?.projectCommunicationFrequency ?? context?.profileCommunicationFrequency;
     let cadence: string;
     switch (frequency) {
@@ -298,11 +275,140 @@ export class ExplainabilityService {
         break;
     }
 
-    const gapNote = gap ? ` Profitez-en pour adresser rapidement le point « ${gap} » identifié dans l’analyse.` : '';
+    const gapNote = gap
+      ? ` Consacrez les 10 premières minutes à lever l’écart ${this.dimensionLabel(gap.dimension).toLowerCase()} (« ${gap.label} »).`
+      : ' Utilisez ce créneau pour aligner vos KPIs intermédiaires.';
 
     return {
-      title: 'Étape 3 — Suivi et consolidation',
+      title: 'Suivi prioritaire',
       description: `${cadence}${gapNote}`.trim(),
     };
+  }
+
+  private resolveStrengthActivationStep(
+    strength: { dimension: DimensionKey; label: string; score: number },
+    context?: ContactContext,
+  ): ContactPlanStep {
+    const dimensionLabel = this.dimensionLabel(strength.dimension);
+    const collaboration = context?.projectCollaborationMode ?? context?.profileCollaborationMode ?? 'hybrid';
+    const emphasis = strength.score >= 0.75 ? 'capitaliser sur' : 'explorer davantage';
+    const activity = this.activityForDimension(strength.dimension, collaboration);
+
+    return {
+      title: `Activation du point fort ${dimensionLabel.toLowerCase()}`,
+      description: `Planifiez une session dédiée pour ${emphasis} « ${strength.label} » et ${activity}.`,
+    };
+  }
+
+  private resolveFeedbackLoopStep(
+    context: ContactContext | undefined,
+    strength: { dimension: DimensionKey; label: string } | undefined,
+    gap: { dimension: DimensionKey; label: string } | undefined,
+    successProbability: number,
+    successConfidence: number,
+  ): ContactPlanStep {
+    const orientation = this.resolveEngagementOrientation(context);
+    const tool = orientation === 'onsite' ? 'un espace Notion partagé' : orientation === 'remote' ? 'un canal Slack dédié' : 'Notion + Slack';
+    const probability = this.formatPercentage(successProbability);
+    const confidence = this.formatPercentage(successConfidence);
+    const probabilityNote = probability
+      ? ` Comparez vos retours terrain à la probabilité de succès estimée (${probability}${confidence ? ` · confiance ${confidence}` : ''}).`
+      : '';
+    const strengthNote = strength ? ` Capitalisez sur « ${strength.label} » pour consolider la dynamique.` : '';
+    const gapNote = gap ? ` Définissez des indicateurs pour mesurer la progression sur « ${gap.label} ».` : '';
+
+    return {
+      title: 'Boucle de feedback et mesure',
+      description: `Bloquez un bilan à J+14 et centralisez les apprentissages dans ${tool}.${probabilityNote}${strengthNote}${gapNote}`.trim(),
+    };
+  }
+
+  private selectPrimaryStrength(
+    dimensions: DimensionScoreResult[],
+  ): { dimension: DimensionKey; label: string; score: number } | undefined {
+    const ordered = [...dimensions].sort((a, b) => b.score - a.score);
+    for (const dimension of ordered) {
+      const label = dimension.strengths[0];
+      if (label) {
+        return { dimension: dimension.key, label, score: Number(dimension.score.toFixed(2)) };
+      }
+    }
+    return undefined;
+  }
+
+  private selectPrimaryGap(
+    dimensions: DimensionScoreResult[],
+  ): { dimension: DimensionKey; label: string } | undefined {
+    const ordered = [...dimensions].sort((a, b) => a.score - b.score);
+    for (const dimension of ordered) {
+      const label = dimension.gaps[0];
+      if (label) {
+        return { dimension: dimension.key, label };
+      }
+    }
+    return undefined;
+  }
+
+  private dimensionLabel(dimension: DimensionKey): string {
+    switch (dimension) {
+      case 'technical':
+        return 'Technique';
+      case 'culture':
+        return 'Culture';
+      case 'team':
+        return 'Équipe';
+      case 'logistics':
+        return 'Logistique';
+      case 'experience':
+        return 'Expérience';
+      case 'semantic':
+      default:
+        return 'Vision produit';
+    }
+  }
+
+  private activityForDimension(dimension: DimensionKey, collaboration: string): string {
+    switch (dimension) {
+      case 'technical':
+        return collaboration === 'asynchronous'
+          ? 'échanger des snippets de code ou des proof-of-concepts avant la rencontre'
+          : 'co-construire un mini proof-of-concept pendant une session partagée';
+      case 'culture':
+        return 'partager vos rituels d’équipe et clarifier vos valeurs de collaboration';
+      case 'team':
+        return 'identifier les rôles complémentaires et la prise de décision au quotidien';
+      case 'logistics':
+        return 'valider les contraintes agenda, outils et disponibilité sur les deux prochaines semaines';
+      case 'experience':
+        return 'faire raconter un cas d’usage marquant pour ancrer la proposition de valeur';
+      case 'semantic':
+      default:
+        return 'clarifier la vision produit et la manière de la communiquer aux parties prenantes';
+    }
+  }
+
+  private focusNoteForDimension(dimension: DimensionKey): string {
+    switch (dimension) {
+      case 'technical':
+        return ' Ancrez la discussion sur les défis techniques identifiés pour profiter immédiatement de votre complémentarité.';
+      case 'culture':
+        return ' Prenez quelques minutes pour aligner vos valeurs, rituels et styles de feedback.';
+      case 'team':
+        return ' Clarifiez la répartition des rôles et comment chacun aime prendre des décisions collectives.';
+      case 'logistics':
+        return ' Passez en revue les contraintes de disponibilité et vos outils favoris pour éviter les frictions.';
+      case 'experience':
+        return ' Comparez vos expériences passées pour identifier les scénarios où votre duo performe le mieux.';
+      case 'semantic':
+      default:
+        return ' Affinez ensemble le pitch et les messages clés à porter auprès des parties prenantes.';
+    }
+  }
+
+  private formatPercentage(value: number | undefined): string {
+    if (value == null || Number.isNaN(value)) {
+      return '';
+    }
+    return `${Math.round(value * 100)}%`;
   }
 }
