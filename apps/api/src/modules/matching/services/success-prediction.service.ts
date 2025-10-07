@@ -52,6 +52,16 @@ const MIN_SAMPLE_SIZE = 40;
 const MAX_SAMPLES = 5000;
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
+type MatchStatus =
+  | 'unknown'
+  | 'viewed'
+  | 'applied'
+  | 'interviewing'
+  | 'hired'
+  | 'completed'
+  | 'rejected'
+  | 'withdrawn';
+
 @Injectable()
 export class SuccessPredictionService {
   private readonly logger = new Logger(SuccessPredictionService.name);
@@ -155,7 +165,7 @@ export class SuccessPredictionService {
         sampleSize: samples.length,
       };
 
-      const created = await this.prisma.prisma().$transaction(async (tx: Prisma.TransactionClient) => {
+      const created = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await tx.matching_models.updateMany({
           where: { model_type: MODEL_TYPE_SUCCESS },
           data: { is_active: false },
@@ -165,7 +175,7 @@ export class SuccessPredictionService {
             model_type: MODEL_TYPE_SUCCESS,
             version,
             feature_names: FEATURE_NAMES,
-            coefficients: roundedWeights as unknown as Prisma.JsonValue,
+            coefficients: roundedWeights as Prisma.InputJsonValue,
             bias: roundedBias,
             confidence,
             sample_size: samples.length,
@@ -198,7 +208,7 @@ export class SuccessPredictionService {
     const rows = await this.prisma.prisma().$queryRawUnsafe<Array<{
       dimension_scores: Prisma.JsonValue;
       chemistry_score: number | null;
-      status: Prisma.match_status;
+      status: MatchStatus;
     }>>(`
       SELECT me.dimension_scores, me.chemistry_score, mo.status
       FROM match_outcomes mo

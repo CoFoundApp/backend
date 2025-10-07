@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
+import { UrgencyLevel } from '../../../common/enums/domain.enums';
 import { CompositeScoreContext, DimensionKey, WeightingScheme } from './dimension-score.interface';
 
 const DIMENSION_ORDER: DimensionKey[] = ['technical', 'culture', 'team', 'logistics', 'experience', 'semantic'];
@@ -21,7 +21,7 @@ export class WeightAdaptationService {
   async resolveWeights(context: {
     sector?: string | null;
     projectType?: string | null;
-    urgency?: string | null;
+    urgency?: UrgencyLevel | null;
   }): Promise<CompositeScoreContext> {
     const { sector, projectType, urgency } = context;
     const candidates = await this.prisma.prisma().algorithm_weights.findMany({
@@ -31,7 +31,7 @@ export class WeightAdaptationService {
           {
             sector: sector ?? null,
             project_type: projectType ?? null,
-            urgency: urgency ? (urgency as Prisma.urgency_level) : undefined,
+            urgency: urgency ?? undefined,
           },
           {
             sector: sector ?? null,

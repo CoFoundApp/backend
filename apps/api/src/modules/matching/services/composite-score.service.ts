@@ -15,13 +15,14 @@ import {
 } from './explainability.service';
 import { WeightAdaptationService } from './weight-adaptation.service';
 import { SuccessPredictionService } from './success-prediction.service';
+import { UrgencyLevel } from '../../../common/enums/domain.enums';
 
 export interface CompositeScoreInput {
   detailLevel: MatchDetailLevel;
   context: {
     sector?: string | null;
     projectType?: string | null;
-    urgency?: string | null;
+    urgency?: UrgencyLevel | null;
   };
   technical: TechnicalScoreInput;
   culture: CultureScoreInput;
