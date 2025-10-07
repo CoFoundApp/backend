@@ -17,6 +17,7 @@ import { weightFor, weightedJaccard } from './services/score.utils';
 import { TimeSlotLike } from './services/logistics-score.service';
 import { DimensionScoreResult } from './services/dimension-score.interface';
 import { ExplainabilityPayload } from './services/explainability.service';
+import { UrgencyLevel } from '../../common/enums/domain.enums';
 
 const EMPTY_PROFILE_CONN: ProfileMatchConnection = {
   items: [] as ProfileMatch[],
@@ -30,6 +31,18 @@ const EMPTY_PROJECT_CONN: ProjectMatchConnection = {
 
 const MATCH_ALGO_VERSION = '2024.11.0';
 const DEFAULT_DETAIL_LEVEL = MatchDetailLevel.ENRICHED;
+
+const URGENCY_VALUES = new Set<string>(Object.values(UrgencyLevel));
+
+const mapUrgencyToDomain = (
+  urgency: string | null | undefined,
+): UrgencyLevel | null => {
+  if (!urgency) return null;
+  if (URGENCY_VALUES.has(urgency)) {
+    return urgency as unknown as UrgencyLevel;
+  }
+  return null;
+};
 
 type DbLike = {
   $executeRawUnsafe: (query: string, ...params: any[]) => Promise<any>;
@@ -498,7 +511,7 @@ export class MatchingService {
           context: {
             sector: project?.industry ?? null,
             projectType: project?.stage ?? null,
-            urgency: project?.urgency ?? null,
+            urgency: mapUrgencyToDomain(project?.urgency),
           },
           technical: {
             projectSkills: projSkillWeights,
@@ -833,7 +846,7 @@ export class MatchingService {
           context: {
             sector: project.industry ?? null,
             projectType: project.stage ?? null,
-            urgency: project.urgency ?? null,
+            urgency: mapUrgencyToDomain(project.urgency),
           },
           technical: {
             projectSkills: projectSkillMap,
@@ -1038,7 +1051,7 @@ export class MatchingService {
           project_id: projectId,
           counterpart_profile_id: counterpartProfileId,
           counterpart_project_id: counterpartProjectId,
-          entity_type: entityType as Prisma.match_entity_type,
+          entity_type: entityType,
           algorithm_version: MATCH_ALGO_VERSION,
           detail_level: detailLevel,
           score: composite.score,
