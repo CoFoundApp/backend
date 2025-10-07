@@ -4,7 +4,7 @@ import { MatchDetailLevel } from './match-detail-level.enum';
 
 @ObjectType()
 export class DimensionScore {
-  @Field()
+  @Field(() => String)
   key!: string;
 
   @Field(() => Float)
@@ -28,25 +28,25 @@ export class DimensionScore {
 
 @ObjectType()
 export class MatchForceType {
-  @Field()
+  @Field(() => String)
   dimension!: string;
 
-  @Field()
+  @Field(() => String)
   label!: string;
 
-  @Field()
+  @Field(() => String)
   description!: string;
 }
 
 @ObjectType()
 export class MatchGapType {
-  @Field()
+  @Field(() => String)
   dimension!: string;
 
-  @Field()
+  @Field(() => String)
   label!: string;
 
-  @Field()
+  @Field(() => String)
   description!: string;
 
   @Field(() => Float)
@@ -55,10 +55,10 @@ export class MatchGapType {
 
 @ObjectType()
 export class MatchRecommendationActionType {
-  @Field()
+  @Field(() => String)
   dimension!: string;
 
-  @Field()
+  @Field(() => String)
   label!: string;
 
   @Field(() => Float)
@@ -115,7 +115,7 @@ export class ChemistryInsightType {
   @Field(() => Float)
   successConfidence!: number;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   modelVersion?: string | null;
 
   @Field(() => [String])
@@ -124,9 +124,9 @@ export class ChemistryInsightType {
 
 @ObjectType()
 export class ContactPlanStepType {
-  @Field()
+  @Field(() => String)
   title!: string;
 
-  @Field()
+  @Field(() => String)
   description!: string;
 }

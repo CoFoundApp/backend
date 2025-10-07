@@ -32,7 +32,7 @@ export class ProfileMatch {
   @Field(() => Float)
   successConfidence!: number;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   successModelVersion?: string | null;
 
   @Field(() => MatchDetailLevel)
