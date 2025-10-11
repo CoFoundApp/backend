@@ -52,5 +52,6 @@ export const envValidationSchema = Joi.object({
   BRAND_NAME: Joi.string().default('CoFound'),
   BRAND_URL: Joi.string().uri().default('https://cofound.example.com'),
   BRAND_LOGO_URL: Joi.string().uri().default('https://cofound.example.com/logo.png'),
-  APP_BASE_URL: Joi.string().uri().default('https://cofound.example.com')
+  APP_BASE_URL: Joi.string().uri().default('https://cofound.example.com'),
+  UPLOADS_PUBLIC_BASE_URL: Joi.string().uri().default('http://localhost:3000'),
 });
