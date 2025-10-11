@@ -1,8 +1,30 @@
+import { registerEnumType } from '@nestjs/graphql';
 import { StripeEvent } from './stripe/stripe.types';
 
-export type BillingInterval = 'month' | 'year';
+export enum BillingPlanCodeEnum {
+  FREE = 'free',
+  SOLO = 'solo',
+  PRO = 'pro',
+}
 
-export type BillingPlanCode = 'free' | 'solo' | 'pro';
+export type BillingPlanCode = `${BillingPlanCodeEnum}`;
+
+export enum BillingIntervalEnum {
+  MONTH = 'month',
+  YEAR = 'year',
+}
+
+export type BillingInterval = `${BillingIntervalEnum}`;
+
+registerEnumType(BillingPlanCodeEnum, {
+  name: 'BillingPlanCode',
+  description: 'Code du plan d’abonnement Stripe',
+});
+
+registerEnumType(BillingIntervalEnum, {
+  name: 'BillingInterval',
+  description: 'Intervalle de facturation (mensuel ou annuel)',
+});
 
 export interface BillingPlanFeatureSet {
   matchesPerMonth: number | null;
