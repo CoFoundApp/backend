@@ -61,15 +61,18 @@ export class ProjectResolver {
   async createProject(@CurrentUser() user: JwtUser, @Args('input') input: CreateProjectInput) {
     if (!user) throw new UnauthorizedException();
     if (input.attachments?.length) {
-      input.attachment_urls = await Promise.all(
+      const storedAttachments = await Promise.all(
         input.attachments.map((f) => this.uploads.save(f)),
       );
+      input.attachment_urls = storedAttachments.map((file) => file.url);
     }
     if (input.banner) {
-      input.banner_url = await this.uploads.save(input.banner);
+      const storedBanner = await this.uploads.save(input.banner);
+      input.banner_url = storedBanner.url;
     }
     if (input.avatar) {
-      input.avatar_url = await this.uploads.save(input.avatar);
+      const storedAvatar = await this.uploads.save(input.avatar);
+      input.avatar_url = storedAvatar.url;
     }
     const p = await this.projects.create(user.sub, input);
     await this.jobs.enqueueRecomputeProjectDebounced(p.id);
@@ -85,15 +88,18 @@ export class ProjectResolver {
   ) {
     if (!user) throw new UnauthorizedException();
     if (input.attachments?.length) {
-      input.attachment_urls = await Promise.all(
+      const storedAttachments = await Promise.all(
         input.attachments.map((f) => this.uploads.save(f)),
       );
+      input.attachment_urls = storedAttachments.map((file) => file.url);
     }
     if (input.banner) {
-      input.banner_url = await this.uploads.save(input.banner);
+      const storedBanner = await this.uploads.save(input.banner);
+      input.banner_url = storedBanner.url;
     }
     if (input.avatar) {
-      input.avatar_url = await this.uploads.save(input.avatar);
+      const storedAvatar = await this.uploads.save(input.avatar);
+      input.avatar_url = storedAvatar.url;
     }
     const p = await this.projects.update(id, user.sub, input);
     await this.jobs.enqueueRecomputeProjectDebounced(p.id);
