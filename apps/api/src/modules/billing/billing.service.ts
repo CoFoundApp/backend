@@ -3,11 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { BillingCatalogService } from './catalog/billing.catalog.service';
 import { BillingPlanCode, BillingPlanVariant } from './billing.types';
-import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
+import { CreateCheckoutSessionInput } from './dto/create-checkout-session.input';
 import { StripeService } from './stripe/stripe.service';
 import { BillingCustomerService } from './billing-customer.service';
 import { BillingEntitlementsService } from './billing-entitlements.service';
-import { CustomerPortalSessionDto } from './dto/customer-portal-session.dto';
+import { CustomerPortalSessionInput } from './dto/customer-portal-session.input';
 import { plan_interval, subscription_collection_method, subscription_status } from '@prisma/client';
 
 interface CheckoutSessionResponse {
@@ -32,7 +32,7 @@ export class BillingService {
     return this.catalog.getPublicCatalog();
   }
 
-  async createCheckoutSession(userId: string, dto: CreateCheckoutSessionDto): Promise<CheckoutSessionResponse> {
+  async createCheckoutSession(userId: string, dto: CreateCheckoutSessionInput): Promise<CheckoutSessionResponse> {
     const variant = this.catalog.getVariant(dto.planCode, dto.interval);
 
     if (dto.planCode === 'free') {
@@ -102,7 +102,7 @@ export class BillingService {
     };
   }
 
-  async createCustomerPortalSession(userId: string, dto: CustomerPortalSessionDto) {
+  async createCustomerPortalSession(userId: string, dto: CustomerPortalSessionInput) {
     const billingCustomer = await this.prisma.billing_customers.findFirst({
       where: { user_id: userId },
     });
@@ -123,6 +123,13 @@ export class BillingService {
     return { url: session.url };
   }
 
+  async getLatestSubscriptionForUser(userId: string) {
+    return this.prisma.subscriptions.findFirst({
+      where: { user_id: userId },
+      orderBy: { started_at: 'desc' },
+    });
+  }
+
   private async activateFreePlan(userId: string, organizationId: string | null, variant: BillingPlanVariant) {
     const plan = await this.prisma.plans.findUnique({ where: { code: variant.planCodeForDatabase } });
     if (!plan) {
@@ -133,7 +140,7 @@ export class BillingService {
 
     const existing = await this.prisma.subscriptions.findFirst({
       where: { user_id: userId },
-      orderBy: { created_at: 'desc' },
+      orderBy: { started_at: 'desc' },
     });
 
     if (existing) {

@@ -64,7 +64,7 @@ export class BillingWebhookService {
   async processStoredEvent(eventId: string): Promise<void> {
     const stored = await this.prisma.billing_events.findUnique({ where: { id: eventId } });
     if (!stored) return;
-    const event = stored.payload as StripeEvent;
+    const event = stored.payload as unknown as StripeEvent;
     try {
       await this.handleEvent(event);
       await this.prisma.billing_events.update({

@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../infra/prisma/prisma.module';
 import { QueueModule } from '../../infra/queue/queue.module';
 import { EmailModule } from '../../infra/email/email.module';
-import { BillingController } from './billing.controller';
 import { BillingService } from './billing.service';
 import { BillingCatalogService } from './catalog/billing.catalog.service';
 import { StripeService } from './stripe/stripe.service';
@@ -12,13 +11,13 @@ import { BillingEntitlementsService } from './billing-entitlements.service';
 import { BillingInvoiceService } from './billing-invoice.service';
 import { BillingDunningService } from './billing-dunning.service';
 import { BillingQueueProcessor } from './billing.queue.processor';
-import { BillingAdminController } from './admin/billing-admin.controller';
 import { BillingAdminService } from './admin/billing-admin.service';
+import { BillingResolver } from './billing.resolver';
+import { BillingAdminResolver } from './admin/billing-admin.resolver';
 import { RolesGuard } from '../auth/roles.guard';
 
 @Module({
   imports: [PrismaModule, QueueModule, EmailModule],
-  controllers: [BillingController, BillingAdminController],
   providers: [
     BillingService,
     BillingCatalogService,
@@ -31,6 +30,8 @@ import { RolesGuard } from '../auth/roles.guard';
     BillingQueueProcessor,
     BillingAdminService,
     RolesGuard,
+    BillingResolver,
+    BillingAdminResolver,
   ],
   exports: [BillingService, BillingWebhookService, BillingCatalogService],
 })
