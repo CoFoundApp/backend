@@ -18,6 +18,7 @@
     "test:e2e": "cross-env NODE_ENV=test jest --config ./jest-e2e.json"
   },
   "dependencies": {
+    "@mistralai/mistralai": "^1.9.18",
     "@apollo/server": "^4.12.2",
     "@nestjs/apollo": "^13",
     "@nestjs/bullmq": "^11.0.3",
