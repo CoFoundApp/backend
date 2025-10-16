@@ -7,12 +7,13 @@ export interface TechnicalScoreInput {
   candidateSkills: Map<string, number>;
   semanticSimilarity: number;
   hasProjectSkills: boolean;
+  intentTagAffinity?: number;
 }
 
 @Injectable()
 export class TechnicalScoreService {
   async evaluate(input: TechnicalScoreInput): Promise<DimensionScoreResult> {
-    const { projectSkills, candidateSkills, semanticSimilarity, hasProjectSkills } = input;
+    const { projectSkills, candidateSkills, semanticSimilarity, hasProjectSkills, intentTagAffinity } = input;
 
     const overlap = weightedJaccard(projectSkills, candidateSkills);
     const composite = hasProjectSkills ? 0.75 * overlap + 0.25 * semanticSimilarity : semanticSimilarity;
@@ -31,6 +32,14 @@ export class TechnicalScoreService {
       strengths.push('Parcours très proche des besoins décrits');
     } else if (semanticSimilarity < 0.5) {
       gaps.push('Expérience globale éloignée du besoin');
+    }
+
+    if (typeof intentTagAffinity === 'number' && !Number.isNaN(intentTagAffinity)) {
+      if (intentTagAffinity >= 0.6) {
+        strengths.push('Mots-clés intentionnels en forte adéquation');
+      } else if (hasProjectSkills && intentTagAffinity < 0.2) {
+        gaps.push('Tags intentionnels peu représentés dans le profil');
+      }
     }
 
     const actions = gaps.length
@@ -55,6 +64,7 @@ export class TechnicalScoreService {
         skillOverlap: overlap,
         semanticSimilarity,
         hasProjectSkills,
+        intentTagAffinity: intentTagAffinity ?? null,
       },
     };
   }
