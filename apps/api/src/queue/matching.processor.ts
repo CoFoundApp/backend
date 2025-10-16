@@ -3,6 +3,7 @@ import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { MatchingService } from '../modules/matching/matching.service';
 import { MatchDetailLevel } from '../modules/matching/types/match-detail-level.enum';
+import { MonitoringService } from '../modules/monitoring/monitoring.service';
 
 interface PrecomputeProfileJob {
   profileId?: string;
@@ -32,7 +33,10 @@ function normaliseLimit(value?: number | null, fallback = 20): number {
 export class MatchingProcessor extends WorkerHost {
   private readonly logger = new Logger(MatchingProcessor.name);
 
-  constructor(private readonly matching: MatchingService) {
+  constructor(
+    private readonly matching: MatchingService,
+    private readonly monitoring: MonitoringService,
+  ) {
     super();
   }
 
@@ -80,10 +84,16 @@ export class MatchingProcessor extends WorkerHost {
   @OnWorkerEvent('completed')
   onCompleted(job: Job, result: unknown) {
     this.logger.log(`[matching] completed #${job.id} ${JSON.stringify(result)}`);
+    const durationSeconds =
+      job.finishedOn && job.processedOn
+        ? Math.max(0, (job.finishedOn - job.processedOn) / 1000)
+        : undefined;
+    this.monitoring.recordQueueJobProcessed('matching', job.name, durationSeconds);
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job | undefined, err: Error) {
     this.logger.error(`[matching] failed #${job?.id}: ${err.message}`, err.stack);
+    this.monitoring.recordQueueJobFailed('matching', job?.name ?? 'unknown');
   }
 }
