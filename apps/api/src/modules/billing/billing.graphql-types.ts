@@ -115,3 +115,81 @@ export class BillingSubscriptionSummaryType {
   @Field(() => GraphQLISODateTime, { nullable: true })
   currentPeriodEnd?: Date | null;
 }
+
+@ObjectType()
+export class BillingPaymentSummaryType {
+  @Field(() => String)
+  id!: string;
+
+  @Field(() => Int)
+  amountCents!: number;
+
+  @Field(() => String)
+  currency!: string;
+
+  @Field(() => String)
+  status!: string;
+
+  @Field(() => String, { nullable: true })
+  paymentMethodType?: string | null;
+
+  @Field(() => String, { nullable: true })
+  receiptUrl?: string | null;
+
+  @Field(() => GraphQLISODateTime, { nullable: true })
+  processedAt?: Date | null;
+}
+
+@ObjectType()
+export class BillingInvoiceSummaryType {
+  @Field(() => String)
+  id!: string;
+
+  @Field(() => Int)
+  amountCents!: number;
+
+  @Field(() => Int, { nullable: true })
+  subtotalCents?: number | null;
+
+  @Field(() => Int, { nullable: true })
+  taxAmountCents?: number | null;
+
+  @Field(() => Int, { nullable: true })
+  totalCents?: number | null;
+
+  @Field(() => String)
+  currency!: string;
+
+  @Field(() => String)
+  status!: string;
+
+  @Field(() => GraphQLISODateTime)
+  issuedAt!: Date;
+
+  @Field(() => GraphQLISODateTime, { nullable: true })
+  dueAt?: Date | null;
+
+  @Field(() => GraphQLISODateTime, { nullable: true })
+  paidAt?: Date | null;
+
+  @Field(() => String, { nullable: true })
+  number?: string | null;
+
+  @Field(() => String, { nullable: true })
+  pdfUrl?: string | null;
+
+  @Field(() => String, { nullable: true })
+  stripeInvoiceId?: string | null;
+
+  @Field(() => [BillingPaymentSummaryType])
+  payments!: BillingPaymentSummaryType[];
+}
+
+@ObjectType()
+export class BillingHistoryType {
+  @Field(() => [BillingInvoiceSummaryType])
+  invoices!: BillingInvoiceSummaryType[];
+
+  @Field(() => [BillingPaymentSummaryType])
+  payments!: BillingPaymentSummaryType[];
+}
