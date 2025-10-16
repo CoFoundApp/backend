@@ -64,10 +64,12 @@ export class ProfileResolver {
   async updateMyProfile(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyProfileInput) {
     if (!user) throw new UnauthorizedException();
     if (input.avatar) {
-      input.avatar_url = await this.uploads.save(input.avatar);
+      const storedAvatar = await this.uploads.save(input.avatar);
+      input.avatar_url = storedAvatar.url;
     }
     if (input.banner) {
-      input.banner_url = await this.uploads.save(input.banner);
+      const storedBanner = await this.uploads.save(input.banner);
+      input.banner_url = storedBanner.url;
     }
     const p = await this.profiles.updateMyProfile(user.sub, input);
 

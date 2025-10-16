@@ -1,0 +1,13 @@
+{{#> layout }}
+  <p>Hello{{#if customer_name}} {{customer_name}}{{/if}},</p>
+  <p>Your {{#if invoice_number}}<strong>invoice {{invoice_number}}</strong>{{else}}CoFound invoice{{/if}} for {{amount_formatted}} is now ready.</p>
+  {{#if due_date}}
+    <p>Due date: {{due_date}}.</p>
+  {{/if}}
+  {{#if invoice_url}}
+    <p>You can review it from <a href="{{invoice_url}}">your billing space</a>{{#if pdf_url}} or <a href="{{pdf_url}}">download the PDF</a>{{/if}}.</p>
+  {{else if pdf_url}}
+    <p>You can download the PDF of your invoice <a href="{{pdf_url}}">by clicking here</a>.</p>
+  {{/if}}
+  <p>Thanks for being with us.<br/>The CoFound team</p>
+{{/layout}}

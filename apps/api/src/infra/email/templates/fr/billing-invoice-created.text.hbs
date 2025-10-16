@@ -1,0 +1,10 @@
+Bonjour{{#if customer_name}} {{customer_name}}{{/if}},
+
+Votre facture {{#if invoice_number}}{{invoice_number}}{{else}}CoFound{{/if}} d'un montant de {{amount_formatted}} est disponible.{{#if due_date}}
+Échéance : {{due_date}}.{{/if}}
+{{#if invoice_url}}
+Consultez-la ici : {{invoice_url}}{{/if}}{{#if pdf_url}}
+Téléchargez le PDF : {{pdf_url}}{{/if}}
+
+Merci pour votre confiance.
+L'équipe CoFound

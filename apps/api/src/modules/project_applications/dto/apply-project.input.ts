@@ -25,5 +25,5 @@ export class ApplyProjectInput {
   @Field(() => [GraphQLUpload], { nullable: true })
   @IsOptional()
   @IsArray()
-  attachments?: FileUpload[] | null;
+  attachments?: Promise<FileUpload>[] | null;
 }

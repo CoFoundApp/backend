@@ -71,7 +71,7 @@ export class UpdateMyProfileInput {
 
   @Field(() => GraphQLUpload, { nullable: true })
   @IsOptional()
-  avatar?: FileUpload;
+  avatar?: Promise<FileUpload> | null;
 
   @Field(() => String, { nullable: true })
   @IsOptional()
@@ -80,7 +80,7 @@ export class UpdateMyProfileInput {
 
   @Field(() => GraphQLUpload, { nullable: true })
   @IsOptional()
-  banner?: FileUpload;
+  banner?: Promise<FileUpload> | null;
 
   @Field(() => String, { nullable: true })
   @IsOptional()

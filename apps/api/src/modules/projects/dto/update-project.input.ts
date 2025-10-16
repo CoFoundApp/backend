@@ -93,7 +93,7 @@ export class UpdateProjectInput {
   @Field(() => [GraphQLUpload], { nullable: true })
   @IsOptional()
   @IsArray()
-  attachments?: FileUpload[] | null;
+  attachments?: Promise<FileUpload>[] | null;
 
   @Field(() => String, { nullable: true })
   @IsOptional()
@@ -102,7 +102,7 @@ export class UpdateProjectInput {
 
   @Field(() => GraphQLUpload, { nullable: true })
   @IsOptional()
-  banner?: FileUpload | null;
+  banner?: Promise<FileUpload> | null;
 
   @Field(() => String, { nullable: true })
   @IsOptional()
@@ -111,7 +111,7 @@ export class UpdateProjectInput {
 
   @Field(() => GraphQLUpload, { nullable: true })
   @IsOptional()
-  avatar?: FileUpload | null;
+  avatar?: Promise<FileUpload> | null;
 
   @Field(() => [WorkStyle], { nullable: true })
   @IsOptional()

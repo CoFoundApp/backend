@@ -9,6 +9,20 @@ export const envValidationSchema = Joi.object({
 
   REDIS_URL: Joi.string().uri().default('redis://redis:6379'),
 
+  STRIPE_SECRET_KEY: Joi.string().min(10).default('sk_test_dummy'),
+  STRIPE_PUBLISHABLE_KEY: Joi.string().min(10).default('pk_test_dummy'),
+  STRIPE_WEBHOOK_SECRET: Joi.string().min(10).default('whsec_dummy'),
+  STRIPE_PRICE_FREE_MONTHLY: Joi.string().allow('').default(''),
+  STRIPE_PRICE_SOLO_MONTHLY: Joi.string().min(1).default('price_solo_monthly'),
+  STRIPE_PRICE_SOLO_ANNUAL: Joi.string().min(1).default('price_solo_annual'),
+  STRIPE_PRICE_PRO_MONTHLY: Joi.string().min(1).default('price_pro_monthly'),
+  STRIPE_PRICE_PRO_ANNUAL: Joi.string().min(1).default('price_pro_annual'),
+  STRIPE_BILLING_PORTAL_RETURN_URL: Joi.string().uri().default('https://cofound.example.com/app/settings/billing'),
+
+  BILLING_INVOICE_FOOTER: Joi.string().default(
+    'CoFound SAS – 10 rue de la Paix, 75002 Paris – SIREN 123 456 789 – RCS Paris – Capital social 50 000€ – TVA FR12 3456789 – Paiement comptant à réception. Indemnité forfaitaire de 40€ pour frais de recouvrement en cas de retard. TVA non applicable – art. 293 B CGI.'
+  ),
+
   JWT_ACCESS_SECRET: Joi.string().min(16).optional(),
   JWT_ACCESS_TTL: Joi.string().default('900s'),
   JWT_REFRESH_SECRET: Joi.string().min(16).optional(),
@@ -39,5 +53,6 @@ export const envValidationSchema = Joi.object({
   BRAND_NAME: Joi.string().default('CoFound'),
   BRAND_URL: Joi.string().uri().default('https://cofound.example.com'),
   BRAND_LOGO_URL: Joi.string().uri().default('https://cofound.example.com/logo.png'),
-  APP_BASE_URL: Joi.string().uri().default('https://cofound.example.com')
+  APP_BASE_URL: Joi.string().uri().default('https://cofound.example.com'),
+  UPLOADS_PUBLIC_BASE_URL: Joi.string().uri().default('http://localhost:3000'),
 });

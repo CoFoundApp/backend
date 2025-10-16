@@ -24,11 +24,13 @@ async function bootstrap() {
     origin: origins,
     credentials: true,
     methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'Apollo-Require-Preflight'],
     exposedHeaders: ['Set-Cookie'],
   });
 
   app.use(cookieParser(process.env.COOKIE_SECRET));
+
+  app.use('/stripe/webhook', express.raw({ type: '*/*' }));
 
   const cspDirectives = helmet.contentSecurityPolicy.getDefaultDirectives();
   app.use(
