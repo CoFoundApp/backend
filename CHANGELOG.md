@@ -1,3 +1,10 @@
+# 🚀 Changelog – CoFound v1.3.0
+
+## 💳 Paiement & Abonnements
+- ✨ **Paiement Stripe** – intégration complète du système de paiement avec gestion des abonnements et facturation
+- 🧾 **Facturation et gestion des abonnements** – création, mise à jour et consultation des factures et abonnements
+- 🔒 **Sécurité et conformité** – mise en place des meilleures pratiques pour la sécurité des données de paiement
+
 # 🚀 Changelog – CoFound v1.2.0
 
 ## 🔍 Matching IA v2
