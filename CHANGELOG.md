@@ -1,3 +1,19 @@
+# 🚀 Changelog – CoFound v1.2.0
+
+## 🔍 Matching IA v2
+- ✨ **Refonte complète du système de matching** – amélioration de l'algorithme de matching avec support multi-dimensionnel et scoring avancé
+- 🧮 **Nouveau système de scoring composite** – intégration de la similarité cosine, Jaccard (skills/intérêts), localisation et fraîcheur des profils
+- 📊 **Amélioration des embeddings** – optimisation de la génération et du stockage des embeddings pour profils et projets
+- 🔎 **Meilleurs résultats de matching** – raisons de matching plus détaillées et pertinentes
+- ⚡ **Optimisation des performances** – réduction du temps de réponse pour les requêtes de matching
+- 📈 **Monitoring et alerting** - ajout de métriques et d'alertes pour suivre les performances du système de matching
+
+***
+
+## 🌱 Core
+- 🔧 **Améliorations diverses du développement** – ajustements techniques et optimisations internes pour la stabilité
+- 🐞 **Corrections de bugs** – résolution de bugs mineurs et amélioration de la robustesse du système
+
 # 🚀 Changelog – CoFound v1.1.0
 
 ## 💡 Projets
