@@ -30,6 +30,7 @@ export const envValidationSchema = Joi.object({
   EMBEDDING_RATE_WINDOW: Joi.number().integer().min(1).default(60000),
   EMBEDDING_CONCURRENCY: Joi.number().integer().min(1).default(100),
   EMBEDDING_DEBOUNCE_MS: Joi.number().integer().min(1).default(2000),
+  METRICS_QUEUE_POLL_MS: Joi.number().integer().min(1000).default(15000),
 
   SMTP_HOST: Joi.string().default('smtp.mailtrap.io'),
   SMTP_PORT: Joi.number().integer().min(1).default(587),
