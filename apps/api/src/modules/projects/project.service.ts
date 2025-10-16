@@ -10,7 +10,7 @@ import {
   mapProjectStageFromPrisma,
   mapVisibilityFromPrisma,
 } from '../../common/enums/enum-mapper';
-import { ProfileVisibility } from '../../common/enums/domain.enums';
+import { CoreValue, ProfileVisibility, UrgencyLevel, WorkStyle } from '../../common/enums/domain.enums';
 
 import { EMBEDDING_PORT, EmbeddingPort } from '../embedding/embedding.port';
 import { toVectorLiteral } from '../../common/utils/vector.util';
@@ -18,8 +18,9 @@ import { TemplateMailerService } from '../../infra/email/template-mailer.service
 import { ProjectListFiltersInput, ProjectListPageInput, ProjectListResult, ProjectListSortBy, ProjectListSortInput } from './dto/project-list.input';
 import { Project as GqlProject } from './project.type';
 
-import { PrismaClient } from '@prisma/client';
-import type { Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
+import { JobsService } from '../../queue/jobs.service';
+import { MatchDetailLevel } from '../matching/types/match-detail-level.enum';
 
 type ProjectRow = {
   id: string;
@@ -35,6 +36,27 @@ type ProjectRow = {
   attachment_urls: string[] | null;
   banner_url: string | null;
   avatar_url: string | null;
+  culture_work_styles: WorkStyle[] | null;
+  culture_values: CoreValue[] | null;
+  preferred_team_role: string | null;
+  preferred_team_size: string | null;
+  management_style: string | null;
+  environment: string | null;
+  collaboration_mode: string | null;
+  communication_style: string | null;
+  communication_frequency: string | null;
+  timezone: string | null;
+  required_hours_min: number | null;
+  required_hours_max: number | null;
+  critical_time_slots: Prisma.JsonValue | null;
+  remote_ratio_min: number | null;
+  remote_ratio_max: number | null;
+  duration_weeks_min: number | null;
+  duration_weeks_max: number | null;
+  urgency: UrgencyLevel | null;
+  acceptance_rate: number | null;
+  average_project_rating: number | null;
+  average_response_time_minutes: number | null;
   created_at: Date;
   updated_at: Date;
   project_skills?: Array<{
@@ -70,6 +92,27 @@ export function mapProjectRowToGql(row: ProjectRow): GqlProject {
     attachment_urls: row.attachment_urls ?? [],
     banner_url: row.banner_url ?? null,
     avatar_url: row.avatar_url ?? null,
+    culture_work_styles: row.culture_work_styles ?? [],
+    culture_values: row.culture_values ?? [],
+    preferred_team_role: (row.preferred_team_role as any) ?? null,
+    preferred_team_size: (row.preferred_team_size as any) ?? null,
+    management_style: (row.management_style as any) ?? null,
+    environment: (row.environment as any) ?? null,
+    collaboration_mode: (row.collaboration_mode as any) ?? null,
+    communication_style: (row.communication_style as any) ?? null,
+    communication_frequency: (row.communication_frequency as any) ?? null,
+    timezone: row.timezone ?? null,
+    required_hours_min: row.required_hours_min ?? null,
+    required_hours_max: row.required_hours_max ?? null,
+    critical_time_slots: row.critical_time_slots ?? null,
+    remote_ratio_min: row.remote_ratio_min ?? null,
+    remote_ratio_max: row.remote_ratio_max ?? null,
+    duration_weeks_min: row.duration_weeks_min ?? null,
+    duration_weeks_max: row.duration_weeks_max ?? null,
+    urgency: row.urgency ?? null,
+    acceptance_rate: row.acceptance_rate ?? null,
+    average_project_rating: row.average_project_rating ?? null,
+    average_response_time_minutes: row.average_response_time_minutes ?? null,
     project_skills: skills,
     project_interests: interests,
     created_at: row.created_at,
@@ -85,6 +128,7 @@ export class ProjectService implements OnModuleDestroy{
     private readonly prisma: PrismaService,
     @Inject(EMBEDDING_PORT) private readonly embedder: EmbeddingPort,
     private readonly mail: TemplateMailerService,
+    private readonly jobs: JobsService,
 ) {}
 
   private getSearchClient(): PrismaClient {
@@ -121,7 +165,7 @@ export class ProjectService implements OnModuleDestroy{
   ): Promise<string[]> {
     if (!slugs?.length) return [];
 
-    const client = (tx ?? this.prisma.prisma()) as Prisma.TransactionClient;
+    const client = tx ?? this.prisma.prisma();
     const createdIds: string[] = [];
 
     for (const slug of slugs) {
@@ -176,7 +220,7 @@ export class ProjectService implements OnModuleDestroy{
   ): Promise<string[]> {
     if (!slugs?.length) return [];
 
-    const client = (tx ?? this.prisma.prisma()) as Prisma.TransactionClient;
+    const client = tx ?? this.prisma.prisma();
     const createdIds: string[] = [];
 
     for (const slug of slugs) {
@@ -226,63 +270,96 @@ export class ProjectService implements OnModuleDestroy{
 
   async create(ownerId: string, input: CreateProjectInput) {
     try {
-      let skillIds: string[] = [];
-      let interestIds: string[] = [];
+      const project = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const skillSlugs = Array.isArray(input.project_skills)
+          ? input.project_skills.filter(Boolean)
+          : [];
+        const interestSlugs = Array.isArray(input.project_interests)
+          ? input.project_interests.filter(Boolean)
+          : [];
 
-      if (input.project_skills && input.project_skills.length > 0) {
-        const skillSlugs = input.project_skills.filter(Boolean);
-        skillIds = await this.resolveOrCreateSkillSlugs(skillSlugs);
-      }
-
-      if (input.project_interests && input.project_interests.length > 0) {
-        const interestSlugs = input.project_interests.filter(Boolean);
-        interestIds = await this.resolveOrCreateInterestSlugs(interestSlugs);
-      }
-
-      const project = await this.prisma.prisma().projects.create({
-        data: {
-          owner_id: ownerId,
-          title: input.title,
-          summary: input.summary ?? null,
-          description: input.description ?? null,
-          industry: input.industry ?? null,
-          tags: input.tags || [],
-          status: input.status ? mapProjectStatusToPrisma(input.status) : undefined,
-          stage: input.stage ? mapProjectStageToPrisma(input.stage) : undefined,
-          visibility: input.visibility ? mapVisibilityToPrisma(input.visibility as ProfileVisibility) : undefined,
-          attachment_urls: input.attachment_urls || [],
-          banner_url: input.banner_url,
-          avatar_url: input.avatar_url,
-        }
-      });
-
-      if (skillIds.length > 0) {
-        await this.prisma.prisma().project_skills.createMany({
-          data: skillIds.map(skill_id => ({
-            project_id: project.id,
-            skill_id
-          })),
-          skipDuplicates: true
+        const created = await tx.projects.create({
+          data: {
+            owner_id: ownerId,
+            title: input.title,
+            summary: input.summary ?? null,
+            description: input.description ?? null,
+            industry: input.industry ?? null,
+            tags: input.tags || [],
+            status: input.status ? mapProjectStatusToPrisma(input.status) : undefined,
+            stage: input.stage ? mapProjectStageToPrisma(input.stage) : undefined,
+            visibility: input.visibility
+              ? mapVisibilityToPrisma(input.visibility as ProfileVisibility)
+              : undefined,
+            attachment_urls: input.attachment_urls || [],
+            banner_url: input.banner_url,
+            avatar_url: input.avatar_url,
+            culture_work_styles:
+              input.culture_work_styles === undefined
+                ? undefined
+                : Array.isArray(input.culture_work_styles)
+                  ? input.culture_work_styles
+                  : [],
+            culture_values:
+              input.culture_values === undefined
+                ? undefined
+                : Array.isArray(input.culture_values)
+                  ? input.culture_values
+                  : [],
+            preferred_team_role: input.preferred_team_role ?? null,
+            preferred_team_size: input.preferred_team_size ?? null,
+            management_style: input.management_style ?? null,
+            environment: input.environment ?? null,
+            collaboration_mode: input.collaboration_mode ?? null,
+            communication_style: input.communication_style ?? null,
+            communication_frequency: input.communication_frequency ?? null,
+            timezone: input.timezone ?? null,
+            required_hours_min: input.required_hours_min ?? null,
+            required_hours_max: input.required_hours_max ?? null,
+            critical_time_slots:
+              input.critical_time_slots === undefined
+                ? undefined
+                : (input.critical_time_slots ?? Prisma.JsonNull),
+            remote_ratio_min: input.remote_ratio_min ?? null,
+            remote_ratio_max: input.remote_ratio_max ?? null,
+            duration_weeks_min: input.duration_weeks_min ?? null,
+            duration_weeks_max: input.duration_weeks_max ?? null,
+            urgency: input.urgency ?? null,
+          },
         });
-      }
 
-      if (interestIds.length > 0) {
-        await this.prisma.prisma().project_interests.createMany({
-          data: interestIds.map(interest_id => ({
-            project_id: project.id,
-            interest_id
-          })),
-          skipDuplicates: true
-        });
-      }
-
-      await this.prisma.prisma().project_members.create({
-        data: {
-          project_id: project.id,
-          user_id: ownerId,
-          role: 'owner',
-          status: 'active',
+        if (skillSlugs.length > 0) {
+          const skillIds = await this.resolveOrCreateSkillSlugs(skillSlugs, tx);
+          await tx.project_skills.createMany({
+            data: skillIds.map((skill_id) => ({
+              project_id: created.id,
+              skill_id,
+            })),
+            skipDuplicates: true,
+          });
         }
+
+        if (interestSlugs.length > 0) {
+          const interestIds = await this.resolveOrCreateInterestSlugs(interestSlugs, tx);
+          await tx.project_interests.createMany({
+            data: interestIds.map((interest_id) => ({
+              project_id: created.id,
+              interest_id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+
+        await tx.project_members.create({
+          data: {
+            project_id: created.id,
+            user_id: ownerId,
+            role: 'owner',
+            status: 'active',
+          },
+        });
+
+        return created;
       });
 
       try {
@@ -302,32 +379,25 @@ export class ProjectService implements OnModuleDestroy{
         console.warn('Failed to send project creation email:', emailError);
       }
 
-    const result = {
-      id: project.id,
-      owner_id: project.owner_id,
-      title: project.title,
-      summary: project.summary,
-      description: project.description,
-      industry: project.industry,
-      tags: project.tags || [],
-      status: mapProjectStatusFromPrisma(project.status),
-      stage: mapProjectStageFromPrisma(project.stage),
-      visibility: mapVisibilityFromPrisma(project.visibility),
-      attachment_urls: project.attachment_urls || [],
-      banner_url: project.banner_url,
-      avatar_url: project.avatar_url,
-      project_skills: input.project_skills?.filter(Boolean) || [],
-      project_interests: input.project_interests?.filter(Boolean) || [],
-      created_at: project.created_at,
-      updated_at: project.updated_at,
-    };
+      const fullProject = await this.findById(project.id);
+      if (!fullProject) {
+        throw new Error('Project creation succeeded but re-fetch failed');
+      }
 
-    return result;
+      void this.jobs
+        .enqueueRecomputeProjectDebounced(project.id)
+        .catch((error) => console.warn('Unable to queue project embedding recompute', error));
 
-  } catch (error) {
-    console.error('Error creating project:', error);
-    throw error;
-  }
+      void this.jobs
+        .enqueuePrecomputeProjectMatches(project.id, MatchDetailLevel.BIDIRECTIONAL, 30)
+        .catch((error) => console.warn('Unable to queue project match precompute', error));
+
+      return mapProjectRowToGql(fullProject);
+
+    } catch (error) {
+      console.error('Error creating project:', error);
+      throw error;
+    }
   }
 
   async findById(id: string): Promise<ProjectRow | null> {
@@ -947,7 +1017,12 @@ export class ProjectService implements OnModuleDestroy{
       }),
     ]);
 
-    const items = rows.map(mapProjectRowToGql);
+    const items = rows.map(row => mapProjectRowToGql({
+      ...row,
+      culture_work_styles: row.culture_work_styles?.map(style => style as WorkStyle) ?? [],
+      culture_values: row.culture_values?.map(value => value as CoreValue) ?? [],
+      urgency: (row.urgency as UrgencyLevel | null) ?? null,
+    }));
     return { items, total, page: pg.page, pageSize: pg.pageSize };
   }
 }

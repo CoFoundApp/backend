@@ -4,5 +4,11 @@ export const toVectorLiteral = (vec: number[], dim?: number) => {
   if (typeof dim === 'number' && vec.length !== dim) {
     throw new Error(`Invalid vector dimension: got ${vec.length}, expected ${dim}`);
   }
-  return `[${vec.join(',')}]`;
+  const normalized = vec.map((value) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new Error('Invalid vector component');
+    }
+    return Number(value).toString();
+  });
+  return `[${normalized.join(',')}]`;
 };

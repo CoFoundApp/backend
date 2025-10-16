@@ -7,7 +7,7 @@ export class ProfileMatchConnection {
   @Field(() => [ProfileMatch])
   items!: ProfileMatch[];
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   nextCursor?: string;
 }
 
@@ -16,6 +16,6 @@ export class ProjectMatchConnection {
   @Field(() => [ProjectMatch])
   items!: ProjectMatch[];
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   nextCursor?: string;
 }

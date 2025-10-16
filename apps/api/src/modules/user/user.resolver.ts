@@ -9,6 +9,7 @@ import { CreateUserInput } from './dto/create-user.input';
 import { UpdateUserInput } from './dto/update-user.input';
 import { Profile } from '../profile/profile.type';
 import { ProfileService } from '../profile/profile.service';
+import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 
 @Resolver(() => User)
 export class UserResolver {
@@ -37,8 +38,15 @@ export class UserResolver {
   @UseGuards(SessionGuard, RolesGuard)
   @Roles('admin')
   @Mutation(() => User, { description: 'Admin: mise à jour role/status' })
-  async updateUser(@Args('input') input: UpdateUserInput) {
-    return this.users.updateUser(input.id, input.role, input.status);
+  async updateUserAdmin(@Args('input') input: UpdateUserInput) {
+    return this.users.updateUserAdmin(input.id, input.role, input.status);
+  }
+
+  /** Update utilisateur */
+  @UseGuards(SessionGuard)
+  @Mutation(() => User, { description: 'Mise à jour de mon utilisateur' })
+  async updateUser(@Args('input') input: UpdateUserInput, @CurrentUser() user: JwtUser) {
+    return this.users.updateUser(user.sub, input);
   }
 
   /** Résout le profil associé à l'utilisateur */
