@@ -82,11 +82,16 @@ export class TeamChemistryService {
     return profile === project ? 1 : 0.4;
   }
 
-  private computeRoleCompatibility(profile?: string | null, project?: string | null) {
+  private computeRoleCompatibility(profile?: string | null, project?: string | string[] | null) {
     if (!profile || !project) return 0.5;
     const table = COMPATIBILITY_TABLE[profile];
     if (!table) return 0.5;
-    return table[project] ?? 0.5;
+    const roles = Array.isArray(project) ? project : [project];
+    const scores = roles
+      .map((role) => table[role] ?? 0.5)
+      .filter((score) => typeof score === 'number');
+    if (!scores.length) return 0.5;
+    return Math.max(...scores);
   }
 
   private computeStyleCompatibility(profile?: string | null, project?: string | null) {
@@ -107,7 +112,13 @@ export class TeamChemistryService {
   private computeConfidence(input: TeamChemistryInput): number {
     let confidence = 0.3;
     if (input.preferredTeamSize && input.projectPreferredSize) confidence += 0.2;
-    if (input.desiredRole && input.projectRoleNeed) confidence += 0.2;
+    if (
+      input.desiredRole &&
+      input.projectRoleNeed &&
+      (!Array.isArray(input.projectRoleNeed) || input.projectRoleNeed.length > 0)
+    ) {
+      confidence += 0.2;
+    }
     if (input.communicationStyle && input.projectCommunicationStyle) confidence += 0.15;
     if (input.communicationFrequency && input.projectCommunicationFrequency) confidence += 0.1;
     if (input.teamRoles && input.teamRoles.length) confidence += 0.05;

@@ -39,4 +39,9 @@ export class MatchFiltersInput {
   @IsString({ each: true })
   @Field(() => [String], { nullable: true })
   tagsAny?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  @Field(() => Boolean, { nullable: true, description: 'Inclure les profils/projets non listés' })
+  includeUnlisted?: boolean;
 }

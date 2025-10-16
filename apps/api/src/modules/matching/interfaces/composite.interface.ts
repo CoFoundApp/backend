@@ -1,5 +1,5 @@
 import { MatchDetailLevel } from '../types/match-detail-level.enum';
-import { DimensionScoreResult,  } from '../interfaces/dimension-score.interface';
+import { DimensionScoreResult } from '../interfaces/dimension-score.interface';
 import { TechnicalScoreInput } from '../services/technical-score.service';
 import { CultureScoreInput } from './culture.interface';
 import { TeamChemistryInput } from './team-chemistry.interface';

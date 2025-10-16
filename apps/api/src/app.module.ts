@@ -35,7 +35,7 @@ import { EmailModule } from './infra/email/email.module';
 import { ConversationModule } from './modules/conversation/conversation.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { BillingModule } from './modules/billing/billing.module';
-
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
 
 @Module({
   imports: [
@@ -97,6 +97,8 @@ import { BillingModule } from './modules/billing/billing.module';
     UploadModule,
 
     BillingModule,
+
+    MonitoringModule,
   ],
   controllers: [AppController],
   providers: [
