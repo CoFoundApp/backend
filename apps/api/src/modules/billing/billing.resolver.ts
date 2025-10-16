@@ -1,7 +1,14 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { UseGuards, UnauthorizedException } from '@nestjs/common';
 import { BillingService } from './billing.service';
-import { BillingPlanPublicType, BillingCheckoutSessionType, BillingPortalSessionType, BillingCheckoutMode, BillingSubscriptionSummaryType } from './billing.graphql-types';
+import {
+  BillingPlanPublicType,
+  BillingCheckoutSessionType,
+  BillingPortalSessionType,
+  BillingCheckoutMode,
+  BillingSubscriptionSummaryType,
+  BillingHistoryType,
+} from './billing.graphql-types';
 import { CreateCheckoutSessionInput } from './dto/create-checkout-session.input';
 import { CustomerPortalSessionInput } from './dto/customer-portal-session.input';
 import { SessionGuard } from '../auth/guards/session.guard';
@@ -80,5 +87,17 @@ export class BillingResolver {
       stripeSubscriptionId: subscription.external_subscription_id ?? null,
       currentPeriodEnd: subscription.current_period_end ?? null,
     };
+  }
+
+  @UseGuards(SessionGuard)
+  @Query(() => BillingHistoryType, {
+    description: 'Historique des factures et paiements de l’utilisateur authentifié.',
+  })
+  async myBillingHistory(@CurrentUser() user: JwtUser): Promise<BillingHistoryType> {
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    return this.billing.getBillingHistoryForUser(user.sub);
   }
 }
