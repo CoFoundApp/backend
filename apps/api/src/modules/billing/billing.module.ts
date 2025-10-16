@@ -15,6 +15,7 @@ import { BillingAdminService } from './admin/billing-admin.service';
 import { BillingResolver } from './billing.resolver';
 import { BillingAdminResolver } from './admin/billing-admin.resolver';
 import { RolesGuard } from '../auth/roles.guard';
+import { BillingWebhookController } from './billing-webhook.controller';
 
 @Module({
   imports: [PrismaModule, QueueModule, EmailModule],
@@ -34,5 +35,6 @@ import { RolesGuard } from '../auth/roles.guard';
     BillingAdminResolver,
   ],
   exports: [BillingService, BillingWebhookService, BillingCatalogService],
+  controllers: [BillingWebhookController],
 })
 export class BillingModule {}
