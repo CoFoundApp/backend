@@ -19,6 +19,7 @@ const redisUrl = process.env.REDIS_URL || 'redis://redis:6379';
       { name: 'embeddings' },
       { name: 'emails' },
       { name: 'notifications' },
+      { name: 'matching' },
     ),
   ],
   exports: [BullModule],

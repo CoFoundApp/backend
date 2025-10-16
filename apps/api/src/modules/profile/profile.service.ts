@@ -5,7 +5,9 @@ import { ProfileVisibility } from '../../common/enums/domain.enums';
 import { mapVisibilityToPrisma } from '../../common/enums/enum-mapper';
 import { isUuid } from '../../common/utils/uuid.util';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
-import { PrismaClient } from '@prisma/client';
+import { JobsService } from '../../queue/jobs.service';
+import { MatchDetailLevel } from '../matching/types/match-detail-level.enum';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { WorkExperienceInput } from './dto/work-experience.input';
 import { EducationInput } from './dto/education.input';
 import { VolunteerExperienceInput } from './dto/volunteer-experience.input';
@@ -26,7 +28,9 @@ function normalizeVisibility(v?: string | null): 'public' | 'unlisted' | 'privat
 export class ProfileService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mail: TemplateMailerService) {}
+    private readonly mail: TemplateMailerService,
+    private readonly jobs: JobsService,
+  ) {}
 
 
   private slugToName(slug: string): string {
@@ -183,6 +187,75 @@ export class ProfileService {
       updated_at: new Date(),
     };
 
+    if (input.preferred_work_styles !== undefined) {
+      base.preferred_work_styles = Array.isArray(input.preferred_work_styles)
+        ? input.preferred_work_styles
+        : [];
+    }
+
+    if (input.core_values !== undefined) {
+      base.core_values = Array.isArray(input.core_values) ? input.core_values : [];
+    }
+
+    if (input.primary_motivations !== undefined) {
+      base.primary_motivations = Array.isArray(input.primary_motivations)
+        ? input.primary_motivations
+        : [];
+    }
+
+    if (input.preferred_environments !== undefined) {
+      base.preferred_environments = Array.isArray(input.preferred_environments)
+        ? input.preferred_environments
+        : [];
+    }
+
+    if (input.preferred_team_size !== undefined) {
+      base.preferred_team_size = input.preferred_team_size ?? null;
+    }
+
+    if (input.desired_team_role !== undefined) {
+      base.desired_team_role = input.desired_team_role ?? null;
+    }
+
+    if (input.communication_style !== undefined) {
+      base.communication_style = input.communication_style ?? null;
+    }
+
+    if (input.communication_frequency !== undefined) {
+      base.communication_frequency = input.communication_frequency ?? null;
+    }
+
+    if (input.preferred_collaboration_mode !== undefined) {
+      base.preferred_collaboration_mode = input.preferred_collaboration_mode ?? null;
+    }
+
+    if (input.timezone !== undefined) {
+      base.timezone = input.timezone ?? null;
+    }
+
+    if (input.timezone_flexibility_minutes !== undefined) {
+      base.timezone_flexibility_minutes = input.timezone_flexibility_minutes ?? null;
+    }
+
+    if (input.remote_preference_percent !== undefined) {
+      base.remote_preference_percent = input.remote_preference_percent ?? null;
+    }
+
+    if (input.availability_time_slots !== undefined) {
+      base.availability_time_slots =
+        input.availability_time_slots === null
+          ? Prisma.JsonNull
+          : (input.availability_time_slots as Prisma.JsonValue);
+    }
+
+    if (input.mission_duration_min_weeks !== undefined) {
+      base.mission_duration_min_weeks = input.mission_duration_min_weeks ?? null;
+    }
+
+    if (input.mission_duration_max_weeks !== undefined) {
+      base.mission_duration_max_weeks = input.mission_duration_max_weeks ?? null;
+    }
+
     const visibility = normalizeVisibility((input as any).visibility);
 
     // 1. Résoudre/créer les skills et interests AVANT (hors transaction)
@@ -237,6 +310,10 @@ export class ProfileService {
         ...(visibility ? { visibility } : {}),
       },
     });
+
+    void this.jobs
+      .enqueuePrecomputeProfileMatches(profile.id, MatchDetailLevel.BIDIRECTIONAL, 30)
+      .catch((error) => console.warn('Unable to queue profile match precompute', error));
 
     // 3. Gérer les expériences professionnelles
     if (input.work_experiences !== undefined) {

@@ -3,6 +3,7 @@ import { Job } from 'bullmq';
 import { Logger, OnModuleInit } from '@nestjs/common';
 import { ProfileEmbeddingService } from '../modules/embedding/profile-embedding.service';
 import { EmbeddingService } from '../modules/embedding/embedding.service';
+import { MonitoringService } from '../modules/monitoring/monitoring.service';
 
 @Processor('embeddings')
 export class EmbeddingsProcessor extends WorkerHost implements OnModuleInit {
@@ -11,6 +12,8 @@ export class EmbeddingsProcessor extends WorkerHost implements OnModuleInit {
   constructor(
     private readonly profileEmb: ProfileEmbeddingService,
     private readonly embedSvc: EmbeddingService,
+    private readonly monitoring: MonitoringService,
+
   ) {
     super();
   }
@@ -64,10 +67,16 @@ export class EmbeddingsProcessor extends WorkerHost implements OnModuleInit {
   @OnWorkerEvent('completed')
   onCompleted(job: Job, result: unknown) {
     this.logger.log(`[embeddings] completed #${job.id} ${JSON.stringify(result)}`);
+    const durationSeconds =
+      job.finishedOn && job.processedOn
+        ? Math.max(0, (job.finishedOn - job.processedOn) / 1000)
+        : undefined;
+    this.monitoring.recordQueueJobProcessed('embeddings', job.name, durationSeconds);
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job | undefined, err: Error) {
     this.logger.error(`[embeddings] failed #${job?.id}: ${err.message}`, err.stack);
+    this.monitoring.recordQueueJobFailed('embeddings', job?.name ?? 'unknown');
   }
 }

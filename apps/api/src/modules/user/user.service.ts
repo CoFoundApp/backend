@@ -68,7 +68,7 @@ export class UserService {
   }
 
   /** mise à jour utilisateur */
-  async updateUser(id: string, role?: UserRole, status?: UserStatus) {
+  async updateUserAdmin(id: string, role?: UserRole, status?: UserStatus) {
     const user = await this.prisma.prisma().users.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -116,5 +116,56 @@ export class UserService {
       where: { id: userId },
       data: { last_login_at: new Date() },
     });
+  }
+
+  /** mise à jour de mon utilisateur */
+  async updateUser(
+    id: string,
+    input: { email?: string; password?: string; currentPassword?: string; status?: UserStatus },
+  ) {
+    const user = await this.prisma.prisma().users.findUnique({
+      where: { id },
+      select: { id: true, email: true, password_hash: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    let password_hash: string | undefined;
+    if (input.password) {
+      if (!input.currentPassword) {
+        throw new ConflictException('Current password is required to change password');
+      }
+      const ok = await bcrypt.compare(input.currentPassword, user.password_hash ?? '');
+      if (!ok) {
+        throw new ConflictException('Current password is invalid');
+      }
+      password_hash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+    }
+
+    const normalizedEmail = input.email ? input.email.trim().toLowerCase() : undefined;
+
+    try {
+      const updated = await this.prisma.prisma().users.update({
+        where: { id },
+        data: {
+          email: normalizedEmail ?? undefined,
+          password_hash: password_hash ?? undefined,
+          status: input.status ? mapStatusToPrisma(input.status) : undefined,
+        },
+        select: { id: true, email: true, role: true, status: true, created_at: true, updated_at: true },
+      });
+
+      await this.safeSend(updated.email, 'user_account_updated', {
+        app_name: process.env.APP_NAME,
+        email: updated.email,
+        role: String(updated.role),
+        status: String(updated.status),
+        cta_url: `${process.env.APP_BASE_URL}/account`,
+      });
+
+      return updated;
+    } catch (e: any) {
+      if (e?.code === 'P2002') throw new ConflictException('Email already exists');
+      throw e;
+    }
   }
 }

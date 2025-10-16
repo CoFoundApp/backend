@@ -76,6 +76,82 @@ export enum InvitationStatus {
   EXPIRED = 'expired',
 }
 
+export enum WorkStyle {
+  AUTONOMOUS = 'autonomous',
+  COLLABORATIVE = 'collaborative',
+  STRUCTURED = 'structured',
+  AGILE = 'agile',
+}
+
+export enum CoreValue {
+  INNOVATION = 'innovation',
+  STABILITY = 'stability',
+  SOCIAL_IMPACT = 'social_impact',
+  GROWTH = 'growth',
+}
+
+export enum Motivation {
+  LEARN = 'learn',
+  EARN = 'earn',
+  CREATE = 'create',
+  HELP = 'help',
+}
+
+export enum EnvironmentPreference {
+  STARTUP = 'startup',
+  SCALEUP = 'scaleup',
+  ENTERPRISE = 'enterprise',
+  SOLO = 'solo',
+}
+
+export enum TeamRolePreference {
+  LEADER = 'leader',
+  CONTRIBUTOR = 'contributor',
+  MENTOR = 'mentor',
+  LEARNER = 'learner',
+}
+
+export enum CommunicationStylePreference {
+  DIRECT = 'direct',
+  DIPLOMATIC = 'diplomatic',
+  FORMAL = 'formal',
+  CASUAL = 'casual',
+}
+
+export enum CommunicationFrequencyPreference {
+  DAILY = 'daily',
+  WEEKLY = 'weekly',
+  BIWEEKLY = 'biweekly',
+  ASYNC = 'async',
+}
+
+export enum TeamSizePreference {
+  SMALL = 'small',
+  MEDIUM = 'medium',
+  LARGE = 'large',
+  FLEXIBLE = 'flexible',
+}
+
+export enum ManagementStyle {
+  HANDS_ON = 'hands_on',
+  HANDS_OFF = 'hands_off',
+  COACHING = 'coaching',
+  SELF_MANAGED = 'self_managed',
+}
+
+export enum CollaborationMode {
+  SYNCHRONOUS = 'synchronous',
+  ASYNCHRONOUS = 'asynchronous',
+  HYBRID = 'hybrid',
+}
+
+export enum UrgencyLevel {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical',
+}
+
 export enum NotificationType {
   application_submitted = 'application_submitted',
   application_accepted = 'application_accepted',
@@ -112,3 +188,14 @@ registerEnumType(MemberStatus, { name: 'MemberStatus' });
 registerEnumType(ApplicationStatus, { name: 'ApplicationStatus' });
 registerEnumType(PositionStatus, { name: 'PositionStatus' });
 registerEnumType(InvitationStatus, { name: 'InvitationStatus' });
+registerEnumType(WorkStyle, { name: 'WorkStyle' });
+registerEnumType(CoreValue, { name: 'CoreValue' });
+registerEnumType(Motivation, { name: 'Motivation' });
+registerEnumType(EnvironmentPreference, { name: 'EnvironmentPreference' });
+registerEnumType(TeamRolePreference, { name: 'TeamRolePreference' });
+registerEnumType(CommunicationStylePreference, { name: 'CommunicationStylePreference' });
+registerEnumType(CommunicationFrequencyPreference, { name: 'CommunicationFrequencyPreference' });
+registerEnumType(TeamSizePreference, { name: 'TeamSizePreference' });
+registerEnumType(ManagementStyle, { name: 'ManagementStyle' });
+registerEnumType(CollaborationMode, { name: 'CollaborationMode' });
+registerEnumType(UrgencyLevel, { name: 'UrgencyLevel' });
