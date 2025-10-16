@@ -1,0 +1,15 @@
+Bonjour{{#if customer_name}} {{customer_name}}{{/if}},
+
+Nous avons bien reçu un paiement de {{amount_formatted}} pour votre facture {{#if invoice_number}}{{invoice_number}}{{else}}CoFound{{/if}}.
+{{#if payment_method}}
+Moyen de paiement : {{payment_method}}.
+{{/if}}
+{{#if receipt_url}}
+Reçu : {{receipt_url}}
+{{/if}}
+{{#if invoice_url}}
+Facture en ligne : {{invoice_url}}{{/if}}{{#if pdf_url}}
+PDF : {{pdf_url}}{{/if}}
+
+Merci pour votre confiance.
+L'équipe CoFound

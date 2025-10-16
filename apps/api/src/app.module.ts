@@ -34,6 +34,7 @@ import { NotificationModule } from './modules/notifications/notification.module'
 import { EmailModule } from './infra/email/email.module';
 import { ConversationModule } from './modules/conversation/conversation.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 
 @Module({
@@ -94,6 +95,8 @@ import { MonitoringModule } from './modules/monitoring/monitoring.module';
     ConversationModule,
 
     UploadModule,
+
+    BillingModule,
 
     MonitoringModule,
   ],

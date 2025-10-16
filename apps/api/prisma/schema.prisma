@@ -295,6 +295,7 @@ model interests {
 model invoices {
   id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   subscription_id     String         @db.Uuid
+  billing_customer_id String?        @db.Uuid
   amount_cents        Int
   currency            String         @default("EUR") @db.Char(3)
   status              invoice_status @default(open)
@@ -303,9 +304,111 @@ model invoices {
   paid_at             DateTime?      @db.Timestamptz(6)
   external_invoice_id String?
   pdf_url             String?
+  stripe_invoice_id   String?        @unique
+  number              String?        @db.Citext
+  subtotal_cents      Int?
+  tax_amount_cents    Int?
+  tax_rate_percent    Decimal?       @db.Decimal(5, 2)
+  total_cents         Int?
+  footer              String?
+  legal_mention       String?
   subscriptions       subscriptions  @relation(fields: [subscription_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  billing_customers   billing_customers? @relation(fields: [billing_customer_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  payments            billing_payments[]
 
+  @@index([billing_customer_id], map: "idx_invoices_billing_customer")
   @@index([subscription_id], map: "idx_invoices_subscription")
+}
+
+model organizations {
+  id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  legal_name        String
+  legal_form        String               @default("SAS")
+  siren             String?
+  siret             String?
+  rcs               String?
+  vat_number        String?
+  address           Json?
+  billing_email     String?
+  phone             String?
+  website           String?
+  owner_id          String?              @db.Uuid
+  metadata          Json                 @default("{}")
+  created_at        DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime             @default(now()) @db.Timestamptz(6)
+  billing_customers billing_customers[]
+  subscriptions     subscriptions[]
+  owner             users?               @relation("organization_owner", fields: [owner_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([owner_id], map: "idx_organizations_owner")
+}
+
+model billing_customers {
+  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id    String?           @db.Uuid
+  user_id            String?           @db.Uuid
+  stripe_customer_id String            @unique
+  email              String            @db.Citext
+  name               String?
+  phone              String?
+  locale             String?           @default("fr")
+  tax_exemption      String?           @db.Citext
+  vat_number         String?
+  vat_valid          Boolean           @default(false)
+  billing_address    Json?
+  shipping_address   Json?
+  metadata           Json              @default("{}")
+  created_at         DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime          @default(now()) @db.Timestamptz(6)
+  organization       organizations?    @relation(fields: [organization_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  user               users?            @relation(fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  subscriptions      subscriptions[]
+  invoices           invoices[]
+  payments           billing_payments[]
+
+  @@index([organization_id], map: "idx_billing_customer_org")
+  @@index([user_id], map: "idx_billing_customer_user")
+}
+
+model billing_payments {
+  id                       String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  billing_customer_id      String         @db.Uuid
+  invoice_id               String?        @db.Uuid
+  stripe_payment_intent_id String         @unique
+  amount_cents             Int
+  currency                 String         @default("EUR") @db.Char(3)
+  status                   payment_status @default(succeeded)
+  payment_method_type      String?
+  receipt_url              String?
+  processed_at             DateTime?      @db.Timestamptz(6)
+  created_at               DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime       @default(now()) @db.Timestamptz(6)
+  billing_customer         billing_customers @relation(fields: [billing_customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  invoice                  invoices?      @relation(fields: [invoice_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([invoice_id], map: "idx_billing_payments_invoice")
+  @@index([billing_customer_id, processed_at], map: "idx_billing_payments_customer")
+}
+
+model billing_events {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stripe_event_id String   @unique
+  type            String
+  payload         Json
+  processed       Boolean  @default(false)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  processed_at    DateTime? @db.Timestamptz(6)
+  error_message   String?
+}
+
+model billing_invoice_sequences {
+  id         Int      @id @default(autoincrement())
+  year       Int
+  last_value Int      @default(0)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([year], map: "uq_invoice_sequence_year")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -973,22 +1076,38 @@ model matching_models {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model subscriptions {
-  id                       String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                  String              @db.Uuid
-  plan_id                  String              @db.Uuid
-  status                   subscription_status @default(active)
-  seats                    Int                 @default(1)
-  started_at               DateTime            @default(now()) @db.Timestamptz(6)
-  current_period_start     DateTime?           @db.Timestamptz(6)
-  current_period_end       DateTime?           @db.Timestamptz(6)
-  cancel_at                DateTime?           @db.Timestamptz(6)
-  canceled_at              DateTime?           @db.Timestamptz(6)
-  external_customer_id     String?
-  external_subscription_id String?
-  entitlements             entitlements[]
-  invoices                 invoices[]
-  plans                    plans               @relation(fields: [plan_id], references: [id], onUpdate: NoAction)
-  users                    users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                        String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                   String                       @db.Uuid
+  plan_id                   String                       @db.Uuid
+  organization_id           String?                      @db.Uuid
+  billing_customer_id       String?                      @db.Uuid
+  plan_code                 String                       @db.Citext
+  billing_interval          plan_interval                @default(month)
+  collection_method         subscription_collection_method @default(charge_automatically)
+  default_payment_method_id String?
+  status                    subscription_status          @default(active)
+  seats                     Int                          @default(1)
+  started_at                DateTime                     @default(now()) @db.Timestamptz(6)
+  current_period_start      DateTime?                    @db.Timestamptz(6)
+  current_period_end        DateTime?                    @db.Timestamptz(6)
+  cancel_at                 DateTime?                    @db.Timestamptz(6)
+  canceled_at               DateTime?                    @db.Timestamptz(6)
+  trial_start               DateTime?                    @db.Timestamptz(6)
+  trial_end                 DateTime?                    @db.Timestamptz(6)
+  billing_cycle_anchor      DateTime?                    @db.Timestamptz(6)
+  ended_reason              String?
+  external_customer_id      String?
+  external_subscription_id  String?
+  entitlements              entitlements[]
+  invoices                  invoices[]
+  organizations             organizations?               @relation(fields: [organization_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  billing_customers         billing_customers?           @relation(fields: [billing_customer_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  plans                     plans                        @relation(fields: [plan_id], references: [id], onUpdate: NoAction)
+  users                     users                        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([organization_id], map: "idx_subscriptions_org")
+  @@index([billing_customer_id], map: "idx_subscriptions_billing_customer")
+  @@index([plan_code], map: "idx_subscriptions_plan_code")
 }
 
 /// This table is a partition table and requires additional setup for migrations. Visit https://pris.ly/d/partition-tables for more info.
@@ -1103,6 +1222,8 @@ model users {
   work_experiences                                              work_experiences[]
   educations                                                    educations[]
   volunteer_experiences                                         volunteer_experiences[]
+  owned_organizations                                           organizations[]         @relation("organization_owner")
+  billing_customers                                             billing_customers[]
 }
 
 enum application_status {
@@ -1150,6 +1271,14 @@ enum invoice_status {
   paid
   void
   uncollectible
+}
+
+enum payment_status {
+  requires_payment_method
+  requires_action
+  processing
+  succeeded
+  canceled
 }
 
 enum job_status {
@@ -1283,6 +1412,11 @@ enum subscription_status {
   active
   past_due
   canceled
+}
+
+enum subscription_collection_method {
+  charge_automatically
+  send_invoice
 }
 
 enum target_type {

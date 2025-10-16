@@ -1,0 +1,13 @@
+{{#> layout }}
+  <p>Bonjour{{#if customer_name}} {{customer_name}}{{/if}},</p>
+  <p>Votre facture {{#if invoice_number}}<strong>{{invoice_number}}</strong>{{else}}CoFound{{/if}} d'un montant de {{amount_formatted}} est disponible.</p>
+  {{#if due_date}}
+    <p>Date d'échéance : {{due_date}}.</p>
+  {{/if}}
+  {{#if invoice_url}}
+    <p>Vous pouvez la consulter depuis <a href="{{invoice_url}}">votre espace de facturation</a>{{#if pdf_url}} ou <a href="{{pdf_url}}">télécharger le PDF</a>{{/if}}.</p>
+  {{else if pdf_url}}
+    <p>Vous pouvez télécharger le PDF de votre facture <a href="{{pdf_url}}">en cliquant ici</a>.</p>
+  {{/if}}
+  <p>Merci pour votre confiance.<br/>L'équipe CoFound</p>
+{{/layout}}

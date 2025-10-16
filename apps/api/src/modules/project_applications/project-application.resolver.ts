@@ -30,10 +30,11 @@ export class ProjectApplicationResolver {
     @Args('input') input: ApplyProjectInput,
   ) {
     if (!user) throw new UnauthorizedException();
-        if (input.attachments?.length) {
-      input.attachment_urls = await Promise.all(
+    if (input.attachments?.length) {
+      const storedAttachments = await Promise.all(
         input.attachments.map((f) => this.uploadService.save(f)),
       );
+      input.attachment_urls = storedAttachments.map((f) => f.url);
     }
     return this.applications.apply(user.sub, input);
   }
