@@ -21,6 +21,18 @@ import { ExplainabilityPayload } from './interfaces/explainability.interface';
 import { UrgencyLevel } from '../../common/enums/domain.enums';
 import { CompositeScoreInput, CompositeScoreOutput } from './interfaces/composite.interface';
 import { MonitoringService } from '../monitoring/monitoring.service';
+import { MatchEntityType } from './types/match-entity-type.enum';
+import type { MatchExplanationFilterInput } from './types/match-explanation-filter.input';
+import type { MatchExplanationConnection, MatchExplanation } from './types/match-explanation.type';
+import type {
+  BidirectionalInsightType,
+  CompetitiveInsightType,
+  ContactPlanStepType,
+  DimensionScore,
+  MatchForceType,
+  MatchGapType,
+  MatchRecommendationActionType,
+} from './types/match-explainability.type';
 import {
   QueryIntent,
   QueryIntentMatch,
@@ -247,6 +259,28 @@ function parseCursor(cur?: string): { d: number | null; id: string | null } {
 
 function encodeCursor(distance: number, id: string): string {
   return Buffer.from(`${distance}:${id}`).toString('base64');
+}
+
+function parseExplanationCursor(cur?: string): { createdAt: Date | null; id: string | null } {
+  if (!cur) return { createdAt: null, id: null };
+  try {
+    const raw = Buffer.from(cur, 'base64').toString('utf8');
+    const idx = raw.lastIndexOf(':');
+    if (idx <= 0) return { createdAt: null, id: null };
+    const ts = raw.slice(0, idx);
+    const id = raw.slice(idx + 1);
+    const createdAt = new Date(ts);
+    if (!id || Number.isNaN(createdAt.getTime())) {
+      return { createdAt: null, id: null };
+    }
+    return { createdAt, id };
+  } catch {
+    return { createdAt: null, id: null };
+  }
+}
+
+function encodeExplanationCursor(createdAt: Date, id: string): string {
+  return Buffer.from(`${createdAt.toISOString()}:${id}`).toString('base64');
 }
 
 @Injectable()
@@ -1736,6 +1770,105 @@ export class MatchingService {
   private truncateArray<T>(value: T[] | null | undefined, limit: number): T[] {
     if (!value?.length || limit <= 0) return [];
     return value.slice(0, limit);
+  }
+
+  async listMatchExplanations(
+    filter: MatchExplanationFilterInput | undefined,
+    limit = 50,
+    cursor?: string,
+  ): Promise<MatchExplanationConnection> {
+    const take = Math.max(1, Math.min(limit ?? 50, 100));
+    const { createdAt: cursorCreatedAt, id: cursorId } = parseExplanationCursor(cursor);
+
+    const where: Prisma.match_explanationsWhereInput = {};
+
+    if (filter?.profileId) where.profile_id = filter.profileId;
+    if (filter?.projectId) where.project_id = filter.projectId;
+    if (filter?.counterpartProfileId) where.counterpart_profile_id = filter.counterpartProfileId;
+    if (filter?.counterpartProjectId) where.counterpart_project_id = filter.counterpartProjectId;
+    if (filter?.entityType) where.entity_type = filter.entityType;
+    if (filter?.detailLevel) where.detail_level = filter.detailLevel;
+
+    if (cursorCreatedAt) {
+      const orConditions: Prisma.match_explanationsWhereInput[] = [
+        { created_at: { lt: cursorCreatedAt } },
+      ];
+      if (cursorId) {
+        orConditions.push({ created_at: cursorCreatedAt, id: { lt: cursorId } });
+      }
+
+      if (orConditions.length) {
+        const cursorCondition: Prisma.match_explanationsWhereInput = {
+          OR: orConditions,
+        };
+        const existingAnd = where.AND
+          ? Array.isArray(where.AND)
+            ? where.AND
+            : [where.AND]
+          : [];
+        where.AND = [...existingAnd, cursorCondition];
+      }
+    }
+
+    const rows = await this.prisma
+      .prisma()
+      .match_explanations.findMany({
+        where,
+        orderBy: [
+          { created_at: 'desc' },
+          { id: 'desc' },
+        ],
+        take: take + 1,
+      });
+
+    const hasNext = rows.length > take;
+    const slice = hasNext ? rows.slice(0, take) : rows;
+
+    const toArray = <T>(value: Prisma.JsonValue | null | undefined): T[] => {
+      if (Array.isArray(value)) return value as T[];
+      return [];
+    };
+
+    const toObject = <T>(value: Prisma.JsonValue | null | undefined): T | null => {
+      if (!value || Array.isArray(value)) return null;
+      if (typeof value === 'object') return value as T;
+      return null;
+    };
+
+    const items: MatchExplanation[] = slice.map((row) => ({
+      id: row.id,
+      entityType: row.entity_type as MatchEntityType,
+      profileId: row.profile_id,
+      projectId: row.project_id,
+      counterpartProfileId: row.counterpart_profile_id,
+      counterpartProjectId: row.counterpart_project_id,
+      algorithmVersion: row.algorithm_version,
+      detailLevel: row.detail_level as MatchDetailLevel,
+      score: row.score,
+      confidence: row.confidence,
+      chemistryScore: row.chemistry_score,
+      successProbability: row.success_probability,
+      successConfidence: row.success_confidence,
+      successModelVersion: row.success_model_version,
+      dimensionScores: toArray<DimensionScore>(row.dimension_scores),
+      forces: toArray<MatchForceType>(row.forces),
+      gaps: toArray<MatchGapType>(row.gaps),
+      recommendations: toArray<MatchRecommendationActionType>(row.recommendations),
+      contactPlan: toArray<ContactPlanStepType>(row.contact_plan),
+      competitiveContext: toObject<CompetitiveInsightType>(row.competitive_context),
+      bidirectionalContext: toObject<BidirectionalInsightType>(row.bidirectional_context),
+      metadata: toObject<Record<string, unknown>>(row.metadata),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    const last = slice[slice.length - 1];
+    const nextCursor = hasNext && last ? encodeExplanationCursor(last.created_at, last.id) : undefined;
+
+    return {
+      items,
+      nextCursor,
+    };
   }
 
   private async persistExplanation(params: {

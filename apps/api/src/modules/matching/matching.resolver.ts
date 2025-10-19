@@ -4,7 +4,9 @@ import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { MatchingService } from './matching.service';
 import { MatchRecommendation } from './types/match-recommendation.type';
-import { ProfileMatchConnection, ProjectMatchConnection } from './types/connection.input'
+import { ProfileMatchConnection, ProjectMatchConnection } from './types/connection.input';
+import { MatchExplanationConnection } from './types/match-explanation.type';
+import { MatchExplanationFilterInput } from './types/match-explanation-filter.input';
 import { MatchProfilesInput } from './types/match-profiles-input.type';
 import { MatchProjectsInput } from './types/match-projects-input.type';
 import { MatchDetailLevel } from './types/match-detail-level.enum';
@@ -84,5 +86,15 @@ export class MatchingResolver {
   @Query(() => ProjectMatchConnection, { description: 'Matching projet bidirectionnel complet' })
   async getBidirectionalProjectMatches(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
     return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.BIDIRECTIONAL });
+  }
+
+  @UseGuards(SessionGuard)
+  @Query(() => MatchExplanationConnection, { description: 'Historique des explications de matching' })
+  async getMatchExplanations(
+    @Args('filter', { type: () => MatchExplanationFilterInput, nullable: true }) filter?: MatchExplanationFilterInput,
+    @Args('cursor', { type: () => String, nullable: true }) cursor?: string,
+    @Args('limit', { type: () => Int, nullable: true, defaultValue: 50 }) limit?: number,
+  ): Promise<MatchExplanationConnection> {
+    return this.matching.listMatchExplanations(filter, limit ?? 50, cursor ?? undefined);
   }
 }
