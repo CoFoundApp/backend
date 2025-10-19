@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { $Enums } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationType, EmailFrequency } from '../../common/enums/domain.enums';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
@@ -11,6 +12,10 @@ import { TemplateMailerService } from '../../infra/email/template-mailer.service
 
 @Injectable()
 export class NotificationService {
+  private toPrismaType(type: NotificationType): $Enums.notification_type {
+    return type as unknown as $Enums.notification_type;
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailer: TemplateMailerService,
@@ -48,7 +53,7 @@ export class NotificationService {
       .notifications.findMany({
         where: {
           user_id: userId,
-          type: type ?? undefined,
+          type: type ? this.toPrismaType(type) : undefined,
           is_read: unreadOnly ? false : undefined,
           ...cursorFilter,
         },
@@ -114,11 +119,13 @@ export class NotificationService {
       updated_at: new Date(),
     };
     return this.prisma.prisma().notification_preferences.upsert({
-      where: { user_id_type: { user_id: userId, type } },
+      where: {
+        user_id_type: { user_id: userId, type: this.toPrismaType(type) },
+      },
       update: data,
       create: {
         user_id: userId,
-        type,
+        type: this.toPrismaType(type),
         site_enabled: site_enabled ?? true,
         email_frequency: email_frequency ?? EmailFrequency.immediate,
         quiet_hours_start: this.parseTime(quiet_hours_start ?? null),
@@ -129,7 +136,9 @@ export class NotificationService {
 
   private async getPreference(userId: string, type: NotificationType) {
     const pref = await this.prisma.prisma().notification_preferences.findUnique({
-      where: { user_id_type: { user_id: userId, type } },
+      where: {
+        user_id_type: { user_id: userId, type: this.toPrismaType(type) },
+      },
     });
     return {
       site_enabled: pref?.site_enabled ?? true,
@@ -172,7 +181,7 @@ export class NotificationService {
     const notif = await this.prisma.prisma().notifications.create({
       data: {
         user_id: args.userId,
-        type: args.type,
+        type: this.toPrismaType(args.type),
         subject_id: args.subject_id ?? null,
         actor_id: args.actor_id ?? null,
         project_id: args.project_id ?? null,
