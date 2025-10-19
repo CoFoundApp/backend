@@ -95,6 +95,7 @@ export enum Motivation {
   EARN = 'earn',
   CREATE = 'create',
   HELP = 'help',
+  TEACH = 'teach',
 }
 
 export enum EnvironmentPreference {
@@ -166,6 +167,10 @@ export enum NotificationType {
   project_position_opened = 'project_position_opened',
   project_updated = 'project_updated',
   new_message = 'new_message',
+  elearning_enrolled = 'elearning_enrolled',
+  elearning_course_completed = 'elearning_course_completed',
+  elearning_certificate_issued = 'elearning_certificate_issued',
+  elearning_quiz_failed = 'elearning_quiz_failed',
 }
 
 export enum EmailFrequency {
