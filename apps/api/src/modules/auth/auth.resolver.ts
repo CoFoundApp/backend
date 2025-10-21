@@ -10,24 +10,48 @@ import { CurrentUser, JwtUser } from './current-user.decorator';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
 import { buildAuthSetCookies, clearAuthCookies, setAuthCookies } from '../../common/utils/cookies.util';
+import { CompleteTwoFactorInput } from './dto/complete-two-factor.input';
+import { TwoFactorSetupOutput } from './dto/two-factor-setup.output';
+import { TwoFactorBackupCodesOutput } from './dto/two-factor-backup-codes.output';
+import { TwoFactorStatusOutput } from './dto/two-factor-status.output';
+import { ActivateTwoFactorInput } from './dto/activate-two-factor.input';
+import { DisableTwoFactorInput } from './dto/disable-two-factor.input';
+import { RegenerateTwoFactorCodesInput } from './dto/regenerate-two-factor-codes.input';
+import { RequestEmailChangeInput } from './dto/request-email-change.input';
+import { OAuthProvider } from './dto/oauth-provider.enum';
+import { OAuthUrlOutput } from './dto/oauth-url.output';
+import { OAuthService } from './oauth.service';
+import { CompleteOAuthInput } from './dto/complete-oauth.input';
 
 @Resolver()
 export class AuthResolver {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly oauth: OAuthService,
+  ) {}
 
   @Mutation(() => TokensOutput, { description: 'Create account + tokens' })
-  async signup(@Args('input') input: SignupInput): Promise<TokensOutput> {
-    return this.auth.signup(input);
+  async signup(@Args('input') input: SignupInput, @Context() ctx: any): Promise<TokensOutput> {
+    const result = await this.auth.signup(input);
+    if (result.accessToken && result.refreshToken) {
+      setAuthCookies(ctx.res, ctx.req, {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+    }
+    return result;
   }
 
   @Mutation(() => TokensOutput, { description: 'Login + set cookies' })
   async login(@Args('input') input: LoginInput, @Context() ctx: any): Promise<TokensOutput> {
-
-    const { accessToken, refreshToken } = await this.auth.login(input);
-
-    setAuthCookies(ctx.res, ctx.req, { accessToken, refreshToken });
-
-    return { accessToken, refreshToken };
+    const result = await this.auth.login(input);
+    if (result.accessToken && result.refreshToken) {
+      setAuthCookies(ctx.res, ctx.req, {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+    }
+    return result;
   }
 
   @Mutation(() => TokensOutput, { description: 'Refresh depuis cookie (rotate)' })
@@ -37,12 +61,17 @@ export class AuthResolver {
     const jti = user?.jti;
     if (!sub || !jti) throw new Error('Invalid refresh payload');
 
-    const { accessToken, refreshToken } = await this.auth.refresh(sub, jti, String(user.role ?? 'user'));
+    const result = await this.auth.refresh(sub, jti, String(user.role ?? 'user'));
 
-    const setCookies = buildAuthSetCookies(ctx.req, { accessToken, refreshToken });
-    setCookies.forEach((c: any) => ctx.res.append('Set-Cookie', c));
+    if (result.accessToken && result.refreshToken) {
+      const setCookies = buildAuthSetCookies(ctx.req, {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+      setCookies.forEach((c: any) => ctx.res.append('Set-Cookie', c));
+    }
 
-    return { accessToken, refreshToken };
+    return result;
   }
 
   @Mutation(() => Boolean)
@@ -58,6 +87,120 @@ export class AuthResolver {
       clearAuthCookies(ctx.res, ctx.req);
       return true;
     }
+  }
+
+  @Mutation(() => TokensOutput, { description: 'Complete two-factor login using code or backup code' })
+  async completeTwoFactorLogin(
+    @Args('input') input: CompleteTwoFactorInput,
+    @Context() ctx: any,
+  ): Promise<TokensOutput> {
+    const result = await this.auth.completeTwoFactorLogin(input);
+    if (result.accessToken && result.refreshToken) {
+      setAuthCookies(ctx.res, ctx.req, {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+    }
+    return result;
+  }
+
+  @Mutation(() => TwoFactorSetupOutput)
+  @UseGuards(SessionGuard)
+  async generateTwoFactorSetup(@CurrentUser() user: JwtUser): Promise<TwoFactorSetupOutput> {
+    return this.auth.generateTwoFactorSetup(user.sub);
+  }
+
+  @Mutation(() => TwoFactorBackupCodesOutput)
+  @UseGuards(SessionGuard)
+  async activateTwoFactor(
+    @CurrentUser() user: JwtUser,
+    @Args('input') input: ActivateTwoFactorInput,
+  ): Promise<TwoFactorBackupCodesOutput> {
+    return this.auth.activateTwoFactor(user.sub, input);
+  }
+
+  @Mutation(() => Boolean)
+  @UseGuards(SessionGuard)
+  async disableTwoFactor(
+    @CurrentUser() user: JwtUser,
+    @Args('input') input: DisableTwoFactorInput,
+  ): Promise<boolean> {
+    return this.auth.disableTwoFactor(user.sub, input);
+  }
+
+  @Mutation(() => TwoFactorBackupCodesOutput)
+  @UseGuards(SessionGuard)
+  async regenerateTwoFactorBackupCodes(
+    @CurrentUser() user: JwtUser,
+    @Args('input') input: RegenerateTwoFactorCodesInput,
+  ): Promise<TwoFactorBackupCodesOutput> {
+    return this.auth.regenerateTwoFactorCodes(user.sub, input);
+  }
+
+  @Query(() => TwoFactorStatusOutput)
+  @UseGuards(SessionGuard)
+  async twoFactorStatus(@CurrentUser() user: JwtUser): Promise<TwoFactorStatusOutput> {
+    return this.auth.getTwoFactorStatus(user.sub);
+  }
+
+  @Mutation(() => Boolean)
+  @UseGuards(SessionGuard)
+  async requestEmailVerification(
+    @CurrentUser() user: JwtUser,
+    @Args('locale', { type: () => String, nullable: true }) locale?: string,
+  ): Promise<boolean> {
+    return this.auth.requestEmailVerification(user.sub, locale ?? 'en');
+  }
+
+  @Mutation(() => Boolean)
+  @UseGuards(SessionGuard)
+  async requestEmailChange(
+    @CurrentUser() user: JwtUser,
+    @Args('input') input: RequestEmailChangeInput,
+  ): Promise<boolean> {
+    return this.auth.requestEmailChange(user.sub, input.email, input.locale ?? 'en');
+  }
+
+  @Mutation(() => Boolean)
+  async verifyEmail(@Args('token') token: string): Promise<boolean> {
+    return this.auth.verifyEmail(token);
+  }
+
+  @Mutation(() => OAuthUrlOutput)
+  async startOAuth(
+    @Args('provider', { type: () => OAuthProvider }) provider: OAuthProvider,
+    @Args('redirectUri') redirectUri: string,
+  ): Promise<OAuthUrlOutput> {
+    const { url } = await this.oauth.createAuthorizationUrl(provider, redirectUri);
+    return { url };
+  }
+
+  @Mutation(() => TokensOutput, {
+    description: 'Complete OAuth login with authorization code returned by the provider',
+  })
+  async completeOAuth(
+    @Args('input') input: CompleteOAuthInput,
+    @Context() ctx: any,
+  ): Promise<TokensOutput> {
+    const params: Record<string, string | undefined> = {
+      code: input.code,
+      state: input.state,
+      id_token: input.idToken,
+    };
+
+    const { profile } = await this.oauth.consumeAuthorizationCode(input.provider, params);
+    const result = await this.auth.loginWithOAuth(profile);
+
+    if (result.accessToken && result.refreshToken) {
+      setAuthCookies(ctx.res, ctx.req, {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+    } else {
+      clearAuthCookies(ctx.res, ctx.req);
+    }
+
+    return result;
   }
 
   @Query(() => String, { description: 'Who am I (requires access cookie)' })

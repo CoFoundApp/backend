@@ -1,2 +1,12 @@
 packages:
-  - "apps/*"
+  - apps/*
+
+onlyBuiltDependencies:
+  - '@apollo/protobufjs'
+  - '@nestjs/core'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - core-js
+  - msgpackr-extract
+  - prisma
+  - unrs-resolver

@@ -7,6 +7,9 @@ import { AuthResolver } from './auth.resolver';
 import { SessionGuard } from './guards/session.guard';
 import { PrismaModule } from '../../infra/prisma/prisma.module';
 import { RedisModule } from '../../infra/redis/redis.module';
+import { EmailVerificationService } from './email-verification.service';
+import { TwoFactorService } from './two-factor.service';
+import { OAuthService } from './oauth.service';
 
 @Global()
 @Module({
@@ -20,8 +23,11 @@ import { RedisModule } from '../../infra/redis/redis.module';
     JwtRefreshStrategy,
     AuthService,
     AuthResolver,
-    SessionGuard
+    SessionGuard,
+    EmailVerificationService,
+    TwoFactorService,
+    OAuthService,
   ],
-  exports: [AuthService, SessionGuard],
+  exports: [AuthService, SessionGuard, EmailVerificationService, TwoFactorService, OAuthService],
 })
 export class AuthModule {}
