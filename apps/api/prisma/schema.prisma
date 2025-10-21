@@ -72,6 +72,43 @@ model auth_identities {
   @@index([user_id], map: "idx_auth_identities_user")
 }
 
+model email_verification_tokens {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String    @db.Uuid
+  email       String    @db.Citext
+  token_hash  String
+  expires_at  DateTime  @db.Timestamptz(6)
+  consumed_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "idx_email_verification_user")
+  @@index([email], map: "idx_email_verification_email")
+}
+
+model user_security_settings {
+  user_id               String                  @id @db.Uuid
+  totp_secret_encrypted String?
+  totp_secret_iv        String?
+  totp_secret_tag       String?
+  totp_enabled          Boolean                 @default(false)
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
+  users                 users                   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  backup_codes          user_totp_backup_codes[]
+}
+
+model user_totp_backup_codes {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  code_hash  String
+  used_at    DateTime? @db.Timestamptz(6)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  security   user_security_settings @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "idx_user_totp_codes_user")
+}
+
 model badges {
   id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   code        String        @unique @db.Citext
@@ -1183,6 +1220,8 @@ model users {
   id                                                            String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                                                         String                    @unique @db.Citext
   password_hash                                                 String
+  email_verified_at                                             DateTime?                 @db.Timestamptz(6)
+  pending_email                                                 String?                   @db.Citext
   role                                                          user_role                 @default(user)
   status                                                        user_status               @default(active)
   last_login_at                                                 DateTime?                 @db.Timestamptz(6)
@@ -1191,6 +1230,8 @@ model users {
   assistant_sessions                                            assistant_sessions[]
   audit_log                                                     audit_log[]
   auth_identities                                               auth_identities[]
+  email_verification_tokens                                     email_verification_tokens[]
+  security_settings                                             user_security_settings?
   conversation_participants                                     conversation_participants[]
   conversations                                                 conversations[]
   courses                                                       courses[]
