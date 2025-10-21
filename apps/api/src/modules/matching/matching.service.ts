@@ -1419,12 +1419,22 @@ export class MatchingService {
 
             const semanticSim = 1 - candidate.distance;
 
+            const normalizedProject = {
+              ...project,
+              project_skills: Array.isArray((project as any).project_skills)
+                ? (project as any).project_skills
+                : Array.from(projectSkillMap.keys()),
+              project_interests: Array.isArray((project as any).project_interests)
+                ? (project as any).project_interests
+                : Array.from(projectInterestSet.values()),
+            };
+
             const compositeInput: CompositeScoreInput = {
               detailLevel,
               context: {
-                sector: project.industry ?? null,
-                projectType: project.stage ?? null,
-                urgency: mapUrgencyToDomain(project.urgency),
+                sector: normalizedProject.industry ?? null,
+                projectType: normalizedProject.stage ?? null,
+                urgency: mapUrgencyToDomain(normalizedProject.urgency),
               },
               technical: {
                 projectSkills: projectSkillMap,
@@ -1434,47 +1444,47 @@ export class MatchingService {
               },
               culture: {
                 profileValues: profile?.core_values ?? [],
-                projectValues: project.culture_values ?? [],
+                projectValues: normalizedProject.culture_values ?? [],
                 profileWorkStyles: profile?.preferred_work_styles ?? [],
-                projectWorkStyles: project.culture_work_styles ?? [],
+                projectWorkStyles: normalizedProject.culture_work_styles ?? [],
                 preferredEnvironments: profile?.preferred_environments ?? [],
-                projectEnvironment: project.environment ?? null,
+                projectEnvironment: normalizedProject.environment ?? null,
               },
               team: {
                 preferredTeamSize: profile?.preferred_team_size ?? null,
-                projectPreferredSize: project.preferred_team_size ?? null,
+                projectPreferredSize: normalizedProject.preferred_team_size ?? null,
                 desiredRole: profile?.desired_team_role ?? null,
                 projectRoleNeed: resolvedRoleNeed,
                 communicationStyle: profile?.communication_style ?? null,
-                projectCommunicationStyle: project.communication_style ?? null,
+                projectCommunicationStyle: normalizedProject.communication_style ?? null,
                 communicationFrequency: profile?.communication_frequency ?? null,
-                projectCommunicationFrequency: project.communication_frequency ?? null,
-                teamRoles: (project.project_members ?? [])
+                projectCommunicationFrequency: normalizedProject.communication_frequency ?? null,
+                teamRoles: (normalizedProject.project_members ?? [])
                   .filter((member) => member.status === 'active' && !!member.role)
                   .map((member) => member.role as string),
               },
               logistics: {
                 availabilityHours: profile?.availability_hours ?? null,
-                requiredHoursMin: project.required_hours_min ?? null,
-                requiredHoursMax: project.required_hours_max ?? null,
+                requiredHoursMin: normalizedProject.required_hours_min ?? null,
+                requiredHoursMax: normalizedProject.required_hours_max ?? null,
                 availabilitySlots: this.parseSlots(profile?.availability_time_slots),
-                requiredSlots: this.parseSlots(project.critical_time_slots),
+                requiredSlots: this.parseSlots(normalizedProject.critical_time_slots),
                 profileTimezone: profile?.timezone ?? null,
-                projectTimezone: project.timezone ?? null,
+                projectTimezone: normalizedProject.timezone ?? null,
                 remotePreference: profile?.remote_preference_percent ?? null,
-                remoteRatioMin: project.remote_ratio_min ?? null,
-                remoteRatioMax: project.remote_ratio_max ?? null,
+                remoteRatioMin: normalizedProject.remote_ratio_min ?? null,
+                remoteRatioMax: normalizedProject.remote_ratio_max ?? null,
                 missionMinWeeks: profile?.mission_duration_min_weeks ?? null,
                 missionMaxWeeks: profile?.mission_duration_max_weeks ?? null,
-                projectMinWeeks: project.duration_weeks_min ?? null,
-                projectMaxWeeks: project.duration_weeks_max ?? null,
+                projectMinWeeks: normalizedProject.duration_weeks_min ?? null,
+                projectMaxWeeks: normalizedProject.duration_weeks_max ?? null,
               },
               experience: {
                 profileSuccessRate: profile?.success_rate ?? null,
                 profileAverageRating: profile?.average_rating ?? null,
                 profileActivityScore: profile?.activity_score ?? null,
-                projectAcceptanceRate: project.acceptance_rate ?? null,
-                projectAverageRating: project.average_project_rating ?? null,
+                projectAcceptanceRate: normalizedProject.acceptance_rate ?? null,
+                projectAverageRating: normalizedProject.average_project_rating ?? null,
                 historicalSimilarity: semanticSim,
                 goalsAlignment: interestOverlap,
               },
@@ -1485,22 +1495,27 @@ export class MatchingService {
               contact: {
                 profileLocation: profile?.location ?? null,
                 profileTimezone: profile?.timezone ?? null,
-                projectTimezone: project.timezone ?? null,
+                projectTimezone: normalizedProject.timezone ?? null,
                 profileCollaborationMode: profile?.preferred_collaboration_mode ?? null,
-                projectCollaborationMode: project.collaboration_mode ?? null,
+                projectCollaborationMode: normalizedProject.collaboration_mode ?? null,
                 profileCommunicationStyle: profile?.communication_style ?? null,
-                projectCommunicationStyle: project.communication_style ?? null,
+                projectCommunicationStyle: normalizedProject.communication_style ?? null,
                 profileCommunicationFrequency: profile?.communication_frequency ?? null,
-                projectCommunicationFrequency: project.communication_frequency ?? null,
+                projectCommunicationFrequency: normalizedProject.communication_frequency ?? null,
                 profileRemotePreference: profile?.remote_preference_percent ?? null,
-                projectRemoteRatioMin: project.remote_ratio_min ?? null,
-                projectRemoteRatioMax: project.remote_ratio_max ?? null,
-                projectEnvironment: project.environment ?? null,
+                projectRemoteRatioMin: normalizedProject.remote_ratio_min ?? null,
+                projectRemoteRatioMax: normalizedProject.remote_ratio_max ?? null,
+                projectEnvironment: normalizedProject.environment ?? null,
               },
             };
 
             const composite = await this.compositeScore.evaluate(compositeInput);
-            const match = this.buildProjectMatchOutput(project, candidate.distance, composite, detailLevel);
+            const match = this.buildProjectMatchOutput(
+              normalizedProject,
+              candidate.distance,
+              composite,
+              detailLevel,
+            );
             return { match, candidate, composite, projectId: project.id };
           },
         );
