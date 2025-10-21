@@ -1,0 +1,18 @@
+{{#> layout}}
+  <p>Bonjour,</p>
+  {{#if is_email_change}}
+    <p>Vous avez demandé à modifier l'adresse e-mail associée à votre compte {{brand_name}}. Merci de confirmer ce changement en cliquant sur le bouton ci-dessous.</p>
+  {{else}}
+    <p>Merci d'avoir rejoint {{brand_name}} ! Veuillez confirmer votre adresse e-mail pour sécuriser votre compte.</p>
+  {{/if}}
+  <p style="text-align:center;">
+    <a href="{{verification_url}}" style="display:inline-block;padding:12px 24px;background-color:#1a56db;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:600;">
+      Confirmer mon e-mail
+    </a>
+  </p>
+  <p>Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :<br />
+    <a href="{{verification_url}}">{{verification_url}}</a>
+  </p>
+  <p>Ce lien expire le {{expires_at_iso}}.</p>
+  <p>Si vous n'êtes pas à l'origine de cette {{#if is_email_change}}modification{{else}}vérification{{/if}}, ignorez simplement cet e-mail ou contactez-nous immédiatement.</p>
+{{/layout}}

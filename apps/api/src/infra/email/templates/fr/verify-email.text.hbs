@@ -1,0 +1,10 @@
+Bonjour,
+{{#if is_email_change}}
+Vous avez demandé à modifier l'adresse e-mail associée à votre compte {{brand_name}}.
+{{else}}
+Merci d'avoir rejoint {{brand_name}} !
+{{/if}}
+Confirmez votre e-mail en ouvrant ce lien :
+{{verification_url}}
+Ce lien expire le {{expires_at_iso}}.
+Si vous n'êtes pas à l'origine de cette {{#if is_email_change}}modification{{else}}vérification{{/if}}, ignorez ce message.
