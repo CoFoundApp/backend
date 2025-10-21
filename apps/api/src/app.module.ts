@@ -7,7 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthResolver } from './health.resolver';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { RlsInterceptor } from './infra/prisma/rls.interceptor';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -36,6 +36,8 @@ import { ConversationModule } from './modules/conversation/conversation.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
+import { ElearningModule } from './modules/elearning/elearning.module';
+
 
 @Module({
   imports: [
@@ -99,6 +101,8 @@ import { MonitoringModule } from './modules/monitoring/monitoring.module';
     BillingModule,
 
     MonitoringModule,
+
+    ElearningModule,
   ],
   controllers: [AppController],
   providers: [
