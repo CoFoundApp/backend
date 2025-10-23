@@ -22,6 +22,8 @@ import { OAuthProvider } from './dto/oauth-provider.enum';
 import { OAuthUrlOutput } from './dto/oauth-url.output';
 import { OAuthService } from './oauth.service';
 import { CompleteOAuthInput } from './dto/complete-oauth.input';
+import { RequestPasswordResetInput } from './dto/request-password-reset.input';
+import { ResetPasswordInput } from './dto/reset-password.input';
 
 @Resolver()
 export class AuthResolver {
@@ -164,6 +166,17 @@ export class AuthResolver {
   @Mutation(() => Boolean)
   async verifyEmail(@Args('token') token: string): Promise<boolean> {
     return this.auth.verifyEmail(token);
+  }
+
+  @Mutation(() => Boolean)
+  async requestPasswordReset(@Args('input') input: RequestPasswordResetInput): Promise<boolean> {
+    await this.auth.requestPasswordReset(input.email, input.locale ?? 'en');
+    return true;
+  }
+
+  @Mutation(() => Boolean)
+  async resetPassword(@Args('input') input: ResetPasswordInput): Promise<boolean> {
+    return this.auth.resetPassword(input.token, input.password);
   }
 
   @Mutation(() => OAuthUrlOutput)
