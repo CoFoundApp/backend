@@ -101,6 +101,7 @@ export class AuthService {
 
   async login(input: LoginInput): Promise<TokensOutput> {
     const email = input.email.trim().toLowerCase();
+
     const user = await this.prisma.prisma().users.findUnique({
       where: { email },
       include: {
@@ -109,6 +110,11 @@ export class AuthService {
         },
       },
     });
+
+    if (!user?.email_verified_at) {
+      throw new UnauthorizedException('Email not verified');
+    }
+
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const ok = await bcrypt.compare(input.password, user.password_hash);
