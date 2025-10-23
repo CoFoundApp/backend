@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import type Redis from 'ioredis';
@@ -55,6 +55,9 @@ export class AuthService {
   private refreshTtl = process.env.JWT_REFRESH_TTL || '30d';
   private refreshTtlSec = parseTTLToSeconds(this.refreshTtl, 30 * 86400);
   private bcryptRounds = Number(process.env.SECURITY_BCRYPT_ROUNDS ?? 12);
+  private passwordResetTtl = process.env.PASSWORD_RESET_TTL || '1h';
+  private passwordResetTtlSec = parseTTLToSeconds(this.passwordResetTtl, 3600);
+  private appBaseUrl = (process.env.APP_BASE_URL ?? 'https://cofound.example.com').replace(/\/$/, '');
 
   constructor(
     private readonly prisma: PrismaService,
@@ -101,7 +104,6 @@ export class AuthService {
 
   async login(input: LoginInput): Promise<TokensOutput> {
     const email = input.email.trim().toLowerCase();
-
     const user = await this.prisma.prisma().users.findUnique({
       where: { email },
       include: {
@@ -110,11 +112,6 @@ export class AuthService {
         },
       },
     });
-
-    if (!user?.email_verified_at) {
-      throw new UnauthorizedException('Email not verified');
-    }
-
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const ok = await bcrypt.compare(input.password, user.password_hash);
@@ -215,6 +212,85 @@ export class AuthService {
     }
 
     return this.handlePostAuthentication(user, {});
+  }
+
+    async requestPasswordReset(email: string, locale = 'en'): Promise<boolean> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.prisma
+      .prisma()
+      .users.findUnique({ where: { email: normalizedEmail }, select: { id: true, email: true } });
+
+    if (!user) {
+      return true;
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const hash = this.hashResetToken(token);
+    const expiresAt = new Date(Date.now() + this.passwordResetTtlSec * 1000);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.password_reset_tokens.deleteMany({ where: { user_id: user.id } });
+      await tx.password_reset_tokens.create({
+        data: {
+          user_id: user.id,
+          token_hash: hash,
+          expires_at: expiresAt,
+        },
+      });
+    });
+
+    const resetUrl = `${this.appBaseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
+    await this.mail.sendTemplate(user.email, 'reset-password', locale, {
+      reset_url: resetUrl,
+      expires_at_iso: expiresAt.toISOString(),
+      email: user.email,
+    });
+
+    return true;
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<boolean> {
+    const passwordHash = await bcrypt.hash(newPassword, this.bcryptRounds);
+    const hashedToken = this.hashResetToken(token);
+    const now = new Date();
+
+    await this.prisma.$transaction(async (tx) => {
+      const record = await tx.password_reset_tokens.findFirst({
+        where: {
+          token_hash: hashedToken,
+          consumed_at: null,
+        },
+      });
+
+      if (!record || record.expires_at.getTime() < now.getTime()) {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+
+      const user = await tx.users.findUnique({ where: { id: record.user_id } });
+      if (!user) {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+
+      await tx.users.update({
+        where: { id: user.id },
+        data: { password_hash: passwordHash },
+      });
+
+      await tx.password_reset_tokens.update({
+        where: { id: record.id },
+        data: { consumed_at: now },
+      });
+
+      await tx.password_reset_tokens.deleteMany({
+        where: {
+          user_id: user.id,
+          consumed_at: null,
+        },
+      });
+    });
+
+    return true;
   }
 
   async completeTwoFactorLogin(input: CompleteTwoFactorInput): Promise<TokensOutput> {
@@ -484,5 +560,9 @@ export class AuthService {
     ]);
 
     return { accessToken, refreshToken };
+  }
+
+  private hashResetToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 }
