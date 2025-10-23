@@ -23,4 +23,7 @@ export class User {
 
   @Field(() => GraphQLISODateTime)
   updated_at!: Date;
+
+  @Field(() => GraphQLISODateTime, { nullable: true })
+  email_verified_at?: Date | null;
 }
