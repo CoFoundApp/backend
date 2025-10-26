@@ -7,12 +7,11 @@ import { isUuid } from '../../common/utils/uuid.util';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
 import { JobsService } from '../../queue/jobs.service';
 import { MatchDetailLevel } from '../matching/types/match-detail-level.enum';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { WorkExperienceInput } from './dto/work-experience.input';
 import { EducationInput } from './dto/education.input';
 import { VolunteerExperienceInput } from './dto/volunteer-experience.input';
-
-type PrismaTransactionClient = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
+import { AutoTaxonomyService } from '../taxonomy/auto-taxonomy.service';
 
 function normalizeVisibility(v?: string | null): 'public' | 'unlisted' | 'private' | undefined {
   if (!v) return undefined;
@@ -26,121 +25,14 @@ function normalizeVisibility(v?: string | null): 'public' | 'unlisted' | 'privat
 
 @Injectable()
 export class ProfileService {
+  private readonly appName = process.env.APP_NAME ?? process.env.BRAND_NAME ?? 'CoFound';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: TemplateMailerService,
     private readonly jobs: JobsService,
+    private readonly taxonomy: AutoTaxonomyService,
   ) {}
-
-
-  private slugToName(slug: string): string {
-        return slug
-          .split('-')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ');
-  }
-
-  private async resolveOrCreateSkillSlugs(slugs: string[]): Promise<string[]> {
-        if (!slugs?.length) return [];
-
-        const client = this.prisma.prisma() as PrismaClient;
-        const createdIds: string[] = [];
-
-        for (const slug of slugs) {
-          try {
-            let skill = await client.skills.findUnique({
-              where: { slug },
-              select: { id: true }
-            });
-
-            if (!skill) {
-              try {
-                skill = await client.skills.create({
-                  data: {
-                    name: this.slugToName(slug),
-                    slug: slug,
-                    category: 'Auto-generated'
-                  },
-                  select: { id: true }
-                });
-              } catch (createError: any) {
-                if (createError?.code === 'P2002') {
-                  skill = await client.skills.findUnique({
-                    where: { slug },
-                    select: { id: true }
-                  });
-                }
-
-                if (!skill) {
-                  console.warn(`❌ Failed to create or find skill "${slug}":`, createError);
-                  continue;
-                }
-              }
-            }
-
-            if (skill) {
-              createdIds.push(skill.id);
-            }
-
-          } catch (error) {
-            console.warn(`❌ Error processing skill "${slug}":`, error);
-            continue;
-          }
-        }
-
-        return createdIds;
-  }
-
-  private async resolveOrCreateInterestSlugs(slugs: string[]): Promise<string[]> {
-    if (!slugs?.length) return [];
-
-    const client = this.prisma.prisma() as PrismaClient;
-    const createdIds: string[] = [];
-
-    for (const slug of slugs) {
-      try {
-        let interest = await client.interests.findUnique({
-          where: { slug },
-          select: { id: true }
-        });
-
-        if (!interest) {
-          try {
-            interest = await client.interests.create({
-              data: {
-                name: this.slugToName(slug),
-                slug: slug,
-                category: 'Auto-generated'
-              },
-              select: { id: true }
-         });
-              } catch (createError: any) {
-                if (createError?.code === 'P2002') {
-                  interest = await client.interests.findUnique({
-                    where: { slug },
-                    select: { id: true }
-                  });
-                }
-
-                if (!interest) {
-                  console.warn(`❌ Failed to create or find interest "${slug}":`, createError);
-                  continue;
-                }
-              }
-            }
-
-            if (interest) {
-              createdIds.push(interest.id);
-            }
-
-          } catch (error) {
-            console.warn(`❌ Error processing interest "${slug}":`, error);
-            continue;
-          }
-    }
-
-    return createdIds;
-  }
 
   /** Renvoie un profil public/unlisted. */
   async getPublicProfileById(id: string) {
@@ -264,12 +156,12 @@ export class ProfileService {
 
     if (input.skills && input.skills.length > 0) {
       const skillSlugs = input.skills.filter(Boolean);
-      skillIds = await this.resolveOrCreateSkillSlugs(skillSlugs);
+      skillIds = await this.taxonomy.resolveSkillSlugs(skillSlugs);
     }
 
     if (input.interests && input.interests.length > 0) {
       const interestSlugs = input.interests.filter(Boolean);
-      interestIds = await this.resolveOrCreateInterestSlugs(interestSlugs);
+      interestIds = await this.taxonomy.resolveInterestSlugs(interestSlugs);
     }
 
     // Récupérer l'email pour la notification
@@ -290,7 +182,7 @@ export class ProfileService {
       looking_for: input.looking_for,
       availability_hours: input.availability_hours,
       updated_at: new Date(),
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
     });
 
     // 2. Mettre à jour le profil
