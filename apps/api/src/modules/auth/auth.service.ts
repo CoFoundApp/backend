@@ -58,6 +58,7 @@ export class AuthService {
   private passwordResetTtl = process.env.PASSWORD_RESET_TTL || '1h';
   private passwordResetTtlSec = parseTTLToSeconds(this.passwordResetTtl, 3600);
   private appBaseUrl = (process.env.APP_BASE_URL ?? 'https://cofound.example.com').replace(/\/$/, '');
+  private appName = process.env.APP_NAME ?? process.env.BRAND_NAME ?? 'CoFound';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -67,9 +68,17 @@ export class AuthService {
     private readonly twoFactor: TwoFactorService,
   ) {}
 
+  private normalizeLocale(locale?: string | null): 'fr' | 'en' {
+    if (!locale) return 'en';
+    const normalized = locale.toLowerCase();
+    if (normalized === 'fr' || normalized.startsWith('fr-')) return 'fr';
+    if (normalized === 'en' || normalized.startsWith('en-')) return 'en';
+    return 'en';
+  }
+
   async signup(input: SignupInput): Promise<TokensOutput> {
     const email = input.email.trim().toLowerCase();
-    const locale = input.locale ?? 'en';
+    const locale = this.normalizeLocale(input.locale);
     const exists = await this.prisma
       .prisma()
       .users.findUnique({ where: { email } })
@@ -82,12 +91,13 @@ export class AuthService {
         email,
         password_hash,
         role: 'user',
+        locale,
       },
     });
 
     await this.mail.sendTemplate(user.email, 'welcome', locale, {
       email: user.email,
-      app_name: process.env.BRAND_NAME || 'CoFound',
+      app_name: this.appName,
     });
 
     await this.emailVerification.sendVerificationEmail(user.id, user.email, locale, {
@@ -161,12 +171,14 @@ export class AuthService {
 
     if (!user) {
       const password_hash = await bcrypt.hash(randomBytes(32).toString('hex'), this.bcryptRounds);
+      const locale = this.normalizeLocale(profile.locale);
       user = await this.prisma.prisma().users.create({
         data: {
           email,
           password_hash,
           role: 'user',
           email_verified_at: profile.emailVerified ? new Date() : null,
+          locale,
         },
         include: {
           security_settings: {
@@ -175,9 +187,9 @@ export class AuthService {
         },
       });
 
-      await this.mail.sendTemplate(user.email, 'welcome', 'en', {
+      await this.mail.sendTemplate(user.email, 'welcome', user.locale ?? 'en', {
         email: user.email,
-        app_name: process.env.BRAND_NAME || 'CoFound',
+        app_name: this.appName,
       });
     }
 
@@ -214,16 +226,17 @@ export class AuthService {
     return this.handlePostAuthentication(user, {});
   }
 
-    async requestPasswordReset(email: string, locale = 'en'): Promise<boolean> {
+  async requestPasswordReset(email: string, locale?: string): Promise<boolean> {
     const normalizedEmail = email.trim().toLowerCase();
     const user = await this.prisma
       .prisma()
-      .users.findUnique({ where: { email: normalizedEmail }, select: { id: true, email: true } });
+      .users.findUnique({ where: { email: normalizedEmail }, select: { id: true, email: true, locale: true } });
 
     if (!user) {
       return true;
     }
 
+    const resolvedLocale = this.normalizeLocale(locale ?? user.locale);
     const token = randomBytes(32).toString('hex');
     const hash = this.hashResetToken(token);
     const expiresAt = new Date(Date.now() + this.passwordResetTtlSec * 1000);
@@ -241,10 +254,11 @@ export class AuthService {
 
     const resetUrl = `${this.appBaseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
-    await this.mail.sendTemplate(user.email, 'reset-password', locale, {
+    await this.mail.sendTemplate(user.email, 'reset-password', resolvedLocale, {
       reset_url: resetUrl,
       expires_at_iso: expiresAt.toISOString(),
       email: user.email,
+      app_name: this.appName,
     });
 
     return true;
@@ -390,8 +404,11 @@ export class AuthService {
     };
   }
 
-  async requestEmailVerification(userId: string, locale = 'en'): Promise<boolean> {
-    const user = await this.prisma.prisma().users.findUnique({ where: { id: userId } });
+  async requestEmailVerification(userId: string, locale?: string): Promise<boolean> {
+    const user = await this.prisma.prisma().users.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, pending_email: true, email_verified_at: true, locale: true },
+    });
     if (!user) throw new UnauthorizedException('User not found');
 
     if (!user.pending_email && user.email_verified_at) {
@@ -400,22 +417,28 @@ export class AuthService {
 
     const target = user.pending_email ?? user.email;
     const reason = user.pending_email ? 'change' : 'signup';
+    const resolvedLocale = this.normalizeLocale(locale ?? user.locale);
 
-    await this.emailVerification.sendVerificationEmail(user.id, target, locale, { reason });
+    await this.emailVerification.sendVerificationEmail(user.id, target, resolvedLocale, { reason });
     return true;
   }
 
-  async requestEmailChange(userId: string, newEmail: string, locale = 'en'): Promise<boolean> {
+  async requestEmailChange(userId: string, newEmail: string, locale?: string): Promise<boolean> {
     const target = newEmail.trim().toLowerCase();
-    const user = await this.prisma.prisma().users.findUnique({ where: { id: userId } });
+    const user = await this.prisma.prisma().users.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, pending_email: true, locale: true },
+    });
     if (!user) throw new UnauthorizedException('User not found');
 
     if (user.email === target) {
       throw new BadRequestException('This email is already your current email');
     }
 
+    const resolvedLocale = this.normalizeLocale(locale ?? user.locale);
+
     if (user.pending_email?.toLowerCase() === target) {
-      await this.emailVerification.sendVerificationEmail(user.id, target, locale, { reason: 'change' });
+      await this.emailVerification.sendVerificationEmail(user.id, target, resolvedLocale, { reason: 'change' });
       return true;
     }
 
@@ -429,7 +452,7 @@ export class AuthService {
       },
     });
 
-    await this.emailVerification.sendVerificationEmail(user.id, target, locale, { reason: 'change' });
+    await this.emailVerification.sendVerificationEmail(user.id, target, resolvedLocale, { reason: 'change' });
     return true;
   }
 

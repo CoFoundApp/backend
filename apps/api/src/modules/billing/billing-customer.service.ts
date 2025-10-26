@@ -7,12 +7,27 @@ import { StripeCustomer } from './stripe/stripe.types';
 @Injectable()
 export class BillingCustomerService {
   private readonly logger = new Logger(BillingCustomerService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly stripe: StripeService,
     private readonly config: ConfigService,
   ) {}
+
+  private normalizeLocale(locale?: string | null): 'fr' | 'en' {
+    if (!locale) return 'fr';
+    const normalized = locale.toLowerCase();
+    if (normalized === 'fr' || normalized.startsWith('fr-')) return 'fr';
+    if (normalized === 'en' || normalized.startsWith('en-')) return 'en';
+    return 'fr';
+  }
+
+  private toStripeLocales(locale?: string | null): string[] {
+    const normalized = this.normalizeLocale(locale);
+    if (normalized === 'fr') {
+      return ['fr-FR', 'en-US'];
+    }
+    return ['en-US', 'fr-FR'];
+  }
 
   async ensureForUser(userId: string, organizationId?: string | null) {
     const existing = await this.prisma.billing_customers.findFirst({
@@ -46,16 +61,23 @@ export class BillingCustomerService {
         organization_id: organizationId ?? undefined,
       },
       address: organization?.address as any,
-      preferred_locales: ['fr-FR', 'en-US'],
+      preferred_locales: this.toStripeLocales(user.locale),
       invoice_settings: {
         footer: this.config.get('BILLING_INVOICE_FOOTER') ?? undefined,
       },
     });
 
-    return this.upsertFromStripe(customer, { userId, organizationId: organizationId ?? undefined });
+    return this.upsertFromStripe(customer, {
+      userId,
+      organizationId: organizationId ?? undefined,
+      userLocale: user.locale,
+    });
   }
 
-  async upsertFromStripe(customer: StripeCustomer, context?: { userId?: string; organizationId?: string }) {
+  async upsertFromStripe(
+    customer: StripeCustomer,
+    context?: { userId?: string; organizationId?: string; userLocale?: string | null },
+  ) {
     const vatValid = Array.isArray(customer.tax_ids?.data)
       ? customer.tax_ids.data.some(tax => tax.verification?.status === 'verified')
       : false;
@@ -66,7 +88,7 @@ export class BillingCustomerService {
         email: customer.email ?? undefined,
         name: customer.name ?? undefined,
         phone: customer.phone ?? undefined,
-        locale: customer.preferred_locales?.[0] ?? undefined,
+        locale: customer.preferred_locales?.[0] ? this.normalizeLocale(customer.preferred_locales[0]) : undefined,
         tax_exemption: customer.tax_exempt ?? undefined,
         vat_number: customer.tax_ids?.data?.find(id => id.type === 'eu_vat')?.value ?? undefined,
         vat_valid: vatValid,
@@ -82,7 +104,9 @@ export class BillingCustomerService {
         email: (customer.email ?? '') as string,
         name: customer.name ?? undefined,
         phone: customer.phone ?? undefined,
-        locale: customer.preferred_locales?.[0] ?? 'fr',
+        locale: customer.preferred_locales?.[0]
+          ? this.normalizeLocale(customer.preferred_locales[0])
+          : this.normalizeLocale(context?.userLocale),
         tax_exemption: customer.tax_exempt ?? undefined,
         vat_number: customer.tax_ids?.data?.find(id => id.type === 'eu_vat')?.value ?? undefined,
         vat_valid: vatValid,

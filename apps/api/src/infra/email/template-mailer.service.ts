@@ -69,6 +69,7 @@ export class TemplateMailerService {
       brand_name: process.env.BRAND_NAME ?? 'CoFound',
       brand_url: process.env.BRAND_URL ?? '',
       brand_logo_url: process.env.BRAND_LOGO_URL ?? '',
+      app_name: process.env.APP_NAME ?? process.env.BRAND_NAME ?? 'CoFound',
       unsubscribe_url: process.env.APP_BASE_URL
         ? `${process.env.APP_BASE_URL}/settings/notifications`
         : undefined,

@@ -9,6 +9,8 @@ const BCRYPT_ROUNDS = Number(process.env.SECURITY_BCRYPT_ROUNDS ?? 12);
 
 @Injectable()
 export class UserService {
+  private readonly appName = process.env.APP_NAME ?? process.env.BRAND_NAME ?? 'CoFound';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: TemplateMailerService,
@@ -29,6 +31,7 @@ export class UserService {
         email: true,
         role: true,
         status: true,
+        locale: true,
         last_login_at: true,
         created_at: true,
         updated_at: true,
@@ -49,11 +52,11 @@ export class UserService {
           role: mapRoleToPrisma(role ?? UserRole.USER),
           status: mapStatusToPrisma(status ?? UserStatus.ACTIVE),
         },
-        select: { id: true, email: true, role: true, status: true, created_at: true, updated_at: true },
+        select: { id: true, email: true, role: true, status: true, locale: true, created_at: true, updated_at: true },
       });
 
       await this.safeSend(user.email, 'user_account_created', {
-        app_name: process.env.APP_NAME,
+        app_name: this.appName,
         email: user.email,
         role: String(user.role),
         status: String(user.status),
@@ -72,18 +75,18 @@ export class UserService {
     const user = await this.prisma.prisma().users.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
 
-    const updated = await this.prisma.prisma().users.update({
-      where: { id },
-      data: {
-        role: role ? mapRoleToPrisma(role) : undefined,
-        status: status ? mapStatusToPrisma(status) : undefined,
-      },
-      select: { id: true, email: true, role: true, status: true, created_at: true, updated_at: true },
-    });
+      const updated = await this.prisma.prisma().users.update({
+        where: { id },
+        data: {
+          role: role ? mapRoleToPrisma(role) : undefined,
+          status: status ? mapStatusToPrisma(status) : undefined,
+        },
+        select: { id: true, email: true, role: true, status: true, locale: true, created_at: true, updated_at: true },
+      });
 
     if (role || status) {
       await this.safeSend(updated.email, 'user_account_updated', {
-        app_name: process.env.APP_NAME,
+        app_name: this.appName,
         email: updated.email,
         role: String(updated.role),
         status: String(updated.status),
@@ -103,6 +106,7 @@ export class UserService {
         email: true,
         role: true,
         status: true,
+        locale: true,
         last_login_at: true,
         created_at: true,
         updated_at: true,
@@ -151,11 +155,11 @@ export class UserService {
           password_hash: password_hash ?? undefined,
           status: input.status ? mapStatusToPrisma(input.status) : undefined,
         },
-        select: { id: true, email: true, role: true, status: true, created_at: true, updated_at: true },
+        select: { id: true, email: true, role: true, status: true, locale: true, created_at: true, updated_at: true },
       });
 
       await this.safeSend(updated.email, 'user_account_updated', {
-        app_name: process.env.APP_NAME,
+        app_name: this.appName,
         email: updated.email,
         role: String(updated.role),
         status: String(updated.status),

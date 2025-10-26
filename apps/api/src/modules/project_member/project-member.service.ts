@@ -6,6 +6,8 @@ import { TemplateMailerService } from '../../infra/email/template-mailer.service
 
 @Injectable()
 export class ProjectMemberService {
+  private readonly appName = process.env.APP_NAME ?? process.env.BRAND_NAME ?? 'CoFound';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: TemplateMailerService
@@ -32,7 +34,8 @@ export class ProjectMemberService {
   private async safeSend(to: string | null | undefined, template: string, payload: Record<string, any>) {
     if (!to) return;
     try {
-      await this.mail.sendTemplate(to, template, 'en', payload);
+      const finalPayload = payload.app_name ? payload : { ...payload, app_name: this.appName };
+      await this.mail.sendTemplate(to, template, 'en', finalPayload);
     } catch (e) {
       console.log('mail send failed', { template, to, e });
     }
@@ -102,7 +105,7 @@ export class ProjectMemberService {
 
     // User (invitee)
     await this.safeSend(invitee?.email, 'invitation_created', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: project?.title ?? projectId,
       inviter_name: this.displayName(inviterContact),
       role,
@@ -111,7 +114,7 @@ export class ProjectMemberService {
 
     // Owner (notification)
     await this.safeSend(owner?.email, 'owner_invitation_created', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: project?.title ?? projectId,
       inviter_name: this.displayName(inviterContact),
       invitee_name: this.displayName(invitee),
@@ -152,14 +155,14 @@ export class ProjectMemberService {
 
     // User (confirmation)
     await this.safeSend(user?.email, 'invitation_accepted', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: project?.title ?? projectId,
       role: 'member',
     });
 
     // Owner (nouveau membre)
     await this.safeSend(owner?.email, 'owner_invitation_accepted', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: project?.title ?? projectId,
       invitee_name: this.displayName(user),
       role: 'member',
@@ -183,13 +186,13 @@ export class ProjectMemberService {
 
     // User
     await this.safeSend(user?.email, 'invitation_declined', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: project?.title ?? projectId,
     });
 
     // Owner
     await this.safeSend(owner?.email, 'owner_invitation_declined', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: project?.title ?? projectId,
       invitee_name: this.displayName(user),
     });
@@ -221,13 +224,13 @@ export class ProjectMemberService {
 
     // User (confirmation)
     await this.safeSend(user?.email, 'leave_confirmed', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: project?.title ?? projectId,
     });
 
     // Owner (un membre est parti)
     await this.safeSend(owner?.email, 'owner_member_left', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: project?.title ?? projectId,
       member_name: this.displayName(user),
     });
@@ -256,13 +259,13 @@ export class ProjectMemberService {
 
     // User (removed)
     await this.safeSend(targetContact?.email, 'member_removed', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: project?.title ?? projectId,
     });
 
     // Owner (confirmation / audit)
     await this.safeSend(owner?.email, 'owner_member_removed', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: project?.title ?? projectId,
       member_name: this.displayName(targetContact),
       actor_name: this.displayName(actorContact),
@@ -292,14 +295,14 @@ export class ProjectMemberService {
 
     // User (role changé)
     await this.safeSend(targetContact?.email, 'role_updated', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: project?.title ?? projectId,
       role,
     });
 
     // Owner (audit)
     await this.safeSend(owner?.email, 'owner_role_updated', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: project?.title ?? projectId,
       member_name: this.displayName(targetContact),
       actor_name: this.displayName(actorContact),
