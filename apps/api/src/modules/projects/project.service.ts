@@ -21,6 +21,7 @@ import { Project as GqlProject } from './project.type';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { JobsService } from '../../queue/jobs.service';
 import { MatchDetailLevel } from '../matching/types/match-detail-level.enum';
+import { AutoTaxonomyService } from '../taxonomy/auto-taxonomy.service';
 
 type ProjectRow = {
   id: string;
@@ -123,12 +124,14 @@ export function mapProjectRowToGql(row: ProjectRow): GqlProject {
 @Injectable()
 export class ProjectService implements OnModuleDestroy{
   private searchClient: PrismaClient | null = null;
+  private readonly appName = process.env.APP_NAME ?? process.env.BRAND_NAME ?? 'CoFound';
 
   constructor(
     private readonly prisma: PrismaService,
     @Inject(EMBEDDING_PORT) private readonly embedder: EmbeddingPort,
     private readonly mail: TemplateMailerService,
     private readonly jobs: JobsService,
+    private readonly taxonomy: AutoTaxonomyService,
 ) {}
 
   private getSearchClient(): PrismaClient {
@@ -149,123 +152,6 @@ export class ProjectService implements OnModuleDestroy{
   private async safeSend(to: string | null | undefined, template: string, payload: Record<string, any>) {
     if (!to) return;
     try { await this.mail.sendTemplate(to, template, 'en', payload); } catch {}
-  }
-
-  private slugToName(slug: string): string {
-    return slug
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  }
-
-  /** Résoudre et créer automatiquement les skills manquants */
-  private async resolveOrCreateSkillSlugs(
-    slugs: string[],
-    tx?: Prisma.TransactionClient,
-  ): Promise<string[]> {
-    if (!slugs?.length) return [];
-
-    const client = tx ?? this.prisma.prisma();
-    const createdIds: string[] = [];
-
-    for (const slug of slugs) {
-      try {
-        let skill = await client.skills.findUnique({
-          where: { slug },
-          select: { id: true }
-        });
-
-        if (!skill) {
-          try {
-            skill = await client.skills.create({
-              data: {
-                name: this.slugToName(slug),
-                slug: slug,
-                category: 'Auto-generated'
-              },
-              select: { id: true }
-            });
-          } catch (createError: any) {
-            if (createError?.code === 'P2002') {
-              skill = await client.skills.findUnique({
-                where: { slug },
-                select: { id: true }
-              });
-            }
-
-            if (!skill) {
-              console.warn(`❌ Failed to create or find skill "${slug}":`, createError);
-              continue;
-            }
-          }
-        }
-
-        if (skill) {
-          createdIds.push(skill.id);
-        }
-
-      } catch (error) {
-        console.warn(`❌ Error processing skill "${slug}":`, error);
-        continue;
-      }
-    }
-
-    return createdIds;
-  }
-
-  /** Même logique pour les interests */
-  private async resolveOrCreateInterestSlugs(
-    slugs: string[],
-    tx?: Prisma.TransactionClient,
-  ): Promise<string[]> {
-    if (!slugs?.length) return [];
-
-    const client = tx ?? this.prisma.prisma();
-    const createdIds: string[] = [];
-
-    for (const slug of slugs) {
-      try {
-        let interest = await client.interests.findUnique({
-          where: { slug },
-          select: { id: true }
-        });
-
-        if (!interest) {
-          try {
-            interest = await client.interests.create({
-              data: {
-                name: this.slugToName(slug),
-                slug: slug,
-                category: 'Auto-generated'
-              },
-              select: { id: true }
-            });
-          } catch (createError: any) {
-            if (createError?.code === 'P2002') {
-              interest = await client.interests.findUnique({
-                where: { slug },
-                select: { id: true }
-              });
-            }
-
-            if (!interest) {
-              console.warn(`❌ Failed to create or find interest "${slug}":`, createError);
-              continue;
-            }
-          }
-        }
-
-        if (interest) {
-          createdIds.push(interest.id);
-        }
-
-      } catch (error) {
-        console.warn(`❌ Error processing interest "${slug}":`, error);
-        continue;
-      }
-    }
-
-    return createdIds;
   }
 
   async create(ownerId: string, input: CreateProjectInput) {
@@ -329,7 +215,7 @@ export class ProjectService implements OnModuleDestroy{
         });
 
         if (skillSlugs.length > 0) {
-          const skillIds = await this.resolveOrCreateSkillSlugs(skillSlugs, tx);
+          const skillIds = await this.taxonomy.resolveSkillSlugs(skillSlugs, tx);
           await tx.project_skills.createMany({
             data: skillIds.map((skill_id) => ({
               project_id: created.id,
@@ -340,7 +226,7 @@ export class ProjectService implements OnModuleDestroy{
         }
 
         if (interestSlugs.length > 0) {
-          const interestIds = await this.resolveOrCreateInterestSlugs(interestSlugs, tx);
+          const interestIds = await this.taxonomy.resolveInterestSlugs(interestSlugs, tx);
           await tx.project_interests.createMany({
             data: interestIds.map((interest_id) => ({
               project_id: created.id,
@@ -370,7 +256,7 @@ export class ProjectService implements OnModuleDestroy{
 
         if (owner?.email) {
           await this.safeSend(owner.email, 'owner_project_created', {
-            app_name: process.env.APP_NAME,
+            app_name: this.appName,
             project_title: input.title,
             cta_url: `${process.env.APP_BASE_URL}/projects/${project.id}`,
           });
@@ -478,7 +364,7 @@ export class ProjectService implements OnModuleDestroy{
       if (input.project_skills && input.project_skills.length > 0) {
         const skillSlugs = input.project_skills.filter(Boolean);
         if (skillSlugs.length > 0) {
-          const skillIds = await this.resolveOrCreateSkillSlugs(skillSlugs, tx);
+          const skillIds = await this.taxonomy.resolveSkillSlugs(skillSlugs, tx);
           if (skillIds.length) {
             await tx.project_skills.createMany({
               data: skillIds.map(skill_id => ({
@@ -497,7 +383,7 @@ export class ProjectService implements OnModuleDestroy{
       if (input.project_interests && input.project_interests.length > 0) {
         const interestSlugs = input.project_interests.filter(Boolean);
         if (interestSlugs.length > 0) {
-          const interestIds = await this.resolveOrCreateInterestSlugs(interestSlugs, tx);
+          const interestIds = await this.taxonomy.resolveInterestSlugs(interestSlugs, tx);
           if (interestIds.length) {
             await tx.project_interests.createMany({
               data: interestIds.map(interest_id => ({
@@ -549,7 +435,7 @@ export class ProjectService implements OnModuleDestroy{
     ]);
 
     await this.safeSend(owner?.email, 'owner_project_deleted', {
-      app_name: process.env.APP_NAME,
+      app_name: this.appName,
       project_title: existing.title,
     });
 
@@ -560,7 +446,7 @@ export class ProjectService implements OnModuleDestroy{
       });
       for (const u of users) {
         await this.safeSend(u.email, 'member_project_deleted', {
-          app_name: process.env.APP_NAME,
+          app_name: this.appName,
           project_title: existing.title,
         });
       }
