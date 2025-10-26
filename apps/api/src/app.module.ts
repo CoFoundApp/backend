@@ -3,6 +3,7 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'node:path';
 import { ConfigModule } from '@nestjs/config';
+import type { Request, Response } from 'express';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -38,6 +39,14 @@ import { BillingModule } from './modules/billing/billing.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { ElearningModule } from './modules/elearning/elearning.module';
 
+const allowGraphqlExplorer = (() => {
+  const raw = process.env.GRAPHQL_PLAYGROUND_ENABLED;
+  if (raw === undefined) {
+    return process.env.NODE_ENV !== 'production';
+  }
+  const normalized = String(raw).toLowerCase();
+  return normalized === 'true' || normalized === '1';
+})();
 
 @Module({
   imports: [
@@ -51,9 +60,9 @@ import { ElearningModule } from './modules/elearning/elearning.module';
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'schema.gql'),
       sortSchema: true,
-      playground: true,
-      introspection: true,
-      context: ({ req, res }: { req: Request, res: Response }) => ({ req, res }),
+      playground: allowGraphqlExplorer,
+      introspection: allowGraphqlExplorer,
+      context: ({ req, res }: { req: Request; res: Response }) => ({ req, res }),
     }),
 
     HealthModule,
