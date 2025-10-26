@@ -15,7 +15,7 @@
     "seed:admin": "node ./dist/scripts/seed-admin.js",
     "test": "cross-env NODE_ENV=test jest --passWithNoTests",
     "test:watch": "cross-env NODE_ENV=test jest --watch",
-    "test:e2e": "cross-env NODE_ENV=test jest --config ./jest-e2e.json"
+    "test:e2e": "pnpm run prisma:generate && cross-env NODE_ENV=test jest --config ./jest-e2e.json"
   },
   "dependencies": {
     "@mistralai/mistralai": "^1.9.18",
