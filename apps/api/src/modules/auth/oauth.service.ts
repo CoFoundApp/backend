@@ -26,6 +26,7 @@ export interface OAuthProfile {
   givenName?: string;
   familyName?: string;
   picture?: string;
+  locale?: string;
 }
 
 const PROVIDER_CONFIG: Record<OAuthProvider, ProviderConfig> = {
