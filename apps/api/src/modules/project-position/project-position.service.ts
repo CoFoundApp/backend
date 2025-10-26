@@ -5,6 +5,8 @@ import { TemplateMailerService } from '../../infra/email/template-mailer.service
 
 @Injectable()
 export class ProjectPositionService {
+  private readonly appName = process.env.APP_NAME ?? process.env.BRAND_NAME ?? 'CoFound';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: TemplateMailerService
@@ -34,7 +36,7 @@ export class ProjectPositionService {
     // Notifier le OWNER (confirmation)
     if (owner?.email) {
       await this.mail.sendTemplate(owner.email, 'owner_position_created', 'en', {
-        app_name: process.env.APP_NAME,
+        app_name: this.appName,
         project_title: project?.title ?? input.project_id,
         position_title: position.title,
         description: position.description ?? null,
@@ -81,7 +83,7 @@ export class ProjectPositionService {
     // Notifier le OWNER (confirmation)
     if (owner?.email) {
       await this.mail.sendTemplate(owner.email, 'owner_position_closed', 'en', {
-        app_name: process.env.APP_NAME,
+        app_name: this.appName,
         project_title: project?.title ?? position.project_id,
         position_title: position.title,
         status: confirmation.status,
