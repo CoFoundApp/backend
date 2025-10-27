@@ -1,3 +1,19 @@
+# 🚀 Changelog – CoFound v1.4.0
+
+## 🔍 Matching & Historique
+- ✨ **Historique de matching** – suivi et consultation de l'historique des matchs effectués pour profils et projets[web:1][web:4]
+
+## 📚 E-Learning
+- ✨ **Module E-Learning** – intégration d'un système de formation et d'apprentissage en ligne[web:1][web:4]
+
+## 🔐 Authentification & Sécurité
+- ✨ **Vérification OTP par email** – système d'authentification à deux facteurs par code OTP envoyé par email[web:1][web:4]
+- 🔒 **Réinitialisation de mot de passe** – fonctionnalité complète de reset de mot de passe sécurisée[web:1][web:4]
+
+## 🌱 Core
+- 🔧 **Application des dernières modifications** – mise à jour technique et corrections diverses pour la stabilité[web:1][web:4]
+- 🐞 **Améliorations et corrections** – ajustements techniques et optimisations internes du système[web:1][web:4]
+
 # 🚀 Changelog – CoFound v1.3.0
 
 ## 💳 Paiement & Abonnements
