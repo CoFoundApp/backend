@@ -28,6 +28,9 @@ export const envValidationSchema = Joi.object({
   JWT_REFRESH_SECRET: Joi.string().min(16).optional(),
   JWT_REFRESH_TTL: Joi.string().default('30d'),
   SECURITY_BCRYPT_ROUNDS: Joi.number().integer().min(1).default(12),
+  EMAIL_VERIFICATION_TTL: Joi.number().integer().min(300).default(86400),
+  TOTP_ENCRYPTION_KEY: Joi.string().base64({ paddingRequired: false }).default('MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY='),
+  TWO_FACTOR_CHALLENGE_TTL: Joi.number().integer().min(60).default(300),
 
   CORS_ORIGIN: Joi.string().default('*'),
   RATE_LIMIT_TTL: Joi.number().integer().min(1).default(60),
@@ -50,9 +53,23 @@ export const envValidationSchema = Joi.object({
   SMTP_PORT: Joi.number().integer().min(1).default(587),
   SMTP_FROM: Joi.string().email().default('no-reply@example.com'),
 
+  APP_NAME: Joi.string().default('CoFound'),
   BRAND_NAME: Joi.string().default('CoFound'),
   BRAND_URL: Joi.string().uri().default('https://cofound.example.com'),
   BRAND_LOGO_URL: Joi.string().uri().default('https://cofound.example.com/logo.png'),
   APP_BASE_URL: Joi.string().uri().default('https://cofound.example.com'),
+  OAUTH_ALLOWED_REDIRECT_ORIGINS: Joi.string().allow('').default(''),
   UPLOADS_PUBLIC_BASE_URL: Joi.string().uri().default('http://localhost:3000'),
+
+  GRAPHQL_PLAYGROUND_ENABLED: Joi.boolean()
+    .truthy('true')
+    .truthy('1')
+    .falsy('false')
+    .falsy('0')
+    .default(process.env.NODE_ENV === 'production' ? false : true),
+
+  GOOGLE_CLIENT_ID: Joi.string().allow('').default(''),
+  GOOGLE_CLIENT_SECRET: Joi.string().allow('').default(''),
+  LINKEDIN_CLIENT_ID: Joi.string().allow('').default(''),
+  LINKEDIN_CLIENT_SECRET: Joi.string().allow('').default(''),
 });

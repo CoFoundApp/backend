@@ -21,6 +21,18 @@ import { ExplainabilityPayload } from './interfaces/explainability.interface';
 import { UrgencyLevel } from '../../common/enums/domain.enums';
 import { CompositeScoreInput, CompositeScoreOutput } from './interfaces/composite.interface';
 import { MonitoringService } from '../monitoring/monitoring.service';
+import { MatchEntityType } from './types/match-entity-type.enum';
+import type { MatchExplanationFilterInput } from './types/match-explanation-filter.input';
+import type { MatchExplanationConnection, MatchExplanation } from './types/match-explanation.type';
+import type {
+  BidirectionalInsightType,
+  CompetitiveInsightType,
+  ContactPlanStepType,
+  DimensionScore,
+  MatchForceType,
+  MatchGapType,
+  MatchRecommendationActionType,
+} from './types/match-explainability.type';
 import {
   QueryIntent,
   QueryIntentMatch,
@@ -247,6 +259,28 @@ function parseCursor(cur?: string): { d: number | null; id: string | null } {
 
 function encodeCursor(distance: number, id: string): string {
   return Buffer.from(`${distance}:${id}`).toString('base64');
+}
+
+function parseExplanationCursor(cur?: string): { createdAt: Date | null; id: string | null } {
+  if (!cur) return { createdAt: null, id: null };
+  try {
+    const raw = Buffer.from(cur, 'base64').toString('utf8');
+    const idx = raw.lastIndexOf(':');
+    if (idx <= 0) return { createdAt: null, id: null };
+    const ts = raw.slice(0, idx);
+    const id = raw.slice(idx + 1);
+    const createdAt = new Date(ts);
+    if (!id || Number.isNaN(createdAt.getTime())) {
+      return { createdAt: null, id: null };
+    }
+    return { createdAt, id };
+  } catch {
+    return { createdAt: null, id: null };
+  }
+}
+
+function encodeExplanationCursor(createdAt: Date, id: string): string {
+  return Buffer.from(`${createdAt.toISOString()}:${id}`).toString('base64');
 }
 
 @Injectable()
@@ -1385,12 +1419,22 @@ export class MatchingService {
 
             const semanticSim = 1 - candidate.distance;
 
+            const normalizedProject = {
+              ...project,
+              project_skills: Array.isArray((project as any).project_skills)
+                ? (project as any).project_skills
+                : Array.from(projectSkillMap.keys()),
+              project_interests: Array.isArray((project as any).project_interests)
+                ? (project as any).project_interests
+                : Array.from(projectInterestSet.values()),
+            };
+
             const compositeInput: CompositeScoreInput = {
               detailLevel,
               context: {
-                sector: project.industry ?? null,
-                projectType: project.stage ?? null,
-                urgency: mapUrgencyToDomain(project.urgency),
+                sector: normalizedProject.industry ?? null,
+                projectType: normalizedProject.stage ?? null,
+                urgency: mapUrgencyToDomain(normalizedProject.urgency),
               },
               technical: {
                 projectSkills: projectSkillMap,
@@ -1400,47 +1444,47 @@ export class MatchingService {
               },
               culture: {
                 profileValues: profile?.core_values ?? [],
-                projectValues: project.culture_values ?? [],
+                projectValues: normalizedProject.culture_values ?? [],
                 profileWorkStyles: profile?.preferred_work_styles ?? [],
-                projectWorkStyles: project.culture_work_styles ?? [],
+                projectWorkStyles: normalizedProject.culture_work_styles ?? [],
                 preferredEnvironments: profile?.preferred_environments ?? [],
-                projectEnvironment: project.environment ?? null,
+                projectEnvironment: normalizedProject.environment ?? null,
               },
               team: {
                 preferredTeamSize: profile?.preferred_team_size ?? null,
-                projectPreferredSize: project.preferred_team_size ?? null,
+                projectPreferredSize: normalizedProject.preferred_team_size ?? null,
                 desiredRole: profile?.desired_team_role ?? null,
                 projectRoleNeed: resolvedRoleNeed,
                 communicationStyle: profile?.communication_style ?? null,
-                projectCommunicationStyle: project.communication_style ?? null,
+                projectCommunicationStyle: normalizedProject.communication_style ?? null,
                 communicationFrequency: profile?.communication_frequency ?? null,
-                projectCommunicationFrequency: project.communication_frequency ?? null,
-                teamRoles: (project.project_members ?? [])
+                projectCommunicationFrequency: normalizedProject.communication_frequency ?? null,
+                teamRoles: (normalizedProject.project_members ?? [])
                   .filter((member) => member.status === 'active' && !!member.role)
                   .map((member) => member.role as string),
               },
               logistics: {
                 availabilityHours: profile?.availability_hours ?? null,
-                requiredHoursMin: project.required_hours_min ?? null,
-                requiredHoursMax: project.required_hours_max ?? null,
+                requiredHoursMin: normalizedProject.required_hours_min ?? null,
+                requiredHoursMax: normalizedProject.required_hours_max ?? null,
                 availabilitySlots: this.parseSlots(profile?.availability_time_slots),
-                requiredSlots: this.parseSlots(project.critical_time_slots),
+                requiredSlots: this.parseSlots(normalizedProject.critical_time_slots),
                 profileTimezone: profile?.timezone ?? null,
-                projectTimezone: project.timezone ?? null,
+                projectTimezone: normalizedProject.timezone ?? null,
                 remotePreference: profile?.remote_preference_percent ?? null,
-                remoteRatioMin: project.remote_ratio_min ?? null,
-                remoteRatioMax: project.remote_ratio_max ?? null,
+                remoteRatioMin: normalizedProject.remote_ratio_min ?? null,
+                remoteRatioMax: normalizedProject.remote_ratio_max ?? null,
                 missionMinWeeks: profile?.mission_duration_min_weeks ?? null,
                 missionMaxWeeks: profile?.mission_duration_max_weeks ?? null,
-                projectMinWeeks: project.duration_weeks_min ?? null,
-                projectMaxWeeks: project.duration_weeks_max ?? null,
+                projectMinWeeks: normalizedProject.duration_weeks_min ?? null,
+                projectMaxWeeks: normalizedProject.duration_weeks_max ?? null,
               },
               experience: {
                 profileSuccessRate: profile?.success_rate ?? null,
                 profileAverageRating: profile?.average_rating ?? null,
                 profileActivityScore: profile?.activity_score ?? null,
-                projectAcceptanceRate: project.acceptance_rate ?? null,
-                projectAverageRating: project.average_project_rating ?? null,
+                projectAcceptanceRate: normalizedProject.acceptance_rate ?? null,
+                projectAverageRating: normalizedProject.average_project_rating ?? null,
                 historicalSimilarity: semanticSim,
                 goalsAlignment: interestOverlap,
               },
@@ -1451,22 +1495,27 @@ export class MatchingService {
               contact: {
                 profileLocation: profile?.location ?? null,
                 profileTimezone: profile?.timezone ?? null,
-                projectTimezone: project.timezone ?? null,
+                projectTimezone: normalizedProject.timezone ?? null,
                 profileCollaborationMode: profile?.preferred_collaboration_mode ?? null,
-                projectCollaborationMode: project.collaboration_mode ?? null,
+                projectCollaborationMode: normalizedProject.collaboration_mode ?? null,
                 profileCommunicationStyle: profile?.communication_style ?? null,
-                projectCommunicationStyle: project.communication_style ?? null,
+                projectCommunicationStyle: normalizedProject.communication_style ?? null,
                 profileCommunicationFrequency: profile?.communication_frequency ?? null,
-                projectCommunicationFrequency: project.communication_frequency ?? null,
+                projectCommunicationFrequency: normalizedProject.communication_frequency ?? null,
                 profileRemotePreference: profile?.remote_preference_percent ?? null,
-                projectRemoteRatioMin: project.remote_ratio_min ?? null,
-                projectRemoteRatioMax: project.remote_ratio_max ?? null,
-                projectEnvironment: project.environment ?? null,
+                projectRemoteRatioMin: normalizedProject.remote_ratio_min ?? null,
+                projectRemoteRatioMax: normalizedProject.remote_ratio_max ?? null,
+                projectEnvironment: normalizedProject.environment ?? null,
               },
             };
 
             const composite = await this.compositeScore.evaluate(compositeInput);
-            const match = this.buildProjectMatchOutput(project, candidate.distance, composite, detailLevel);
+            const match = this.buildProjectMatchOutput(
+              normalizedProject,
+              candidate.distance,
+              composite,
+              detailLevel,
+            );
             return { match, candidate, composite, projectId: project.id };
           },
         );
@@ -1736,6 +1785,105 @@ export class MatchingService {
   private truncateArray<T>(value: T[] | null | undefined, limit: number): T[] {
     if (!value?.length || limit <= 0) return [];
     return value.slice(0, limit);
+  }
+
+  async listMatchExplanations(
+    filter: MatchExplanationFilterInput | undefined,
+    limit = 50,
+    cursor?: string,
+  ): Promise<MatchExplanationConnection> {
+    const take = Math.max(1, Math.min(limit ?? 50, 100));
+    const { createdAt: cursorCreatedAt, id: cursorId } = parseExplanationCursor(cursor);
+
+    const where: Prisma.match_explanationsWhereInput = {};
+
+    if (filter?.profileId) where.profile_id = filter.profileId;
+    if (filter?.projectId) where.project_id = filter.projectId;
+    if (filter?.counterpartProfileId) where.counterpart_profile_id = filter.counterpartProfileId;
+    if (filter?.counterpartProjectId) where.counterpart_project_id = filter.counterpartProjectId;
+    if (filter?.entityType) where.entity_type = filter.entityType;
+    if (filter?.detailLevel) where.detail_level = filter.detailLevel;
+
+    if (cursorCreatedAt) {
+      const orConditions: Prisma.match_explanationsWhereInput[] = [
+        { created_at: { lt: cursorCreatedAt } },
+      ];
+      if (cursorId) {
+        orConditions.push({ created_at: cursorCreatedAt, id: { lt: cursorId } });
+      }
+
+      if (orConditions.length) {
+        const cursorCondition: Prisma.match_explanationsWhereInput = {
+          OR: orConditions,
+        };
+        const existingAnd = where.AND
+          ? Array.isArray(where.AND)
+            ? where.AND
+            : [where.AND]
+          : [];
+        where.AND = [...existingAnd, cursorCondition];
+      }
+    }
+
+    const rows = await this.prisma
+      .prisma()
+      .match_explanations.findMany({
+        where,
+        orderBy: [
+          { created_at: 'desc' },
+          { id: 'desc' },
+        ],
+        take: take + 1,
+      });
+
+    const hasNext = rows.length > take;
+    const slice = hasNext ? rows.slice(0, take) : rows;
+
+    const toArray = <T>(value: Prisma.JsonValue | null | undefined): T[] => {
+      if (Array.isArray(value)) return value as T[];
+      return [];
+    };
+
+    const toObject = <T>(value: Prisma.JsonValue | null | undefined): T | null => {
+      if (!value || Array.isArray(value)) return null;
+      if (typeof value === 'object') return value as T;
+      return null;
+    };
+
+    const items: MatchExplanation[] = slice.map((row) => ({
+      id: row.id,
+      entityType: row.entity_type as MatchEntityType,
+      profileId: row.profile_id,
+      projectId: row.project_id,
+      counterpartProfileId: row.counterpart_profile_id,
+      counterpartProjectId: row.counterpart_project_id,
+      algorithmVersion: row.algorithm_version,
+      detailLevel: row.detail_level as MatchDetailLevel,
+      score: row.score,
+      confidence: row.confidence,
+      chemistryScore: row.chemistry_score,
+      successProbability: row.success_probability,
+      successConfidence: row.success_confidence,
+      successModelVersion: row.success_model_version,
+      dimensionScores: toArray<DimensionScore>(row.dimension_scores),
+      forces: toArray<MatchForceType>(row.forces),
+      gaps: toArray<MatchGapType>(row.gaps),
+      recommendations: toArray<MatchRecommendationActionType>(row.recommendations),
+      contactPlan: toArray<ContactPlanStepType>(row.contact_plan),
+      competitiveContext: toObject<CompetitiveInsightType>(row.competitive_context),
+      bidirectionalContext: toObject<BidirectionalInsightType>(row.bidirectional_context),
+      metadata: toObject<Record<string, unknown>>(row.metadata),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    const last = slice[slice.length - 1];
+    const nextCursor = hasNext && last ? encodeExplanationCursor(last.created_at, last.id) : undefined;
+
+    return {
+      items,
+      nextCursor,
+    };
   }
 
   private async persistExplanation(params: {

@@ -4,6 +4,8 @@ import { PrismaService } from './prisma.service';
 import { RequestContext } from './request-context.service';
 import { GqlExecutionContext } from '@nestjs/graphql';
 
+const RLS_TRANSACTION_TIMEOUT_MS = 1000 * 20;
+
 function extractUser(ctx: ExecutionContext) {
   const type = ctx.getType<'http'|'graphql'|'ws'>();
   if (type === 'http') return ctx.switchToHttp().getRequest()?.user;
@@ -24,17 +26,20 @@ export class RlsInterceptor implements NestInterceptor {
     const role: string | null = user?.role ?? null;
 
     // Ouvre une transaction et injecte tx dans ALS pour toute la requête
-    const work = this.prisma.$transaction(async (tx) => {
-      if (userId) await tx.$executeRaw`SELECT set_config('app.user_id', ${userId}, true)`;
-      if (role)   await tx.$executeRaw`SELECT set_config('app.role',   ${role},   true)`;
+    const work = this.prisma.$transaction(
+      async (tx) => {
+        if (userId) await tx.$executeRaw`SELECT set_config('app.user_id', ${userId}, true)`;
+        if (role)   await tx.$executeRaw`SELECT set_config('app.role',   ${role},   true)`;
 
 
-      return this.rc.run({ tx, userId, role }, async () => {
-        // Nest appelle next.handle() (Observable), on attend son completion
-        const result$ = next.handle();
-        return await lastValueFrom(result$);
-      });
-    });
+        return this.rc.run({ tx, userId, role }, async () => {
+          // Nest appelle next.handle() (Observable), on attend son completion
+          const result$ = next.handle();
+          return await lastValueFrom(result$);
+        });
+      },
+      { timeout: RLS_TRANSACTION_TIMEOUT_MS },
+    );
 
     return from(work);
   }

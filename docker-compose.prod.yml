@@ -53,6 +53,8 @@ services:
       - .env
     environment:
       NODE_ENV: production
+      APP_NAME: ${APP_NAME:-CoFound}
+      GRAPHQL_PLAYGROUND_ENABLED: ${GRAPHQL_PLAYGROUND_ENABLED:-false}
     expose:
       - "3000"
     networks:

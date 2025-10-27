@@ -11,6 +11,8 @@ import { TemplateMailerService } from '../../infra/email/template-mailer.service
 
 @Injectable()
 export class ProjectApplicationService {
+  private readonly appName = process.env.APP_NAME ?? process.env.BRAND_NAME ?? 'CoFound';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: TemplateMailerService,
@@ -85,7 +87,7 @@ export class ProjectApplicationService {
         project_name: project.title,
         position_name: positionName,
         status: app.status,
-        app_name: process.env.APP_NAME,
+        app_name: this.appName,
       });
     }
 
@@ -101,7 +103,7 @@ export class ProjectApplicationService {
         project_name: project.title,
         applicant_name: applicant?.profiles?.display_name ?? applicant?.email,
         position_name: positionName,
-        app_name: process.env.APP_NAME,
+        app_name: this.appName,
       });
     }
 
@@ -308,7 +310,7 @@ export class ProjectApplicationService {
         project_name: app.projects.title,
         position_name: app.project_positions?.title,
         status: updated.status,
-        app_name: process.env.APP_NAME,
+        app_name: this.appName,
       });
     }
 
@@ -324,7 +326,7 @@ export class ProjectApplicationService {
         applicant_name: applicant?.profiles?.display_name ?? applicant?.email,
         position_name: updated.project_positions?.title ?? null,
         status: updated.status,
-        app_name: process.env.APP_NAME,
+        app_name: this.appName,
       });
     }
 
@@ -404,7 +406,7 @@ export class ProjectApplicationService {
         position_name: updated.project_positions?.title ?? null,
         status,
         decision_label: status === ApplicationStatus.ACCEPTED ? 'Accepted' : 'Rejected',
-        app_name: process.env.APP_NAME,
+        app_name: this.appName,
       });
     }
 
@@ -451,7 +453,7 @@ export class ProjectApplicationService {
         project_name: updated.projects?.title ?? app.project_id,
         position_name: updated.project_positions?.title ?? null,
         status: updated.status,
-        app_name: process.env.APP_NAME,
+        app_name: this.appName,
       });
     }
 

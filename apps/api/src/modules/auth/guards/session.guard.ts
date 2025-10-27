@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
 import jwt from 'jsonwebtoken';
+import type { Secret } from 'jsonwebtoken';
 import type { Request, Response } from 'express';
 import { AuthService } from '../auth.service';
 import { computeCookiePolicy } from '../../../common/utils/cookies.util';
@@ -8,6 +9,9 @@ import { computeCookiePolicy } from '../../../common/utils/cookies.util';
 const readAccess = (req: Request) =>
   req.cookies?.['access_token'] ?? (req.headers.authorization?.replace(/^Bearer\s+/i, '') || null);
 const readRefresh = (req: Request) => req.cookies?.['refresh_token'] ?? null;
+
+const ACCESS_TOKEN_SECRET: Secret = process.env.JWT_ACCESS_SECRET ?? 'dev-access';
+const REFRESH_TOKEN_SECRET: Secret = process.env.JWT_REFRESH_SECRET ?? 'dev-refresh';
 
 @Injectable()
 export class SessionGuard implements CanActivate {
@@ -32,7 +36,7 @@ export class SessionGuard implements CanActivate {
     }
 
     try {
-      const payload = jwt.verify(access, process.env.JWT_ACCESS_SECRET || 'dev-access');
+      const payload = jwt.verify(access, ACCESS_TOKEN_SECRET);
       (req as any).user = payload;
       return true;
     } catch (e: any) {
@@ -60,7 +64,7 @@ export class SessionGuard implements CanActivate {
   private async attemptRefresh(req: Request, res: Response, rt: string): Promise<boolean> {
     let refreshPayload: any;
     try {
-      refreshPayload = jwt.verify(rt, process.env.JWT_REFRESH_SECRET || 'dev-refresh');
+      refreshPayload = jwt.verify(rt, REFRESH_TOKEN_SECRET);
     } catch (jwtError: any) {
       console.log('❌ Invalid refresh token JWT:', jwtError?.message);
       this.clearCookiesSafely(req, res);
@@ -81,6 +85,12 @@ export class SessionGuard implements CanActivate {
       console.log('🔄 Refreshing tokens...', { sub, jti, role });
 
       const { accessToken, refreshToken } = await this.auth.refresh(sub, jti, role);
+
+      if (!accessToken || !refreshToken) {
+        console.log('❌ Refresh endpoint did not return both tokens');
+        this.clearCookiesSafely(req, res);
+        throw new UnauthorizedException('Invalid refresh response');
+      }
 
       const cookiePolicy = computeCookiePolicy(req);
 
@@ -104,7 +114,7 @@ export class SessionGuard implements CanActivate {
 
       console.log('✅ Tokens refreshed successfully');
 
-      const newPayload = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET || 'dev-access');
+      const newPayload = jwt.verify(accessToken, ACCESS_TOKEN_SECRET);
       (req as any).user = newPayload;
 
       return true;

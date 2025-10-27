@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { $Enums } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationType, EmailFrequency } from '../../common/enums/domain.enums';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
@@ -11,6 +12,10 @@ import { TemplateMailerService } from '../../infra/email/template-mailer.service
 
 @Injectable()
 export class NotificationService {
+  private toPrismaType(type: NotificationType): $Enums.notification_type {
+    return type as unknown as $Enums.notification_type;
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailer: TemplateMailerService,
@@ -48,7 +53,7 @@ export class NotificationService {
       .notifications.findMany({
         where: {
           user_id: userId,
-          type: type ?? undefined,
+          type: type ? this.toPrismaType(type) : undefined,
           is_read: unreadOnly ? false : undefined,
           ...cursorFilter,
         },
@@ -98,6 +103,14 @@ export class NotificationService {
     return value ? new Date(`1970-01-01T${value}Z`) : null;
   }
 
+  private resolveLocale(locale?: string | null): 'fr' | 'en' {
+    if (!locale) return 'en';
+    const normalized = locale.toLowerCase();
+    if (normalized === 'fr' || normalized.startsWith('fr-')) return 'fr';
+    if (normalized === 'en' || normalized.startsWith('en-')) return 'en';
+    return 'en';
+  }
+
   async updatePreference(
     userId: string,
     type: NotificationType,
@@ -114,11 +127,13 @@ export class NotificationService {
       updated_at: new Date(),
     };
     return this.prisma.prisma().notification_preferences.upsert({
-      where: { user_id_type: { user_id: userId, type } },
+      where: {
+        user_id_type: { user_id: userId, type: this.toPrismaType(type) },
+      },
       update: data,
       create: {
         user_id: userId,
-        type,
+        type: this.toPrismaType(type),
         site_enabled: site_enabled ?? true,
         email_frequency: email_frequency ?? EmailFrequency.immediate,
         quiet_hours_start: this.parseTime(quiet_hours_start ?? null),
@@ -129,7 +144,9 @@ export class NotificationService {
 
   private async getPreference(userId: string, type: NotificationType) {
     const pref = await this.prisma.prisma().notification_preferences.findUnique({
-      where: { user_id_type: { user_id: userId, type } },
+      where: {
+        user_id_type: { user_id: userId, type: this.toPrismaType(type) },
+      },
     });
     return {
       site_enabled: pref?.site_enabled ?? true,
@@ -172,7 +189,7 @@ export class NotificationService {
     const notif = await this.prisma.prisma().notifications.create({
       data: {
         user_id: args.userId,
-        type: args.type,
+        type: this.toPrismaType(args.type),
         subject_id: args.subject_id ?? null,
         actor_id: args.actor_id ?? null,
         project_id: args.project_id ?? null,
@@ -199,11 +216,11 @@ export class NotificationService {
   private async sendImmediateEmail(notif: any) {
     const user = await this.prisma.prisma().users.findUnique({
       where: { id: notif.user_id },
-      select: { email: true },
+      select: { email: true, locale: true },
     });
     if (!user) return;
 
-    const locale = 'en'; // TODO: fetch from user profile when available
+    const locale = this.resolveLocale(user.locale);
     await this.mailer.sendTemplate(
       user.email,
       notif.type,
@@ -218,8 +235,34 @@ export class NotificationService {
 
   @Cron('0 8 * * *')
   async runDailyDigest() {
+    const digestDailyUsers = await this.prisma.prisma().notification_preferences.findMany({
+      where: { email_frequency: EmailFrequency.digest_daily },
+      select: { user_id: true },
+    });
+
+    const quietImmediatePrefs = await this.prisma.prisma().notification_preferences.findMany({
+      where: {
+        email_frequency: EmailFrequency.immediate,
+        quiet_hours_start: { not: null },
+        quiet_hours_end: { not: null },
+      },
+      select: { user_id: true, quiet_hours_start: true, quiet_hours_end: true },
+    });
+
+    const targetUserIds = new Set<string>(digestDailyUsers.map((p) => p.user_id));
+    for (const pref of quietImmediatePrefs) {
+      if (this.inQuietHours(pref.quiet_hours_start, pref.quiet_hours_end)) {
+        targetUserIds.add(pref.user_id);
+      }
+    }
+
+    if (!targetUserIds.size) return;
+
     const notifs = await this.prisma.prisma().notifications.findMany({
-      where: { emailed_at: null },
+      where: {
+        emailed_at: null,
+        user_id: { in: Array.from(targetUserIds) },
+      },
     });
 
     const byUser: Record<string, any[]> = {};
@@ -238,10 +281,10 @@ export class NotificationService {
     for (const userId of Object.keys(byUser)) {
       const user = await this.prisma
         .prisma()
-        .users.findUnique({ where: { id: userId }, select: { email: true } });
+        .users.findUnique({ where: { id: userId }, select: { email: true, locale: true } });
       if (!user) continue;
       const list = byUser[userId];
-      const locale = 'en';
+      const locale = this.resolveLocale(user.locale);
       await this.mailer.sendTemplate(user.email, 'digest', locale, {
         count: list.length,
         notifications: list,
@@ -255,8 +298,18 @@ export class NotificationService {
 
   @Cron('0 8 * * 1')
   async runWeeklyDigest() {
+    const weeklyUsers = await this.prisma.prisma().notification_preferences.findMany({
+      where: { email_frequency: EmailFrequency.digest_weekly },
+      select: { user_id: true },
+    });
+
+    if (!weeklyUsers.length) return;
+
     const notifs = await this.prisma.prisma().notifications.findMany({
-      where: { emailed_at: null },
+      where: {
+        emailed_at: null,
+        user_id: { in: weeklyUsers.map((u) => u.user_id) },
+      },
     });
     const byUser: Record<string, any[]> = {};
     for (const n of notifs) {
@@ -269,10 +322,10 @@ export class NotificationService {
     for (const userId of Object.keys(byUser)) {
       const user = await this.prisma
         .prisma()
-        .users.findUnique({ where: { id: userId }, select: { email: true } });
+        .users.findUnique({ where: { id: userId }, select: { email: true, locale: true } });
       if (!user) continue;
       const list = byUser[userId];
-      const locale = 'en';
+      const locale = this.resolveLocale(user.locale);
       await this.mailer.sendTemplate(user.email, 'digest', locale, {
         count: list.length,
         notifications: list,

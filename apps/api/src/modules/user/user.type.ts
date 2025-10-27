@@ -15,6 +15,9 @@ export class User {
   @Field(() => UserStatus)
   status!: UserStatus;
 
+  @Field(() => String, { defaultValue: 'en' })
+  locale!: string;
+
   @Field(() => GraphQLISODateTime, { nullable: true })
   last_login_at?: Date | null;
 
@@ -23,4 +26,7 @@ export class User {
 
   @Field(() => GraphQLISODateTime)
   updated_at!: Date;
+
+  @Field(() => GraphQLISODateTime, { nullable: true })
+  email_verified_at?: Date | null;
 }

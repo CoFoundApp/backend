@@ -52,6 +52,8 @@ services:
       - .env
     environment:
       NODE_ENV: development
+      APP_NAME: ${APP_NAME:-CoFound}
+      GRAPHQL_PLAYGROUND_ENABLED: ${GRAPHQL_PLAYGROUND_ENABLED:-true}
       PNPM_STORE_DIR: /usr/src/app/.pnpm-store
     ports:
       - "3000:3000"
