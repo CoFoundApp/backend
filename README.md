@@ -54,6 +54,7 @@ pipeline d'emails temps réel.
    - `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` : pour l'envoi des emails (Mailhog en dev).
    - `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` si vous testez la facturation.
    - `APP_BASE_URL`, `BRAND_URL`, `BRAND_LOGO_URL` : URLs utilisées dans les emails/notifications.
+   - `OAUTH_ALLOWED_REDIRECT_ORIGINS` : liste (séparée par des virgules) d'origines supplémentaires autorisées pour les callbacks OAuth.
    - `COOKIE_BASE_DOMAIN` : domaine parent pour les cookies (ex: `.localhost`).
    - `GRAPHQL_PLAYGROUND_ENABLED` : laisser `false` en prod pour éviter d'exposer le schéma.
    - `OPENAI_API_KEY` / `MISTRAL_API_KEY` + `EMBEDDING_PROVIDER` pour choisir le moteur d'embeddings.

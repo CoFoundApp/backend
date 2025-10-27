@@ -11,7 +11,7 @@ export function computeCookiePolicy(req: Request): {
   sameSite: 'lax' | 'none';
   domain?: string;
 } {
-  const baseDomain = process.env.COOKIE_BASE_DOMAIN || '.cofound-app.com';
+  const baseDomain = process.env.COOKIE_BASE_DOMAIN || '.cofounds.app.com';
   const origin = req.headers.origin || '';
   const host = req.headers.host || '';
 
@@ -20,8 +20,8 @@ export function computeCookiePolicy(req: Request): {
   const isHttps = xfProto === 'https' || (req as any).secure === true;
 
   const isLocalOrigin = /^https?:\/\/localhost(:\d+)?$/.test(origin);
-  const isProductionAPI = host.includes('.cofound-app.com');
-  const isProductionOrigin = origin.includes('.cofound-app.com');
+  const isProductionAPI = host.includes('.cofounds.app.com');
+  const isProductionOrigin = origin.includes('.cofounds.app.com');
 
   // Cas 1: Local frontend → Production API (dev cross-domain)
   if (isLocalOrigin && isProductionAPI) {
@@ -112,7 +112,7 @@ export function clearAuthCookies(res: any, req: Request) {
   // Supprime aussi avec toutes les variations possibles (cleanup)
   const domainsToClean = [
     undefined,
-    '.cofound-app.com',
+    '.cofounds.app.com',
     'localhost',
   ];
 

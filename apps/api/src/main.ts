@@ -32,6 +32,21 @@ async function bootstrap() {
 
   app.use('/stripe/webhook', express.raw({ type: '*/*' }));
 
+  app.use('/uploads', (req: any, res: { setHeader: (arg0: string, arg1: string) => void; }, next: () => void) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    const headerOrigin =
+      allowedOrigin === '*'
+        ? '*'
+        : allowedOrigin.split(',').map(o => o.trim())[0] || 'https://dashboard.cofounds.app';
+    res.setHeader('Access-Control-Allow-Origin', headerOrigin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, Range');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    next();
+  });
+
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+
   const cspDirectives = helmet.contentSecurityPolicy.getDefaultDirectives();
   app.use(
     helmet({
@@ -48,6 +63,8 @@ async function bootstrap() {
             }
           : false,
       crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginEmbedderPolicy: false,
     }),
   );
 
@@ -55,7 +72,7 @@ async function bootstrap() {
   app.use(json({ limit: bodyLimit }));
   app.use(urlencoded({ limit: bodyLimit, extended: true }));
   app.use(graphqlUploadExpress({ maxFileSize: 10_000_000, maxFiles: 10 }));
-  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+
   app.use(compression());
 
   app.useGlobalPipes(

@@ -61,6 +61,8 @@ export class OAuthService {
       throw new BadRequestException('Invalid redirect URI');
     }
 
+    const allowedOrigins = new Set<string>();
+
     const allowedBase = process.env.APP_BASE_URL;
     if (allowedBase) {
       let allowed: URL;
@@ -70,9 +72,25 @@ export class OAuthService {
         throw new BadRequestException('Invalid server configuration for APP_BASE_URL');
       }
 
-      if (allowed.origin !== target.origin) {
-        throw new BadRequestException('Redirect URI is not allowed');
+      allowedOrigins.add(allowed.origin);
+    }
+
+    const additionalOrigins = process.env.OAUTH_ALLOWED_REDIRECT_ORIGINS;
+    if (additionalOrigins) {
+      for (const value of additionalOrigins.split(',').map((item) => item.trim()).filter(Boolean)) {
+        let parsed: URL;
+        try {
+          parsed = new URL(value);
+        } catch {
+          throw new BadRequestException('Invalid server configuration for OAUTH_ALLOWED_REDIRECT_ORIGINS');
+        }
+
+        allowedOrigins.add(parsed.origin);
       }
+    }
+
+    if (allowedOrigins.size > 0 && !allowedOrigins.has(target.origin)) {
+      throw new BadRequestException('Redirect URI is not allowed');
     }
 
     return target.toString();
