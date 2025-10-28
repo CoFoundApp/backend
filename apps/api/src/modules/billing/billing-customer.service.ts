@@ -3,6 +3,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { StripeService } from './stripe/stripe.service';
 import { ConfigService } from '@nestjs/config';
 import { StripeCustomer } from './stripe/stripe.types';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Injectable()
 export class BillingCustomerService {
@@ -43,7 +44,7 @@ export class BillingCustomerService {
       include: { profiles: true },
     });
     if (!user) {
-      throw new Error(`User ${userId} not found when creating Stripe customer`);
+      throw AppError.notFound('user.not.found', { details: { userId } });
     }
 
     const organization = organizationId

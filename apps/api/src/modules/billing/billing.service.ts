@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { BillingCatalogService } from './catalog/billing.catalog.service';
@@ -9,6 +9,7 @@ import { BillingCustomerService } from './billing-customer.service';
 import { BillingEntitlementsService } from './billing-entitlements.service';
 import { CustomerPortalSessionInput } from './dto/customer-portal-session.input';
 import { plan_interval, subscription_collection_method, subscription_status } from '@prisma/client';
+import { AppError } from '../../common/errors/app-error.factory';
 
 
 interface CheckoutSessionResponse {
@@ -85,7 +86,9 @@ export class BillingService {
 
 
     if (!variant.stripePriceId) {
-      throw new BadRequestException(`Stripe price not configured for plan ${dto.planCode} (${dto.interval})`);
+      throw AppError.badRequest('billing.priceNotConfigured', {
+        params: { plan: dto.planCode, interval: dto.interval },
+      });
     }
 
 
@@ -178,7 +181,7 @@ export class BillingService {
       where: { user_id: userId },
     });
     if (!billingCustomer) {
-      throw new NotFoundException('Aucun client Stripe lié au compte.');
+      throw AppError.notFound('billing.stripeCustomerMissing');
     }
 
 
@@ -300,7 +303,9 @@ export class BillingService {
   private async activateFreePlan(userId: string, organizationId: string | null, variant: BillingPlanVariant) {
     const plan = await this.prisma.plans.findUnique({ where: { code: variant.planCodeForDatabase } });
     if (!plan) {
-      throw new NotFoundException(`Plan ${variant.planCodeForDatabase} introuvable`);
+      throw AppError.notFound('billing.planNotFound', {
+        params: { plan: variant.planCodeForDatabase },
+      });
     }
 
 
