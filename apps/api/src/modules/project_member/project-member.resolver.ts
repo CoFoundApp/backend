@@ -1,11 +1,12 @@
 import { Resolver, Query, Mutation, Args, ResolveField, Parent } from '@nestjs/graphql';
-import { UseGuards, UnauthorizedException } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
 import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { ProjectMember, ProjectInvitation } from './project-member.type';
 import { ProjectMemberService } from './project-member.service';
 import { MemberRole } from '../../common/enums/domain.enums';
 import { User } from '../user/user.type';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Resolver(() => ProjectMember)
 export class ProjectMemberResolver {
@@ -17,7 +18,7 @@ export class ProjectMemberResolver {
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.members.listMembers(user.sub, projectId);
   }
 
@@ -27,7 +28,7 @@ export class ProjectMemberResolver {
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.members.listInvitations(user.sub, projectId);
   }
 
@@ -39,7 +40,7 @@ export class ProjectMemberResolver {
     @Args('invitee_id', { type: () => String }) inviteeId: string,
     @Args('role', { type: () => MemberRole, nullable: true }) role?: MemberRole,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.members.invite(user.sub, projectId, inviteeId, role ?? MemberRole.MEMBER);
   }
 
@@ -50,7 +51,7 @@ export class ProjectMemberResolver {
     @Args('project_id', { type: () => String }) projectId: string,
     @Args('invitation_id', { type: () => String }) invitationId: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.members.accept(user.sub, projectId, invitationId);
   }
 
@@ -61,7 +62,7 @@ export class ProjectMemberResolver {
     @Args('project_id', { type: () => String }) projectId: string,
     @Args('invitation_id', { type: () => String }) invitationId: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.members.decline(user.sub, projectId, invitationId);
   }
 
@@ -71,7 +72,7 @@ export class ProjectMemberResolver {
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.members.leave(user.sub, projectId);
   }
 
@@ -82,7 +83,7 @@ export class ProjectMemberResolver {
     @Args('project_id', { type: () => String }) projectId: string,
     @Args('user_id', { type: () => String }) userId: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.members.remove(user.sub, projectId, userId);
   }
 
@@ -94,7 +95,7 @@ export class ProjectMemberResolver {
     @Args('user_id', { type: () => String }) userId: string,
     @Args('role', { type: () => MemberRole }) role: MemberRole,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.members.updateRole(user.sub, projectId, userId, role);
   }
 

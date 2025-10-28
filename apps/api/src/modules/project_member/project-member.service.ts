@@ -1,8 +1,9 @@
-import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { MemberRole } from '../../common/enums/domain.enums';
 import { PrismaClient } from '@prisma/client';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Injectable()
 export class ProjectMemberService {
@@ -16,7 +17,7 @@ export class ProjectMemberService {
   private async getUserContact(userId: string) {
     return this.prisma.prisma().users.findUnique({
       where: { id: userId },
-      select: { email: true, profiles: { select: { display_name: true } } },
+      select: { email: true, locale:true, profiles: { select: { display_name: true } } },
     });
   }
 
@@ -28,14 +29,15 @@ export class ProjectMemberService {
   }
 
   private displayName(u?: { email?: string; profiles?: { display_name?: string | null } | null } | null) {
-      return u?.profiles?.display_name ?? u?.email ?? 'User';
-    }
+    return u?.profiles?.display_name ?? u?.email ?? 'User';
+  }
 
   private async safeSend(to: string | null | undefined, template: string, payload: Record<string, any>) {
     if (!to) return;
     try {
+      const locale = payload.locale || 'fr';
       const finalPayload = payload.app_name ? payload : { ...payload, app_name: this.appName };
-      await this.mail.sendTemplate(to, template, 'en', finalPayload);
+      await this.mail.sendTemplate(to, template, locale, finalPayload);
     } catch (e) {
       console.log('mail send failed', { template, to, e });
     }
@@ -65,7 +67,7 @@ export class ProjectMemberService {
   async listInvitations(userId: string, projectId: string) {
     const me = await this.getMembership(projectId, userId);
     if (!me || (me.role !== 'owner' && me.role !== 'maintainer'))
-      throw new ForbiddenException('Not allowed');
+      throw AppError.forbidden('not.allowed');
     return this.prisma.prisma().project_invitations.findMany({
       where: { project_id: projectId },
     });
@@ -73,16 +75,16 @@ export class ProjectMemberService {
 
   async invite(inviterId: string, projectId: string, inviteeId: string, role: MemberRole) {
     if (inviterId === inviteeId)
-      throw new BadRequestException('Cannot invite yourself');
+      throw AppError.badRequest('cannot.invite.yourself');
     const inviter = await this.getMembership(projectId, inviterId);
     if (!inviter || (inviter.role !== 'owner' && inviter.role !== 'maintainer'))
-      throw new ForbiddenException('Not allowed');
+      throw AppError.forbidden('not.allowed');
     const existingMember = await this.getMembership(projectId, inviteeId);
-    if (existingMember) throw new BadRequestException('Already member');
+    if (existingMember) throw AppError.badRequest('already.member');
     const pending = await this.prisma.prisma().project_invitations.findFirst({
       where: { project_id: projectId, invitee_id: inviteeId, status: 'pending' },
     });
-    if (pending) throw new BadRequestException('Invitation already pending');
+    if (pending) throw AppError.badRequest('invitation.already.pending');
 
     const result = this.prisma.prisma().project_invitations.create({
       data: {
@@ -108,6 +110,7 @@ export class ProjectMemberService {
       app_name: this.appName,
       project_title: project?.title ?? projectId,
       inviter_name: this.displayName(inviterContact),
+      locale: invitee?.locale,
       role,
       expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
     });
@@ -118,6 +121,7 @@ export class ProjectMemberService {
       project_title: project?.title ?? projectId,
       inviter_name: this.displayName(inviterContact),
       invitee_name: this.displayName(invitee),
+      locale: owner?.locale,
       role,
     });
 
@@ -127,11 +131,11 @@ export class ProjectMemberService {
   async accept(userId: string, projectId: string, invitationId: string) {
     const inv = await this.prisma.prisma().project_invitations.findUnique({ where: { id: invitationId } });
     if (!inv || inv.project_id !== projectId || inv.invitee_id !== userId || inv.status !== 'pending') {
-      throw new NotFoundException('Invitation not found');
+      throw AppError.notFound('invitation.not.found');
     }
 
     if (inv.expires_at && inv.expires_at < new Date())
-      throw new BadRequestException('Invitation expired');
+      throw AppError.badRequest('invitation.expired');
 
     const client = this.prisma.prisma() as unknown as PrismaClient;
 
@@ -157,6 +161,7 @@ export class ProjectMemberService {
     await this.safeSend(user?.email, 'invitation_accepted', {
       app_name: this.appName,
       project_title: project?.title ?? projectId,
+      locale: user?.locale,
       role: 'member',
     });
 
@@ -165,6 +170,7 @@ export class ProjectMemberService {
       app_name: this.appName,
       project_title: project?.title ?? projectId,
       invitee_name: this.displayName(user),
+      locale: owner?.locale,
       role: 'member',
     });
 
@@ -174,9 +180,9 @@ export class ProjectMemberService {
   async decline(userId: string, projectId: string, invitationId: string) {
     const inv = await this.prisma.prisma().project_invitations.findUnique({ where: { id: invitationId } });
     if (!inv || inv.project_id !== projectId || inv.invitee_id !== userId || inv.status !== 'pending')
-      throw new NotFoundException('Invitation not found');
+      throw AppError.notFound('invitation.not.found');
     if (inv.expires_at && inv.expires_at < new Date())
-      throw new BadRequestException('Invitation expired');
+      throw AppError.badRequest('invitation.expired');
 
     const [project, user, owner] = await Promise.all([
       this.getProjectInfo(projectId),
@@ -188,6 +194,7 @@ export class ProjectMemberService {
     await this.safeSend(user?.email, 'invitation_declined', {
       app_name: this.appName,
       project_title: project?.title ?? projectId,
+      locale: user?.locale,
     });
 
     // Owner
@@ -195,6 +202,7 @@ export class ProjectMemberService {
       app_name: this.appName,
       project_title: project?.title ?? projectId,
       invitee_name: this.displayName(user),
+      locale: owner?.locale
     });
 
     return this.prisma.prisma().project_invitations.update({
@@ -205,12 +213,12 @@ export class ProjectMemberService {
 
   async leave(userId: string, projectId: string) {
     const member = await this.getMembership(projectId, userId);
-    if (!member) throw new NotFoundException('Not a member');
+    if (!member) throw AppError.notFound('not.a.member');
     if (member.role === 'owner') {
       const owners = await this.prisma.prisma().project_members.count({
         where: { project_id: projectId, role: 'owner', NOT: { user_id: userId } },
       });
-      if (owners === 0) throw new BadRequestException('Cannot leave as sole owner');
+      if (owners === 0) throw AppError.badRequest('cannot.leave.as.sole.owner');
     }
     await this.prisma.prisma().project_members.delete({
       where: { project_id_user_id: { project_id: projectId, user_id: userId } },
@@ -226,6 +234,7 @@ export class ProjectMemberService {
     await this.safeSend(user?.email, 'leave_confirmed', {
       app_name: this.appName,
       project_title: project?.title ?? projectId,
+      locale: user?.locale,
     });
 
     // Owner (un membre est parti)
@@ -233,6 +242,7 @@ export class ProjectMemberService {
       app_name: this.appName,
       project_title: project?.title ?? projectId,
       member_name: this.displayName(user),
+      locale: owner?.locale,
     });
 
     return true;
@@ -241,11 +251,11 @@ export class ProjectMemberService {
   async remove(actorId: string, projectId: string, userId: string) {
     const actor = await this.getMembership(projectId, actorId);
     if (!actor || (actor.role !== 'owner' && actor.role !== 'maintainer'))
-      throw new ForbiddenException('Not allowed');
+      throw AppError.forbidden('not.allowed');
     const target = await this.getMembership(projectId, userId);
-    if (!target) throw new NotFoundException('Member not found');
+    if (!target) throw AppError.notFound('member.not.found');
     if (target.role === 'owner')
-      throw new BadRequestException('Cannot remove owner');
+      throw AppError.badRequest('cannot.remove.owner');
     await this.prisma.prisma().project_members.delete({
       where: { project_id_user_id: { project_id: projectId, user_id: userId } },
     });
@@ -261,6 +271,7 @@ export class ProjectMemberService {
     await this.safeSend(targetContact?.email, 'member_removed', {
       app_name: this.appName,
       project_title: project?.title ?? projectId,
+      locale: targetContact?.locale,
     });
 
     // Owner (confirmation / audit)
@@ -269,6 +280,7 @@ export class ProjectMemberService {
       project_title: project?.title ?? projectId,
       member_name: this.displayName(targetContact),
       actor_name: this.displayName(actorContact),
+      locale: owner?.locale,
     });
 
     return true;
@@ -276,14 +288,14 @@ export class ProjectMemberService {
 
   async updateRole(actorId: string, projectId: string, userId: string, role: MemberRole) {
     const actor = await this.getMembership(projectId, actorId);
-    if (!actor || actor.role !== 'owner') throw new ForbiddenException('Not allowed');
+    if (!actor || actor.role !== 'owner') throw AppError.forbidden('not.allowed');
     const target = await this.getMembership(projectId, userId);
-    if (!target) throw new NotFoundException('Member not found');
+    if (!target) throw AppError.notFound('member.not.found');
     if (target.role === 'owner' && role !== 'owner') {
       const owners = await this.prisma.prisma().project_members.count({
         where: { project_id: projectId, role: 'owner', NOT: { user_id: userId } },
       });
-      if (owners === 0) throw new BadRequestException('Cannot remove last owner');
+      if (owners === 0) throw AppError.badRequest('cannot.remove.last.owner');
     }
 
     const [project, actorContact, targetContact, owner] = await Promise.all([
@@ -297,6 +309,7 @@ export class ProjectMemberService {
     await this.safeSend(targetContact?.email, 'role_updated', {
       app_name: this.appName,
       project_title: project?.title ?? projectId,
+      locale: targetContact?.locale,
       role,
     });
 
@@ -306,6 +319,7 @@ export class ProjectMemberService {
       project_title: project?.title ?? projectId,
       member_name: this.displayName(targetContact),
       actor_name: this.displayName(actorContact),
+      locale: owner?.locale,
       role,
     });
 
