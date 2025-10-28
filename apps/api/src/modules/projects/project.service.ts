@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Inject, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CreateProjectInput } from './dto/create-project.input';
 import { UpdateProjectInput } from './dto/update-project.input';
@@ -17,6 +17,8 @@ import { toVectorLiteral } from '../../common/utils/vector.util';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
 import { ProjectListFiltersInput, ProjectListPageInput, ProjectListResult, ProjectListSortBy, ProjectListSortInput } from './dto/project-list.input';
 import { Project as GqlProject } from './project.type';
+import { AppError } from '../../common/errors/app-error.factory';
+import { AppException } from '../../common/errors/app-exception';
 
 import { Prisma, PrismaClient } from '@prisma/client';
 import { JobsService } from '../../queue/jobs.service';
@@ -267,7 +269,7 @@ export class ProjectService implements OnModuleDestroy{
 
       const fullProject = await this.findById(project.id);
       if (!fullProject) {
-        throw new Error('Project creation succeeded but re-fetch failed');
+        throw AppError.internal('project.refetchFailed');
       }
 
       void this.jobs
@@ -282,7 +284,8 @@ export class ProjectService implements OnModuleDestroy{
 
     } catch (error) {
       console.error('Error creating project:', error);
-      throw error;
+      if (error instanceof AppException) throw error;
+      throw AppError.internal('project.createFailed');
     }
   }
 
@@ -408,8 +411,8 @@ export class ProjectService implements OnModuleDestroy{
   async update(id: string, ownerId: string, input: UpdateProjectInput) {
     const client = this.prisma.prisma();
     const existing = await client.projects.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Project not found');
-    if (existing.owner_id !== ownerId) throw new ForbiddenException('Not owner');
+    if (!existing) throw AppError.notFound('project.not.found');
+    if (existing.owner_id !== ownerId) throw AppError.forbidden('not.owner');
 
     if (this.isPrismaClientWithTransaction(client)) {
       return client.$transaction(tx => this.executeProjectUpdate(tx, id, input));
@@ -422,8 +425,8 @@ export class ProjectService implements OnModuleDestroy{
     const existing = await this.prisma.prisma().projects.findUnique({
       where: { id }, select: { owner_id: true, title: true },
     });
-    if (!existing) throw new NotFoundException('Project not found');
-    if (existing.owner_id !== ownerId) throw new ForbiddenException('Not owner');
+    if (!existing) throw AppError.notFound('project.not.found');
+    if (existing.owner_id !== ownerId) throw AppError.forbidden('not.owner');
 
     const [owner, memberIds] = await Promise.all([
       this.prisma.prisma().users.findUnique({
@@ -837,7 +840,8 @@ export class ProjectService implements OnModuleDestroy{
 
     } catch (error) {
       console.error('Search failed:', error);
-      throw error;
+      if (error instanceof AppException) throw error;
+      throw AppError.internal('project.searchFailed');
     }
   }
 

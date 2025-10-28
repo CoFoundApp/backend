@@ -1,9 +1,10 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { UserRole, UserStatus } from '../../common/enums/domain.enums';
 import { mapRoleToPrisma, mapStatusToPrisma } from '../../common/enums/enum-mapper';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
+import { AppError } from '../../common/errors/app-error.factory';
 
 const BCRYPT_ROUNDS = Number(process.env.SECURITY_BCRYPT_ROUNDS ?? 12);
 
@@ -65,7 +66,7 @@ export class UserService {
 
       return user;
     } catch (e: any) {
-      if (e?.code === 'P2002') throw new ConflictException('Email already exists');
+      if (e?.code === 'P2002') throw AppError.conflict('email.already.exists');
       throw e;
     }
   }
@@ -73,16 +74,16 @@ export class UserService {
   /** mise à jour utilisateur */
   async updateUserAdmin(id: string, role?: UserRole, status?: UserStatus) {
     const user = await this.prisma.prisma().users.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw AppError.notFound('user.not.found');
 
-      const updated = await this.prisma.prisma().users.update({
-        where: { id },
-        data: {
-          role: role ? mapRoleToPrisma(role) : undefined,
-          status: status ? mapStatusToPrisma(status) : undefined,
-        },
-        select: { id: true, email: true, role: true, status: true, locale: true, created_at: true, updated_at: true },
-      });
+    const updated = await this.prisma.prisma().users.update({
+      where: { id },
+      data: {
+        role: role ? mapRoleToPrisma(role) : undefined,
+        status: status ? mapStatusToPrisma(status) : undefined,
+      },
+      select: { id: true, email: true, role: true, status: true, locale: true, created_at: true, updated_at: true },
+    });
 
     if (role || status) {
       await this.safeSend(updated.email, 'user_account_updated', {
@@ -131,16 +132,16 @@ export class UserService {
       where: { id },
       select: { id: true, email: true, password_hash: true },
     });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw AppError.notFound('user.not.found');
 
     let password_hash: string | undefined;
     if (input.password) {
       if (!input.currentPassword) {
-        throw new ConflictException('Current password is required to change password');
+        throw AppError.conflict('current.password.is.required.to.change.password');
       }
       const ok = await bcrypt.compare(input.currentPassword, user.password_hash ?? '');
       if (!ok) {
-        throw new ConflictException('Current password is invalid');
+        throw AppError.conflict('current.password.is.invalid');
       }
       password_hash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
     }
@@ -168,7 +169,7 @@ export class UserService {
 
       return updated;
     } catch (e: any) {
-      if (e?.code === 'P2002') throw new ConflictException('Email already exists');
+      if (e?.code === 'P2002') throw AppError.conflict('email.already.exists');
       throw e;
     }
   }
