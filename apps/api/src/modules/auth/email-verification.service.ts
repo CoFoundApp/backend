@@ -1,8 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { randomBytes, createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
+import { AppError } from '../../common/errors/app-error.factory';
 
 const DEFAULT_VERIFICATION_TTL = 60 * 60 * 24;
 
@@ -55,7 +56,7 @@ export class EmailVerificationService {
     return { token, expiresAt };
   }
 
-  async sendVerificationEmail(userId: string, email: string, locale = 'en', context: { reason: 'signup' | 'change' }) {
+  async sendVerificationEmail(userId: string, email: string, locale: string, context: { reason: 'signup' | 'change' }) {
     const { token, expiresAt } = await this.createToken(userId, email);
 
     const verificationUrl = `${this.appBaseUrl.replace(/\/$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
@@ -78,19 +79,19 @@ export class EmailVerificationService {
     });
 
     if (!record || record.expires_at.getTime() < Date.now()) {
-      throw new NotFoundException('Invalid or expired verification token');
+      throw AppError.notFound('invalid.or.expired.verification.token');
     }
 
     return this.withTransaction(async (tx) => {
       const user = await tx.users.findUnique({ where: { id: record.user_id } });
-      if (!user) throw new NotFoundException('User not found');
+      if (!user) throw AppError.notFound('user.not.found');
 
       const targetEmail = record.email.toLowerCase();
       const isPendingChange = user.pending_email?.toLowerCase() === targetEmail;
       const matchesCurrent = user.email.toLowerCase() === targetEmail;
 
       if (!isPendingChange && !matchesCurrent) {
-        throw new NotFoundException('Token does not match any pending email change');
+        throw AppError.notFound('token.does.not.match.any.pending.email.change');
       }
 
       await tx.email_verification_tokens.update({
@@ -101,7 +102,7 @@ export class EmailVerificationService {
       if (isPendingChange) {
         const existing = await tx.users.findUnique({ where: { email: targetEmail } });
         if (existing && existing.id !== user.id) {
-          throw new ConflictException('Email already in use');
+          throw AppError.conflict('email.already.in.use');
         }
       }
 

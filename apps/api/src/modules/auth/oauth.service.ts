@@ -1,8 +1,9 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Issuer, Client, generators } from 'openid-client';
 import type Redis from 'ioredis';
 import { REDIS } from '../../infra/redis/redis.module';
 import { OAuthProvider } from './dto/oauth-provider.enum';
+import { AppError } from '../../common/errors/app-error.factory';
 
 interface ProviderConfig {
   issuer: string;
@@ -58,7 +59,7 @@ export class OAuthService {
     try {
       target = new URL(redirectUri);
     } catch {
-      throw new BadRequestException('Invalid redirect URI');
+      throw AppError.badRequest('invalid.redirect.uri');
     }
 
     const allowedOrigins = new Set<string>();
@@ -69,7 +70,7 @@ export class OAuthService {
       try {
         allowed = new URL(allowedBase);
       } catch {
-        throw new BadRequestException('Invalid server configuration for APP_BASE_URL');
+        throw AppError.badRequest('invalid.server.configuration.for.app.base.url');
       }
 
       allowedOrigins.add(allowed.origin);
@@ -82,7 +83,7 @@ export class OAuthService {
         try {
           parsed = new URL(value);
         } catch {
-          throw new BadRequestException('Invalid server configuration for OAUTH_ALLOWED_REDIRECT_ORIGINS');
+          throw AppError.badRequest('invalid.server.configuration.for.oauth.allowed.redirect.origins');
         }
 
         allowedOrigins.add(parsed.origin);
@@ -90,7 +91,7 @@ export class OAuthService {
     }
 
     if (allowedOrigins.size > 0 && !allowedOrigins.has(target.origin)) {
-      throw new BadRequestException('Redirect URI is not allowed');
+      throw AppError.badRequest('redirect.uri.is.not.allowed');
     }
 
     return target.toString();
@@ -100,13 +101,15 @@ export class OAuthService {
     if (!this.clients.has(provider)) {
       const config = PROVIDER_CONFIG[provider];
       if (!config) {
-        throw new BadRequestException('Unsupported provider');
+        throw AppError.badRequest('unsupported.provider');
       }
       const clientPromise = Issuer.discover(config.issuer).then((issuer) => {
         const clientId = process.env[config.clientIdEnv];
         const clientSecret = process.env[config.clientSecretEnv];
         if (!clientId || !clientSecret) {
-          throw new BadRequestException(`${config.clientIdEnv} or ${config.clientSecretEnv} missing`);
+          throw AppError.badRequest('oauth.missingClientCredentials', {
+            params: { clientIdEnv: config.clientIdEnv, clientSecretEnv: config.clientSecretEnv },
+          });
         }
         return new issuer.Client({
           client_id: clientId,
@@ -125,7 +128,7 @@ export class OAuthService {
   async createAuthorizationUrl(provider: OAuthProvider, redirectUri: string) {
     const config = PROVIDER_CONFIG[provider];
     if (!config) {
-      throw new BadRequestException('Unsupported provider');
+      throw AppError.badRequest('unsupported.provider');
     }
 
     const safeRedirect = this.validateRedirectUri(redirectUri);
@@ -160,12 +163,12 @@ export class OAuthService {
     const code = params.code;
 
     if (!state || !code) {
-      throw new BadRequestException('Missing state or code');
+      throw AppError.badRequest('missing.state.or.code');
     }
 
     const storedRaw = await this.redis.get(this.buildStateKey(state));
     if (!storedRaw) {
-      throw new BadRequestException('Invalid or expired OAuth state');
+      throw AppError.badRequest('invalid.or.expired.oauth.state');
     }
     await this.redis.del(this.buildStateKey(state));
 
@@ -173,11 +176,11 @@ export class OAuthService {
     try {
       stored = JSON.parse(storedRaw) as StoredOAuthState;
     } catch {
-      throw new BadRequestException('Invalid OAuth state payload');
+      throw AppError.badRequest('invalid.oauth.state.payload');
     }
 
     if (stored.provider !== provider) {
-      throw new BadRequestException('Provider mismatch');
+      throw AppError.badRequest('provider.mismatch');
     }
 
     const client = await this.getClient(provider);
@@ -198,7 +201,7 @@ export class OAuthService {
     const picture = (userInfo as any)?.picture ?? (claims as any)?.picture;
 
     if (!email || !providerUserId) {
-      throw new BadRequestException('Provider did not return required profile information');
+      throw AppError.badRequest('provider.did.not.return.required.profile.information');
     }
 
     const profile: OAuthProfile = {
