@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
@@ -26,6 +19,7 @@ import { TemplateMailerService } from '../../infra/email/template-mailer.service
 import { EmailVerificationService } from './email-verification.service';
 import { TwoFactorService } from './two-factor.service';
 import { OAuthProfile } from './oauth.service';
+import { AppError } from '../../common/errors/app-error.factory';
 
 function parseTTLToSeconds(str: string | undefined, defSeconds: number): number {
   if (!str) return defSeconds;
@@ -69,11 +63,27 @@ export class AuthService {
   ) {}
 
   private normalizeLocale(locale?: string | null): 'fr' | 'en' {
-    if (!locale) return 'en';
+    if (!locale) return 'fr';
     const normalized = locale.toLowerCase();
     if (normalized === 'fr' || normalized.startsWith('fr-')) return 'fr';
     if (normalized === 'en' || normalized.startsWith('en-')) return 'en';
-    return 'en';
+    return 'fr';
+  }
+
+  async resolveSessionContext(userId: string | null | undefined): Promise<{ locale: 'fr' | 'en' }> {
+    if (!userId) {
+      return { locale: 'fr' };
+    }
+
+    const user = await this.prisma
+      .prisma()
+      .users.findUnique({ where: { id: userId }, select: { locale: true } });
+
+    if (!user) {
+      throw AppError.unauthorized('session.expired.please.login.again');
+    }
+
+    return { locale: this.normalizeLocale(user.locale) };
   }
 
   async signup(input: SignupInput): Promise<TokensOutput> {
@@ -83,7 +93,7 @@ export class AuthService {
       .prisma()
       .users.findUnique({ where: { email } })
       .catch(() => null);
-    if (exists) throw new ConflictException('Email already registered');
+    if (exists) throw AppError.conflict('email.already.registered');
 
     const password_hash = await bcrypt.hash(input.password, this.bcryptRounds);
     const user = await this.prisma.prisma().users.create({
@@ -122,10 +132,10 @@ export class AuthService {
         },
       },
     });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user) throw AppError.unauthorized('invalid.credentials');
 
     const ok = await bcrypt.compare(input.password, user.password_hash);
-    if (!ok) throw new UnauthorizedException('Invalid credentials');
+    if (!ok) throw AppError.unauthorized('invalid.credentials');
 
     return this.handlePostAuthentication(user, {
       twoFactorCode: input.twoFactorCode,
@@ -220,7 +230,7 @@ export class AuthService {
     }
 
     if (!profile.emailVerified && !user.email_verified_at) {
-      await this.emailVerification.sendVerificationEmail(user.id, user.email, 'en', { reason: 'signup' });
+      await this.emailVerification.sendVerificationEmail(user.id, user.email, user.locale ?? 'en', { reason: 'signup' });
     }
 
     return this.handlePostAuthentication(user, {});
@@ -278,12 +288,12 @@ export class AuthService {
       });
 
       if (!record || record.expires_at.getTime() < now.getTime()) {
-        throw new BadRequestException('Invalid or expired reset token');
+        throw AppError.badRequest('invalid.or.expired.reset.token');
       }
 
       const user = await tx.users.findUnique({ where: { id: record.user_id } });
       if (!user) {
-        throw new BadRequestException('Invalid or expired reset token');
+        throw AppError.badRequest('invalid.or.expired.reset.token');
       }
 
       await tx.users.update({
@@ -310,7 +320,7 @@ export class AuthService {
   async completeTwoFactorLogin(input: CompleteTwoFactorInput): Promise<TokensOutput> {
     const userId = await this.twoFactor.consumeChallenge(input.token);
     if (!userId) {
-      throw new UnauthorizedException('Invalid or expired two-factor session');
+      throw AppError.unauthorized('invalid.or.expired.two.factor.session');
     }
 
     const user = await this.prisma.prisma().users.findUnique({
@@ -323,22 +333,22 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw AppError.unauthorized('user.not.found');
     }
 
     const enabled = await this.twoFactor.isEnabled(user.id);
     if (!enabled) {
-      throw new UnauthorizedException('Two-factor authentication is not enabled');
+      throw AppError.unauthorized('two.factor.authentication.is.not.enabled');
     }
 
     if (input.code) {
       const valid = await this.twoFactor.verifyTotp(user.id, input.code);
-      if (!valid) throw new UnauthorizedException('Invalid two-factor code');
+      if (!valid) throw AppError.unauthorized('invalid.two.factor.code');
     } else if (input.backupCode) {
       const valid = await this.twoFactor.verifyBackupCode(user.id, input.backupCode);
-      if (!valid) throw new UnauthorizedException('Invalid backup code');
+      if (!valid) throw AppError.unauthorized('invalid.backup.code');
     } else {
-      throw new BadRequestException('Two-factor verification code required');
+      throw AppError.badRequest('two.factor.verification.code.required');
     }
 
     return this.buildTokenResponse(user.id, String(user.role || 'user'), !!user.email_verified_at);
@@ -346,9 +356,9 @@ export class AuthService {
 
   async generateTwoFactorSetup(userId: string): Promise<TwoFactorSetupOutput> {
     const user = await this.prisma.prisma().users.findUnique({ where: { id: userId } });
-    if (!user) throw new UnauthorizedException('User not found');
+    if (!user) throw AppError.unauthorized('user.not.found');
     if (!user.email_verified_at) {
-      throw new ForbiddenException('Verify your email before enabling two-factor authentication');
+      throw AppError.forbidden('verify.your.email.before.enabling.two.factor.authentication');
     }
     return this.twoFactor.generateSetup(userId, user.email);
   }
@@ -364,12 +374,12 @@ export class AuthService {
 
     if (input.code) {
       const ok = await this.twoFactor.verifyTotp(userId, input.code);
-      if (!ok) throw new UnauthorizedException('Invalid two-factor code');
+      if (!ok) throw AppError.unauthorized('invalid.two.factor.code');
     } else if (input.backupCode) {
       const ok = await this.twoFactor.verifyBackupCode(userId, input.backupCode);
-      if (!ok) throw new UnauthorizedException('Invalid backup code');
+      if (!ok) throw AppError.unauthorized('invalid.backup.code');
     } else {
-      throw new BadRequestException('Two-factor verification required');
+      throw AppError.badRequest('two.factor.verification.required');
     }
 
     await this.twoFactor.disable(userId);
@@ -379,17 +389,17 @@ export class AuthService {
   async regenerateTwoFactorCodes(userId: string, input: RegenerateTwoFactorCodesInput): Promise<TwoFactorBackupCodesOutput> {
     const enabled = await this.twoFactor.isEnabled(userId);
     if (!enabled) {
-      throw new BadRequestException('Two-factor authentication is not enabled');
+      throw AppError.badRequest('two.factor.authentication.is.not.enabled');
     }
 
     if (input.code) {
       const ok = await this.twoFactor.verifyTotp(userId, input.code);
-      if (!ok) throw new UnauthorizedException('Invalid two-factor code');
+      if (!ok) throw AppError.unauthorized('invalid.two.factor.code');
     } else if (input.backupCode) {
       const ok = await this.twoFactor.verifyBackupCode(userId, input.backupCode);
-      if (!ok) throw new UnauthorizedException('Invalid backup code');
+      if (!ok) throw AppError.unauthorized('invalid.backup.code');
     } else {
-      throw new BadRequestException('Two-factor verification required');
+      throw AppError.badRequest('two.factor.verification.required');
     }
 
     const codes = await this.twoFactor.regenerateBackupCodes(userId);
@@ -409,7 +419,7 @@ export class AuthService {
       where: { id: userId },
       select: { id: true, email: true, pending_email: true, email_verified_at: true, locale: true },
     });
-    if (!user) throw new UnauthorizedException('User not found');
+    if (!user) throw AppError.unauthorized('user.not.found');
 
     if (!user.pending_email && user.email_verified_at) {
       return true;
@@ -429,10 +439,10 @@ export class AuthService {
       where: { id: userId },
       select: { id: true, email: true, pending_email: true, locale: true },
     });
-    if (!user) throw new UnauthorizedException('User not found');
+    if (!user) throw AppError.unauthorized('user.not.found');
 
     if (user.email === target) {
-      throw new BadRequestException('This email is already your current email');
+      throw AppError.badRequest('this.email.is.already.your.current.email');
     }
 
     const resolvedLocale = this.normalizeLocale(locale ?? user.locale);
@@ -443,7 +453,7 @@ export class AuthService {
     }
 
     const exists = await this.prisma.prisma().users.findUnique({ where: { email: target } });
-    if (exists) throw new ConflictException('Email already in use');
+    if (exists) throw AppError.conflict('email.already.in.use');
 
     await this.prisma.prisma().users.update({
       where: { id: user.id },
@@ -482,11 +492,11 @@ export class AuthService {
     const storedUserId = await this.redis.get(key);
 
     if (!storedUserId) {
-      throw new UnauthorizedException('Refresh token expired or invalid');
+      throw AppError.unauthorized('refresh.token.expired.or.invalid');
     }
 
     if (storedUserId !== userId) {
-      throw new UnauthorizedException('Refresh token revoked or invalid');
+      throw AppError.unauthorized('refresh.token.revoked.or.invalid');
     }
 
     await this.redis.del(key);
@@ -525,12 +535,12 @@ export class AuthService {
     if (totpEnabled) {
       if (options.twoFactorCode) {
         const ok = await this.twoFactor.verifyTotp(user.id, options.twoFactorCode);
-        if (!ok) throw new UnauthorizedException('Invalid two-factor code');
+        if (!ok) throw AppError.unauthorized('invalid.two.factor.code');
         return this.buildTokenResponse(user.id, role, emailVerified);
       }
       if (options.twoFactorBackupCode) {
         const ok = await this.twoFactor.verifyBackupCode(user.id, options.twoFactorBackupCode);
-        if (!ok) throw new UnauthorizedException('Invalid backup code');
+        if (!ok) throw AppError.unauthorized('invalid.backup.code');
         return this.buildTokenResponse(user.id, role, emailVerified);
       }
       const challenge = await this.twoFactor.createChallenge(user.id);

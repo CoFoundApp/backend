@@ -1,5 +1,5 @@
 import { Resolver, Query, Args, Mutation, Int, ResolveField, Parent } from '@nestjs/graphql';
-import { UseGuards, UnauthorizedException, forwardRef, Inject } from '@nestjs/common';
+import { UseGuards, forwardRef, Inject } from '@nestjs/common';
 import { SessionGuard } from '../auth/guards/session.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -19,6 +19,7 @@ import { ProfileEmbeddingService } from '../embedding/profile-embedding.service'
 import { JobsService } from '../../queue/jobs.service';
 import { Logger } from '@nestjs/common';
 import { UploadService } from '../upload/upload.service';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Resolver(() => Profile)
 export class ProfileResolver {
@@ -54,7 +55,7 @@ export class ProfileResolver {
   @UseGuards(SessionGuard)
   @Query(() => Profile, { description: 'Lecture de mon profil' })
   async myProfile(@CurrentUser() user: JwtUser) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.profiles.ensureMyProfile(user.sub);
   }
 
@@ -62,7 +63,7 @@ export class ProfileResolver {
   @UseGuards(SessionGuard)
   @Mutation(() => Profile, { description: 'Mise à jour de mon profil' })
   async updateMyProfile(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyProfileInput) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     if (input.avatar) {
       const storedAvatar = await this.uploads.save(input.avatar);
       input.avatar_url = storedAvatar.url;
@@ -101,7 +102,7 @@ export class ProfileResolver {
   @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Mise à jour de mes compétences' })
   async updateMySkills(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMySkillsInput) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
 
     await this.skillsService.attachToUser(user.sub, input.addIds ?? [], input.removeIds ?? []);
     await this.profileEmbedding.recomputeForUser(user.sub);
@@ -112,7 +113,7 @@ export class ProfileResolver {
   @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Mise à jour de mes intérêts' })
   async updateMyInterests(@CurrentUser() user: JwtUser, @Args('input') input: UpdateMyInterestsInput) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     await this.interestsService.attachToUser(user.sub, input.addIds ?? [], input.removeIds ?? []);
     await this.profileEmbedding.recomputeForUser(user.sub);
     return true;

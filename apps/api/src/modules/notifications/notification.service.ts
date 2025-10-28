@@ -1,13 +1,10 @@
-import {
-  Injectable,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { $Enums } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationType, EmailFrequency } from '../../common/enums/domain.enums';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
+import { AppError } from '../../common/errors/app-error.factory';
 
 
 @Injectable()
@@ -76,8 +73,8 @@ export class NotificationService {
     const notif = await this.prisma.prisma().notifications.findUnique({
       where: { id },
     });
-    if (!notif) throw new NotFoundException('Notification not found');
-    if (notif.user_id !== userId) throw new ForbiddenException('Not owner');
+    if (!notif) throw AppError.notFound('notification.not.found');
+    if (notif.user_id !== userId) throw AppError.forbidden('not.owner');
     await this.prisma.prisma().notifications.update({
       where: { id },
       data: { is_read: true, updated_at: new Date() },

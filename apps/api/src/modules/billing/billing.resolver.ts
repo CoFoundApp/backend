@@ -1,5 +1,5 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
-import { UseGuards, UnauthorizedException } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import {
   BillingPlanPublicType,
@@ -14,6 +14,7 @@ import { CustomerPortalSessionInput } from './dto/customer-portal-session.input'
 import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { BillingInterval, BillingPlanCode } from './billing.types';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Resolver()
 export class BillingResolver {
@@ -35,7 +36,7 @@ export class BillingResolver {
     @Args('input') input: CreateCheckoutSessionInput,
   ): Promise<BillingCheckoutSessionType> {
     if (!user) {
-      throw new UnauthorizedException();
+      throw AppError.unauthorized();
     }
 
     const session = await this.billing.createCheckoutSession(user.sub, input);
@@ -57,7 +58,7 @@ export class BillingResolver {
     @Args('input') input: CustomerPortalSessionInput,
   ): Promise<BillingPortalSessionType> {
     if (!user) {
-      throw new UnauthorizedException();
+      throw AppError.unauthorized();
     }
 
     const session = await this.billing.createCustomerPortalSession(user.sub, input);
@@ -71,7 +72,7 @@ export class BillingResolver {
   })
   async myBillingSubscription(@CurrentUser() user: JwtUser): Promise<BillingSubscriptionSummaryType | null> {
     if (!user) {
-      throw new UnauthorizedException();
+      throw AppError.unauthorized();
     }
 
     const subscription = await this.billing.getLatestSubscriptionForUser(user.sub);
@@ -95,7 +96,7 @@ export class BillingResolver {
   })
   async myBillingHistory(@CurrentUser() user: JwtUser): Promise<BillingHistoryType> {
     if (!user) {
-      throw new UnauthorizedException();
+      throw AppError.unauthorized();
     }
 
     return this.billing.getBillingHistoryForUser(user.sub);

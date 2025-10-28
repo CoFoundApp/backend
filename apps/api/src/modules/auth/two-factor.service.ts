@@ -1,4 +1,4 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { authenticator } from 'otplib';
 import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
@@ -6,6 +6,7 @@ import type Redis from 'ioredis';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { REDIS } from '../../infra/redis/redis.module';
+import { AppError } from '../../common/errors/app-error.factory';
 
 const TFA_CHALLENGE_PREFIX = 'tfa';
 const DEFAULT_CHALLENGE_TTL = 300;
@@ -28,7 +29,7 @@ export class TwoFactorService {
     const rawKey = process.env.TOTP_ENCRYPTION_KEY ?? DEFAULT_ENCRYPTION_FALLBACK;
     const key = Buffer.from(rawKey, 'base64');
     if (key.length !== 32) {
-      throw new Error('TOTP_ENCRYPTION_KEY must be a 32-byte base64 value');
+      throw AppError.internal('totp.invalidEncryptionKey');
     }
     this.encryptionKey = key;
     this.challengeTtl = Number(process.env.TWO_FACTOR_CHALLENGE_TTL ?? DEFAULT_CHALLENGE_TTL);
@@ -89,7 +90,7 @@ export class TwoFactorService {
   async enable(userId: string, secret: string, code: string) {
     const isValid = authenticator.check(code, secret);
     if (!isValid) {
-      throw new UnauthorizedException('Invalid two-factor code');
+      throw AppError.unauthorized('invalid.two.factor.code');
     }
 
     const encrypted = this.encryptSecret(secret);

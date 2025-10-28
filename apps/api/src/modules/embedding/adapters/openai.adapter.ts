@@ -1,4 +1,5 @@
 import { EmbeddingPort } from '../embedding.port';
+import { AppError } from '../../../common/errors/app-error.factory';
 
 export class OpenAIEmbeddingAdapter implements EmbeddingPort {
   constructor(
@@ -15,7 +16,11 @@ export class OpenAIEmbeddingAdapter implements EmbeddingPort {
       },
       body: JSON.stringify({ model: this.model, input: text }),
     });
-    if (!res.ok) throw new Error(`OpenAI embeddings: ${res.status} ${await res.text()}`);
+    if (!res.ok) {
+      throw AppError.serviceUnavailable('embedding.openAiRequestFailed', {
+        details: { status: res.status, body: await res.text() },
+      });
+    }
     const json = await res.json();
     const vec: number[] = json?.data?.[0]?.embedding ?? [];
     return vec;

@@ -1,4 +1,4 @@
-import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { BillingWebhookService } from '../billing-webhook.service';
 import { BillingEntitlementsService } from '../billing-entitlements.service';
@@ -18,6 +18,7 @@ import {
   BillingPlanCode,
   BillingPlanCodeEnum,
 } from '../billing.types';
+import { AppError } from '../../../common/errors/app-error.factory';
 
 @Injectable()
 export class BillingAdminService {
@@ -71,7 +72,7 @@ export class BillingAdminService {
 
   async regenerateInvoiceSequence(year: number) {
     if (process.env.NODE_ENV === 'production') {
-      throw new ForbiddenException('Invoice sequence regeneration is read-only in production');
+      throw AppError.forbidden('invoice.sequence.regeneration.is.read.only.in.production');
     }
     const invoices = await this.prisma.invoices.findMany({
       where: {

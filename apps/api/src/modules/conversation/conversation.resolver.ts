@@ -1,5 +1,5 @@
 import { Resolver, Query, Mutation, Args, Subscription } from '@nestjs/graphql';
-import { UseGuards, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
 import { ConversationService } from './conversation.service';
 import { Conversation, Message, MessageConnection } from './conversation.type';
 import { SessionGuard } from '../auth/guards/session.guard';
@@ -7,6 +7,7 @@ import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { Inject } from '@nestjs/common';
 import { PUB_SUB } from './conversation.constants';
 import { PubSubEngine } from 'graphql-subscriptions';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Resolver(() => Conversation)
 export class ConversationResolver {
@@ -18,7 +19,7 @@ export class ConversationResolver {
   @UseGuards(SessionGuard)
   @Query(() => [Conversation], { description: 'List my conversations' })
   async conversationsQuery(@CurrentUser() user: JwtUser) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.conversations.listConversations(user.sub);
   }
 
@@ -28,7 +29,7 @@ export class ConversationResolver {
     @CurrentUser() user: JwtUser,
     @Args('user_id', { type: () => String }) user_id: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.conversations.createConversation(user.sub, user_id);
   }
 
@@ -40,7 +41,7 @@ export class ConversationResolver {
     @Args('cursor', { type: () => String, nullable: true }) cursor?: string,
     @Args('limit', { type: () => Number, nullable: true }) limit?: number,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.conversations.listMessages(user.sub, conversation_id, limit ?? 20, cursor);
   }
 
@@ -51,7 +52,7 @@ export class ConversationResolver {
     @Args('conversation_id', { type: () => String }) conversation_id: string,
     @Args('content', { type: () => String }) content: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.conversations.sendMessage(user.sub, conversation_id, content);
   }
 
@@ -61,7 +62,7 @@ export class ConversationResolver {
     @CurrentUser() user: JwtUser,
     @Args('conversation_id', { type: () => String }) conversation_id: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.conversations.markRead(user.sub, conversation_id);
   }
 
@@ -73,9 +74,9 @@ export class ConversationResolver {
     @Args('conversation_id', { type: () => String }) conversation_id: string,
     @CurrentUser() user: JwtUser,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     const ok = await this.conversations.isParticipant(conversation_id, user.sub);
-    if (!ok) throw new ForbiddenException('Not a participant');
+    if (!ok) throw AppError.forbidden('conversation.notParticipant');
     return this.pubsub.asyncIterableIterator<Message>(`messageAdded:${conversation_id}`);
   }
 }

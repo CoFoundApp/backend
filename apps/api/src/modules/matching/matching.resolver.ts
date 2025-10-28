@@ -1,5 +1,5 @@
 import { Resolver, Query, Args, Int } from '@nestjs/graphql';
-import { UseGuards, UnauthorizedException } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
 import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { MatchingService } from './matching.service';
@@ -10,6 +10,7 @@ import { MatchExplanationFilterInput } from './types/match-explanation-filter.in
 import { MatchProfilesInput } from './types/match-profiles-input.type';
 import { MatchProjectsInput } from './types/match-projects-input.type';
 import { MatchDetailLevel } from './types/match-detail-level.enum';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Resolver()
 export class MatchingResolver {
@@ -24,7 +25,7 @@ export class MatchingResolver {
     @Args('preselect', { type: () => Int, nullable: true, defaultValue: 200 }) preselect?: number,
     @Args('maxDistance', { type: () => Number, nullable: true, defaultValue: 0.4 }) maxDistance?: number,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.matching.suggestProfilesForUser(user.sub, limit ?? 20, preselect ?? 200, maxDistance ?? 0.4);
   }
 

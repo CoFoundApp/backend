@@ -1,5 +1,5 @@
 import { Resolver, Mutation, Args, Query, ResolveField, Parent } from '@nestjs/graphql';
-import { UseGuards, UnauthorizedException } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
 import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import {
@@ -14,6 +14,7 @@ import { ProjectPosition } from '../project-position/project-position.type';
 import { Project } from '../projects/project.type';
 import { User } from '../user/user.type';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Resolver(() => ProjectApplication)
 export class ProjectApplicationResolver {
@@ -29,7 +30,7 @@ export class ProjectApplicationResolver {
     @CurrentUser() user: JwtUser,
     @Args('input') input: ApplyProjectInput,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     if (input.attachments?.length) {
       const storedAttachments = await Promise.all(
         input.attachments.map((f) => this.uploadService.save(f)),
@@ -50,7 +51,7 @@ export class ProjectApplicationResolver {
     @Args('cursor', { type: () => String, nullable: true }) cursor?: string,
     @Args('limit', { type: () => Number, nullable: true }) limit?: number,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.applications.list(
       user.sub,
       status ?? undefined,
@@ -74,7 +75,7 @@ export class ProjectApplicationResolver {
     @Args('cursor', { type: () => String, nullable: true }) cursor?: string,
     @Args('limit', { type: () => Number, nullable: true }) limit?: number,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
 
     return this.applications.listProjectApplications(
       projectId,
@@ -96,7 +97,7 @@ export class ProjectApplicationResolver {
     @Args('position_id', { type: () => String, nullable: true })
     positionId?: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.applications.decide(user.sub, id, status, positionId ?? undefined);
   }
 
@@ -106,7 +107,7 @@ export class ProjectApplicationResolver {
     @CurrentUser() user: JwtUser,
     @Args('id', { type: () => String }) id: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.applications.withdraw(user.sub, id);
   }
 
@@ -116,11 +117,10 @@ export class ProjectApplicationResolver {
     @CurrentUser() user: JwtUser,
     @Args('id', { type: () => String }) id: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.applications.cancel(user.sub, id);
   }
-
-    @ResolveField(() => User)
+  @ResolveField(() => User)
   async applicant(@Parent() application: ProjectApplication) {
     return this.prisma.users.findUnique({
       where: { id: application.applicant_id },

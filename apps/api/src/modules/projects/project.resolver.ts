@@ -1,5 +1,5 @@
 import { Resolver, Query, Mutation, Args, Float, Int } from '@nestjs/graphql';
-import { UseGuards, UnauthorizedException } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
 import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { Project } from './project.type';
@@ -11,6 +11,7 @@ import { ProjectSearchHit } from './project-search-hit.type';
 import { UploadService } from '../upload/upload.service';
 import { ProjectListFiltersInput, ProjectListPageInput, ProjectListResult, ProjectListSortInput } from './dto/project-list.input';
 import { mapProjectRowToGql } from './project.service';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Resolver(() => Project)
 export class ProjectResolver {
@@ -23,7 +24,7 @@ export class ProjectResolver {
   @UseGuards(SessionGuard)
   @Query(() => Project, { nullable: true, description: 'Récupérer un projet par ID avec skills et interests' })
   async projectById(@CurrentUser() user: JwtUser, @Args('id', { type: () => String }) id: string) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     const p = await this.projects.findById(id);
     if (!p) return null;
     return mapProjectRowToGql(p);
@@ -32,7 +33,7 @@ export class ProjectResolver {
   @UseGuards(SessionGuard)
   @Query(() => [Project], { description: 'Lister mes projets avec skills et interests' })
   async listMyProjects(@CurrentUser() user: JwtUser) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     const projects = await this.projects.listByOwnerOrMember(user.sub);
     return projects.map(mapProjectRowToGql);
   }
@@ -59,7 +60,7 @@ export class ProjectResolver {
   @UseGuards(SessionGuard)
   @Mutation(() => Project, { description: 'Créer un projet' })
   async createProject(@CurrentUser() user: JwtUser, @Args('input') input: CreateProjectInput) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     if (input.attachments?.length) {
       const storedAttachments = await Promise.all(
         input.attachments.map((f) => this.uploads.save(f)),
@@ -86,7 +87,7 @@ export class ProjectResolver {
     @Args('id', { type: () => String }) id: string,
     @Args('input') input: UpdateProjectInput,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     if (input.attachments?.length) {
       const storedAttachments = await Promise.all(
         input.attachments.map((f) => this.uploads.save(f)),
@@ -109,7 +110,7 @@ export class ProjectResolver {
   @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Supprimer un projet' })
   async deleteProject(@CurrentUser() user: JwtUser, @Args('id', { type: () => String }) id: string) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.projects.delete(id, user.sub);
   }
 }

@@ -3,6 +3,8 @@ import * as Handlebars from 'handlebars';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { EMAIL_PROVIDER, EmailProvider } from './email.types';
+import { AppError } from '../../common/errors/app-error.factory';
+import { AppException } from '../../common/errors/app-exception';
 
 interface LoadedTemplate {
   subject: string;
@@ -47,7 +49,8 @@ export class TemplateMailerService {
       this.layoutLoaded = true;
     } catch (error) {
       console.error('Erreur lors du chargement du template layout:', error);
-      throw error;
+      if (error instanceof AppException) throw error;
+      throw AppError.internal('email.layoutLoadFailed');
     }
   }
 
@@ -60,7 +63,9 @@ export class TemplateMailerService {
     const template = await this.loadTemplate(templateName, locale);
     if (!template) {
       console.error(`Template '${templateName}' non trouvé pour locale '${locale}' ni fallback 'en'`);
-      return;
+      throw AppError.notFound('email.templateNotFound', {
+        details: { template: templateName, locale },
+      });
     }
 
     await this.ensureLayout();
@@ -90,15 +95,20 @@ export class TemplateMailerService {
       subject = Handlebars.compile(template.subject)(merged);
       html = Handlebars.compile(template.html)({ ...merged, subject });
       text = template.text ? Handlebars.compile(template.text)({ ...merged, subject }) : undefined;
-    } catch (err) {
-      console.error('Erreur dans la compilation des templates:', err);
-      return;
+    } catch (error) {
+      console.error('Erreur dans la compilation des templates:', error);
+      if (error instanceof AppException) throw error;
+      throw AppError.internal('email.templateCompilationFailed', {
+        details: { template: templateName },
+      });
     }
 
     try {
       await this.email.send(to, subject, html, text);
-    } catch (err) {
-      console.error('Erreur lors de l\'envoi de l\'email:', err);
+    } catch (error) {
+      console.error("Erreur lors de l'envoi de l'email:", error);
+      if (error instanceof AppException) throw error;
+      throw AppError.serviceUnavailable('email.sendFailed');
     }
   }
 }

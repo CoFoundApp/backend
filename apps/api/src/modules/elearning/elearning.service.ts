@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma, points_source_type } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -21,6 +21,7 @@ import {
   PublishStatus,
   QuestionType,
 } from './elearning.enums';
+import { AppError } from '../../common/errors/app-error.factory';
 
 const GAMIFICATION_POINTS = {
   lessonSeen: 1,
@@ -103,7 +104,7 @@ export class ElearningService {
       },
     });
     if (count >= entitlements.enrollmentCap) {
-      throw new ForbiddenException('ENROLLMENT_CAP_REACHED');
+      throw AppError.forbidden('enrollment.cap.reached');
     }
   }
 
@@ -128,9 +129,9 @@ export class ElearningService {
         templateAssets: true,
       },
     });
-    if (!course) throw new NotFoundException('Course not found');
+    if (!course) throw AppError.notFound('course.not.found');
     if (!includeDraft && course.status !== PublishStatus.PUBLISHED) {
-      throw new ForbiddenException('Course not published');
+      throw AppError.forbidden('course.not.published');
     }
     return course;
   }
@@ -232,9 +233,9 @@ export class ElearningService {
         templateAssets: true,
       },
     });
-    if (!lesson) throw new NotFoundException('Lesson not found');
+    if (!lesson) throw AppError.notFound('lesson.not.found');
     if (!includeDraft && lesson.status !== PublishStatus.PUBLISHED) {
-      throw new ForbiddenException('Lesson not published');
+      throw AppError.forbidden('lesson.not.published');
     }
     return lesson;
   }
@@ -248,9 +249,9 @@ export class ElearningService {
 
   async enrollInCourse(userId: string, courseId: string, role?: Role | null) {
     const course = await this.prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) throw new NotFoundException('Course not found');
+    if (!course) throw AppError.notFound('course.not.found');
     if (course.status !== PublishStatus.PUBLISHED && role !== Role.admin && role !== Role.creator) {
-      throw new ForbiddenException('Course not available for enrollment');
+      throw AppError.forbidden('course.not.available.for.enrollment');
     }
     const existing = await this.prisma.enrollment.findUnique({
       where: { courseId_userId: { courseId, userId } },
@@ -297,7 +298,7 @@ export class ElearningService {
         payload: { courseId, title: course.title },
       });
       const finalEnrollment = await tx.enrollment.findUnique({ where: { id: enrollmentId! }, include: { progress: true } });
-      if (!finalEnrollment) throw new NotFoundException('Enrollment not found after update');
+      if (!finalEnrollment) throw AppError.notFound('enrollment.not.found.after.update');
       return finalEnrollment;
     });
   }
@@ -307,13 +308,13 @@ export class ElearningService {
       where: { id: lessonId },
       include: { section: { include: { course: true } }, quiz: true },
     });
-    if (!lesson) throw new NotFoundException('Lesson not found');
+    if (!lesson) throw AppError.notFound('lesson.not.found');
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { courseId_userId: { courseId: lesson.section.courseId, userId } },
       include: { progress: true },
     });
-    if (!enrollment) throw new ForbiddenException('Not enrolled in course');
-    if (enrollment.status === PrismaEnrollmentStatus.CANCELLED) throw new ForbiddenException('Enrollment cancelled');
+    if (!enrollment) throw AppError.forbidden('not.enrolled.in.course');
+    if (enrollment.status === PrismaEnrollmentStatus.CANCELLED) throw AppError.forbidden('enrollment.cancelled');
     return { lesson, enrollment: enrollment! };
   }
 
@@ -333,11 +334,11 @@ export class ElearningService {
     const { lesson, enrollment } = await this.getEnrollmentForLesson(userId, lessonId);
     const publishedCount = await this.countPublishedLessons(lesson.section.courseId);
     if (publishedCount === 0) {
-      throw new BadRequestException('Course has no published lessons');
+      throw AppError.badRequest('course.has.no.published.lessons');
     }
     return this.prisma.$transaction(async (tx) => {
       const progress = await tx.progress.findUnique({ where: { enrollmentId: enrollment.id } });
-      if (!progress) throw new NotFoundException('Progress not found');
+      if (!progress) throw AppError.notFound('progress.not.found');
       const state = (progress.lessonState as Prisma.JsonObject | null) ?? {};
       const stateRecord = state as Record<string, any>;
       const existing = stateRecord[lessonId] ?? {};
@@ -380,7 +381,7 @@ export class ElearningService {
       case QuestionType.MCQ:
       case QuestionType.SINGLE: {
         if (!Array.isArray(expected) && question.type === QuestionType.MCQ) {
-          throw new BadRequestException('MCQ answer must be an array');
+          throw AppError.badRequest('mcq.answer.must.be.an.array');
         }
         return JSON.stringify(normalizedExpected) === JSON.stringify(normalizedProvided);
       }
@@ -392,7 +393,7 @@ export class ElearningService {
       }
       case QuestionType.LONG_TEXT:
       case QuestionType.CODE: {
-        throw new BadRequestException('Manual grading required for this question type');
+        throw AppError.badRequest('manual.grading.required.for.this.question.type');
       }
       default:
         return false;
@@ -407,18 +408,18 @@ export class ElearningService {
         questions: { orderBy: { position: 'asc' } },
       },
     });
-    if (!quiz) throw new NotFoundException('Quiz not found');
+    if (!quiz) throw AppError.notFound('quiz.not.found');
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { courseId_userId: { courseId: quiz.lesson.section.courseId, userId } },
       include: { progress: true },
     });
-    if (!enrollment) throw new ForbiddenException('Not enrolled');
+    if (!enrollment) throw AppError.forbidden('not.enrolled');
     const totalQuestions = quiz.questions.length;
-    if (totalQuestions === 0) throw new BadRequestException('Quiz has no questions');
+    if (totalQuestions === 0) throw AppError.badRequest('quiz.has.no.questions');
     let correct = 0;
     for (const question of quiz.questions) {
       if ([QuestionType.LONG_TEXT, QuestionType.CODE].includes(question.type as QuestionType)) {
-        throw new BadRequestException('Manual grading questions are not supported in auto-grader yet');
+        throw AppError.badRequest('manual.grading.questions.are.not.supported.in.auto.grader.yet');
       }
       const answer = answers[question.id];
       if (this.gradeQuestion(question, answer)) correct += 1;
@@ -436,7 +437,7 @@ export class ElearningService {
         },
       });
       const progress = await tx.progress.findUnique({ where: { enrollmentId: enrollment.id } });
-      if (!progress) throw new NotFoundException('Progress not found');
+      if (!progress) throw AppError.notFound('progress.not.found');
       const state = (progress.lessonState as Prisma.JsonObject | null) ?? {};
       const stateRecord = state as Record<string, any>;
       const lessonId = quiz.lessonId;
@@ -540,7 +541,7 @@ export class ElearningService {
 
   async getAdminCourseStats(courseId: string) {
     const course = await this.prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) throw new NotFoundException('Course not found');
+    if (!course) throw AppError.notFound('course.not.found');
     const [totalEnrollments, activeEnrollments, completedEnrollments, scoreAggregate, completedRecords] = await this.prisma.$transaction([
       this.prisma.enrollment.count({ where: { courseId } }),
       this.prisma.enrollment.count({ where: { courseId, status: PrismaEnrollmentStatus.ACTIVE } }),
@@ -575,15 +576,15 @@ export class ElearningService {
   private async ensureCourseAuthor(courseId: string, userId: string, role?: Role | null) {
     if (role === Role.admin) return;
     const course = await this.prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) throw new NotFoundException('Course not found');
-    if (course.authorId !== userId) throw new ForbiddenException('Not course owner');
+    if (!course) throw AppError.notFound('course.not.found');
+    if (course.authorId !== userId) throw AppError.forbidden('not.course.owner');
   }
 
   async upsertCourse(input: UpsertCourseInput, userId: string, role?: Role | null) {
     if (input.id) await this.ensureCourseAuthor(input.id, userId, role);
     const entitlements = await this.resolveEntitlements(userId, role ?? null);
     if (!input.id && !entitlements.canCreateCourse && role !== Role.admin) {
-      throw new ForbiddenException('Plan does not allow course creation');
+      throw AppError.forbidden('plan.does.not.allow.course.creation');
     }
     return this.prisma.$transaction(async (tx) => {
       const baseData: Prisma.CourseUncheckedCreateInput = {
@@ -662,13 +663,13 @@ export class ElearningService {
         },
       },
     });
-    if (!course) throw new NotFoundException('Course not found');
-    if (!course.sections.length) throw new BadRequestException('Course requires sections before publishing');
+    if (!course) throw AppError.notFound('course.not.found');
+    if (!course.sections.length) throw AppError.badRequest('course.requires.sections.before.publishing');
     const totalLessons = course.sections.reduce((acc, section) => acc + section.lessons.length, 0);
-    if (!totalLessons) throw new BadRequestException('Course requires lessons before publishing');
+    if (!totalLessons) throw AppError.badRequest('course.requires.lessons.before.publishing');
     for (const section of course.sections) {
       for (const lesson of section.lessons) {
-        if (!lesson.blocks.length) throw new BadRequestException('Lessons must contain content blocks before publishing');
+        if (!lesson.blocks.length) throw AppError.badRequest('lessons.must.contain.content.blocks.before.publishing');
       }
     }
   }
@@ -683,7 +684,7 @@ export class ElearningService {
           where: { authorId: userId, status: PublishStatus.PUBLISHED as any },
         });
         if (publishedCount >= entitlements.creatorCourseCap) {
-          throw new ForbiddenException('Creator course cap reached');
+          throw AppError.forbidden('creator.course.cap.reached');
         }
       }
     }
@@ -747,7 +748,7 @@ export class ElearningService {
 
   async deleteSection(id: string, userId: string, role?: Role | null) {
     const section = await this.prisma.section.findUnique({ include: { course: true }, where: { id } });
-    if (!section) throw new NotFoundException('Section not found');
+    if (!section) throw AppError.notFound('section.not.found');
     await this.ensureCourseAuthor(section.courseId, userId, role);
     await this.prisma.section.delete({ where: { id } });
     return true;
@@ -755,7 +756,7 @@ export class ElearningService {
 
   async upsertLesson(input: UpsertLessonInput, userId: string, role?: Role | null) {
     const section = await this.prisma.section.findUnique({ include: { course: true }, where: { id: input.sectionId } });
-    if (!section) throw new NotFoundException('Section not found');
+    if (!section) throw AppError.notFound('section.not.found');
     await this.ensureCourseAuthor(section.courseId, userId, role);
     return this.prisma.$transaction(async (tx) => {
       let lesson;
@@ -806,7 +807,7 @@ export class ElearningService {
 
   async reorderLessons(sectionId: string, orderedIds: string[], userId: string, role?: Role | null) {
     const section = await this.prisma.section.findUnique({ where: { id: sectionId } });
-    if (!section) throw new NotFoundException('Section not found');
+    if (!section) throw AppError.notFound('section.not.found');
     await this.ensureCourseAuthor(section.courseId, userId, role);
     await this.prisma.$transaction(async (tx) => {
       for (let index = 0; index < orderedIds.length; index += 1) {
@@ -821,7 +822,7 @@ export class ElearningService {
 
   async deleteLesson(id: string, userId: string, role?: Role | null) {
     const lesson = await this.prisma.lesson.findUnique({ include: { section: true }, where: { id } });
-    if (!lesson) throw new NotFoundException('Lesson not found');
+    if (!lesson) throw AppError.notFound('lesson.not.found');
     await this.ensureCourseAuthor(lesson.section.courseId, userId, role);
     await this.prisma.lesson.delete({ where: { id } });
     return true;
@@ -829,7 +830,7 @@ export class ElearningService {
 
   async upsertBlock(input: UpsertBlockInput, userId: string, role?: Role | null) {
     const lesson = await this.prisma.lesson.findUnique({ include: { section: true }, where: { id: input.lessonId } });
-    if (!lesson) throw new NotFoundException('Lesson not found');
+    if (!lesson) throw AppError.notFound('lesson.not.found');
     await this.ensureCourseAuthor(lesson.section.courseId, userId, role);
     let block;
     if (input.id) {
@@ -860,7 +861,7 @@ export class ElearningService {
 
   async reorderBlocks(lessonId: string, orderedIds: string[], userId: string, role?: Role | null) {
     const lesson = await this.prisma.lesson.findUnique({ include: { section: true }, where: { id: lessonId } });
-    if (!lesson) throw new NotFoundException('Lesson not found');
+    if (!lesson) throw AppError.notFound('lesson.not.found');
     await this.ensureCourseAuthor(lesson.section.courseId, userId, role);
     await this.prisma.$transaction(async (tx) => {
       for (let index = 0; index < orderedIds.length; index += 1) {
@@ -872,7 +873,7 @@ export class ElearningService {
 
   async deleteBlock(id: string, userId: string, role?: Role | null) {
     const block = await this.prisma.block.findUnique({ include: { lesson: { include: { section: true } } }, where: { id } });
-    if (!block) throw new NotFoundException('Block not found');
+    if (!block) throw AppError.notFound('block.not.found');
     await this.ensureCourseAuthor(block.lesson.section.courseId, userId, role);
     await this.prisma.block.delete({ where: { id } });
     return true;
@@ -880,7 +881,7 @@ export class ElearningService {
 
   async upsertQuiz(input: UpsertQuizInput, userId: string, role?: Role | null) {
     const lesson = await this.prisma.lesson.findUnique({ include: { section: true }, where: { id: input.lessonId } });
-    if (!lesson) throw new NotFoundException('Lesson not found');
+    if (!lesson) throw AppError.notFound('lesson.not.found');
     await this.ensureCourseAuthor(lesson.section.courseId, userId, role);
     let quiz;
     if (input.id) {
@@ -900,7 +901,7 @@ export class ElearningService {
 
   async upsertQuestion(input: UpsertQuestionInput, userId: string, role?: Role | null) {
     const quiz = await this.prisma.quiz.findUnique({ include: { lesson: { include: { section: true } } }, where: { id: input.quizId } });
-    if (!quiz) throw new NotFoundException('Quiz not found');
+    if (!quiz) throw AppError.notFound('quiz.not.found');
     await this.ensureCourseAuthor(quiz.lesson.section.courseId, userId, role);
     let question;
     if (input.id) {
@@ -936,7 +937,7 @@ export class ElearningService {
 
   async deleteQuestion(id: string, userId: string, role?: Role | null) {
     const question = await this.prisma.question.findUnique({ include: { quiz: { include: { lesson: { include: { section: true } } } } }, where: { id } });
-    if (!question) throw new NotFoundException('Question not found');
+    if (!question) throw AppError.notFound('question.not.found');
     await this.ensureCourseAuthor(question.quiz.lesson.section.courseId, userId, role);
     await this.prisma.question.delete({ where: { id } });
     return true;
@@ -944,12 +945,12 @@ export class ElearningService {
 
   async attachTemplateAsset(input: AttachTemplateAssetInput, userId: string, role?: Role | null) {
     if (!input.courseId && !input.lessonId) {
-      throw new BadRequestException('courseId or lessonId is required');
+      throw AppError.badRequest('courseid.or.lessonid.is.required');
     }
     if (input.courseId) await this.ensureCourseAuthor(input.courseId, userId, role);
     if (input.lessonId) {
       const lesson = await this.prisma.lesson.findUnique({ include: { section: true }, where: { id: input.lessonId } });
-      if (!lesson) throw new NotFoundException('Lesson not found');
+      if (!lesson) throw AppError.notFound('lesson.not.found');
       await this.ensureCourseAuthor(lesson.section.courseId, userId, role);
     }
     return this.prisma.templateAsset.create({
@@ -965,7 +966,7 @@ export class ElearningService {
 
   async deleteTemplateAsset(id: string, userId: string, role?: Role | null) {
     const asset = await this.prisma.templateAsset.findUnique({ include: { course: true, lesson: { include: { section: true } } }, where: { id } });
-    if (!asset) throw new NotFoundException('Template asset not found');
+    if (!asset) throw AppError.notFound('template.asset.not.found');
     if (asset.courseId) await this.ensureCourseAuthor(asset.courseId, userId, role);
     if (asset.lesson) await this.ensureCourseAuthor(asset.lesson.section.courseId, userId, role);
     await this.prisma.templateAsset.delete({ where: { id } });
@@ -994,7 +995,7 @@ export class ElearningService {
 
   async editorLesson(id: string, userId: string, role?: Role | null) {
     const lesson = await this.prisma.lesson.findUnique({ include: { section: true }, where: { id } });
-    if (!lesson) throw new NotFoundException('Lesson not found');
+    if (!lesson) throw AppError.notFound('lesson.not.found');
     await this.ensureCourseAuthor(lesson.section.courseId, userId, role);
     return this.prisma.lesson.findUnique({
       where: { id },

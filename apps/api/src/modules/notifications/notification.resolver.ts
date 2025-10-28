@@ -1,5 +1,5 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
-import { UseGuards, UnauthorizedException } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
 import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import {
@@ -9,6 +9,7 @@ import {
 } from './notification.type';
 import { NotificationType, EmailFrequency } from '../../common/enums/domain.enums';
 import { NotificationService } from './notification.service';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Resolver(() => Notification)
 export class NotificationResolver {
@@ -23,14 +24,14 @@ export class NotificationResolver {
     @Args('type', { type: () => NotificationType, nullable: true }) type?: NotificationType,
     @Args('unreadOnly', { type: () => Boolean, nullable: true }) unreadOnly?: boolean,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.notifications.list(user.sub, limit ?? 20, cursor ?? undefined, type, unreadOnly);
   }
 
   @UseGuards(SessionGuard)
   @Query(() => Number, { description: 'Unread notifications count' })
   async unreadCount(@CurrentUser() user: JwtUser) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.notifications.unreadCount(user.sub);
   }
 
@@ -40,23 +41,23 @@ export class NotificationResolver {
     @CurrentUser() user: JwtUser,
     @Args('id', { type: () => String }) id: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.notifications.markRead(user.sub, id);
   }
 
   @UseGuards(SessionGuard)
   @Mutation(() => Boolean, { description: 'Mark all notifications as read' })
   async markAllNotificationsRead(@CurrentUser() user: JwtUser) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.notifications.markAllRead(user.sub);
   }
 
   @UseGuards(SessionGuard)
   @Query(() => [NotificationPreference], { description: 'Get notification preferences' })
   async notificationPreferences(@CurrentUser() user: JwtUser) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.notifications.getPreferences(user.sub);
-    }
+  }
 
   @UseGuards(SessionGuard)
   @Mutation(() => NotificationPreference, { description: 'Update notification preference' })
@@ -71,7 +72,7 @@ export class NotificationResolver {
     @Args('quiet_hours_end', { type: () => String, nullable: true })
     quiet_hours_end?: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.notifications.updatePreference(
       user.sub,
       type,

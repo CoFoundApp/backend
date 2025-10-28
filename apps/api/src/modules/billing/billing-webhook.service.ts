@@ -11,6 +11,8 @@ import { StripeService, StripeCharge, StripeCheckoutSession, StripeEvent, Stripe
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
 import { invoices, invoice_status, plan_interval, payment_status, Prisma, subscription_collection_method, subscription_status } from '@prisma/client';
+import { AppError } from '../../common/errors/app-error.factory';
+import { AppException } from '../../common/errors/app-exception';
 
 type BillingCustomerWithRelations = Prisma.billing_customersGetPayload<{ include: { user: true; organization: true } }>;
 
@@ -77,7 +79,10 @@ export class BillingWebhookService {
         where: { id: eventId },
         data: { processed: false, error_message: (error as Error).message },
       });
-      throw error;
+      if (error instanceof AppException) throw error;
+      throw AppError.internal('billing.eventProcessingFailed', {
+        details: { eventId: stored.id, stripeEventId: stored.stripe_event_id },
+      });
     }
   }
 

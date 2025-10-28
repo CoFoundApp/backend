@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  ForbiddenException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationService } from '../notifications/notification.service';
 import { NotificationType } from '../../common/enums/domain.enums';
@@ -11,6 +6,7 @@ import { REDIS } from '../../infra/redis/redis.module';
 import Redis from 'ioredis';
 import { PUB_SUB } from './conversation.constants';
 import { PubSubEngine } from 'graphql-subscriptions';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Injectable()
 export class ConversationService {
@@ -32,7 +28,7 @@ export class ConversationService {
 
   async createConversation(userId: string, targetUserId: string) {
     if (userId === targetUserId)
-      throw new BadRequestException('Cannot converse with yourself');
+      throw AppError.badRequest('conversation.cannotConverseWithSelf');
 
     const existing = await this.prisma.prisma().conversations.findFirst({
       where: {
@@ -145,7 +141,7 @@ export class ConversationService {
     const part = await this.prisma.prisma().conversation_participants.findUnique({
       where: { conversation_id_user_id: { conversation_id: conversationId, user_id: userId } },
     });
-    if (!part) throw new ForbiddenException('Not a participant');
+    if (!part) throw AppError.forbidden('conversation.notParticipant');
     return part;
   }
 
@@ -175,7 +171,7 @@ export class ConversationService {
   }
 
   async sendMessage(userId: string, conversationId: string, content: string) {
-    if (!content.trim()) throw new BadRequestException('Empty message');
+    if (!content.trim()) throw AppError.badRequest('conversation.emptyMessage');
     await this.ensureParticipant(conversationId, userId);
 
     const msg = await this.prisma.prisma().messages.create({

@@ -3,6 +3,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { EMBEDDING_PORT, EmbeddingPort } from './embedding.port';
 import { toVectorLiteral } from '../../common/utils/vector.util';
 import { createHash } from 'node:crypto';
+import { AppError } from '../../common/errors/app-error.factory';
 
 type ProfileBasics = {
   user_id: string;
@@ -222,10 +223,12 @@ export class ProfileEmbeddingService {
     // 4) Provider embedding
     const vec = await this.port.embedText(profileText);
     if (!Array.isArray(vec) || !vec.length) {
-      throw new Error('Embedding provider returned empty vector');
+      throw AppError.serviceUnavailable('embedding.providerReturnedEmptyVector');
     }
     if (vec.length !== this.expectedDim) {
-      throw new Error(`Invalid vector dimension: got ${vec.length}, expected ${this.expectedDim}`);
+      throw AppError.serviceUnavailable('embedding.invalidProviderDimension', {
+        details: { got: vec.length, expected: this.expectedDim },
+      });
     }
 
     // 5) Update pgvector + meta

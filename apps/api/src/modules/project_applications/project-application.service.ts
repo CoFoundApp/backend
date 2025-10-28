@@ -1,13 +1,9 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { ApplyProjectInput } from './dto/apply-project.input';
 import { ApplicationStatus } from '../../common/enums/domain.enums';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Injectable()
 export class ProjectApplicationService {
@@ -35,21 +31,21 @@ export class ProjectApplicationService {
       where: { id: input.project_id },
       select: { owner_id: true, visibility: true, title: true },
     });
-    if (!project) throw new NotFoundException('Project not found');
+    if (!project) throw AppError.notFound('project.not.found');
     if (project.owner_id === applicantId)
-      throw new ForbiddenException('Cannot apply to own project');
+      throw AppError.forbidden('cannot.apply.to.own.project');
     if (!['public', 'unlisted'].includes(project.visibility))
-      throw new BadRequestException('Project not eligible');
+      throw AppError.badRequest('project.not.eligible');
 
     if (input.position_id) {
       const position = await this.prisma
         .prisma()
         .project_positions.findUnique({ where: { id: input.position_id } });
-      if (!position) throw new BadRequestException('Position not found');
+      if (!position) throw AppError.badRequest('position.not.found');
       if (position.project_id !== input.project_id)
-        throw new BadRequestException('Position not in project');
+        throw AppError.badRequest('position.not.in.project');
       if (position.status !== 'open')
-        throw new BadRequestException('Position closed');
+        throw AppError.badRequest('position.closed');
       positionName = position.title;
     }
 
@@ -61,9 +57,7 @@ export class ProjectApplicationService {
       },
     });
     if (pending)
-      throw new BadRequestException(
-        'Already have a pending application for this project',
-      );
+      throw AppError.badRequest('already.have.a.pending.application.for.this.project');
 
     const app = (await this.prisma.prisma().project_applications.create({
       data: {
@@ -78,11 +72,11 @@ export class ProjectApplicationService {
 
     const applicant = await this.prisma.prisma().users.findUnique({
       where: { id: applicantId },
-      select: { email: true, profiles: { select: { display_name: true } } },
+      select: { email: true, locale: true, profiles: { select: { display_name: true } } },
     });
 
     if (applicant?.email) {
-      await this.mail.sendTemplate(applicant?.email || "", 'application_submitted', 'en', {
+      await this.mail.sendTemplate(applicant?.email || "", 'application_submitted', applicant.locale ?? 'en', {
         applicant_name: applicant?.profiles?.display_name,
         project_name: project.title,
         position_name: positionName,
@@ -93,11 +87,11 @@ export class ProjectApplicationService {
 
     const owner = await this.prisma.prisma().users.findUnique({
       where: { id: project.owner_id },
-      select: { email: true, profiles: { select: { display_name: true } } },
+      select: { email: true, locale: true, profiles: { select: { display_name: true } } },
     });
 
     if (owner?.email) {
-      await this.mail.sendTemplate(owner.email, 'owner_application_received', 'en', {
+      await this.mail.sendTemplate(owner.email, 'owner_application_received', owner.locale ?? 'en', {
         owner_name: owner?.profiles?.display_name ?? owner?.email,
         owner_id: project.owner_id,
         project_name: project.title,
@@ -180,7 +174,7 @@ export class ProjectApplicationService {
     });
 
     if (!project) {
-      throw new NotFoundException('Project not found');
+      throw AppError.notFound('project.not.found');
     }
 
     // ✅ 2. Vérifier que l'utilisateur est propriétaire ou membre
@@ -188,7 +182,7 @@ export class ProjectApplicationService {
     const isMember = project.project_members.length > 0;
 
     if (!isOwner && !isMember) {
-      throw new ForbiddenException('Access denied. You must be a project member to view applications.');
+      throw AppError.forbidden('access.denied.you.must.be.a.project.member.to.view.applications');
     }
 
     // ✅ 3. Construire le filtre de pagination
@@ -287,11 +281,11 @@ export class ProjectApplicationService {
       where: { id },
       include: { project_positions: true, projects: { select: { title: true, owner_id: true } } },
     });
-    if (!app) throw new NotFoundException('Application not found');
+    if (!app) throw AppError.notFound('application.not.found');
     if (app.applicant_id !== applicantId)
-      throw new ForbiddenException('Not candidate');
+      throw AppError.forbidden('not.candidate');
     if (app.status !== ApplicationStatus.PENDING)
-      throw new BadRequestException('Invalid state');
+      throw AppError.badRequest('invalid.state');
 
     const updated = (await this.prisma.prisma().project_applications.update({
       where: { id },
@@ -301,11 +295,11 @@ export class ProjectApplicationService {
 
     const applicant = await this.prisma.prisma().users.findUnique({
       where: { id: app.applicant_id },
-      select: { email: true, profiles: { select: { display_name: true } } },
+      select: { email: true, locale: true, profiles: { select: { display_name: true } } },
     });
 
     if (applicant?.email) {
-      await this.mail.sendTemplate(applicant?.email || "", 'application_withdrawn', 'en', {
+      await this.mail.sendTemplate(applicant?.email || "", 'application_withdrawn', applicant.locale ?? 'en', {
         applicant_name: applicant?.profiles?.display_name,
         project_name: app.projects.title,
         position_name: app.project_positions?.title,
@@ -316,11 +310,11 @@ export class ProjectApplicationService {
 
     const owner = await this.prisma.prisma().users.findUnique({
       where: { id: app.projects.owner_id },
-      select: { email: true, profiles: { select: { display_name: true } } },
+      select: { email: true, locale: true, profiles: { select: { display_name: true } } },
     });
 
     if (owner?.email) {
-      await this.mail.sendTemplate(owner.email, 'owner_application_withdrawn', 'en', {
+      await this.mail.sendTemplate(owner.email, 'owner_application_withdrawn', owner.locale ?? 'en', {
         owner_name: owner?.profiles?.display_name ?? owner?.email,
         project_name: updated.projects?.title,
         applicant_name: applicant?.profiles?.display_name ?? applicant?.email,
@@ -340,24 +334,24 @@ export class ProjectApplicationService {
     positionId?: string,
   ) {
     if (![ApplicationStatus.ACCEPTED, ApplicationStatus.REJECTED].includes(status))
-      throw new BadRequestException('Invalid decision');
+      throw AppError.badRequest('invalid.decision');
 
     const app = await this.prisma.prisma().project_applications.findUnique({
       where: { id },
     });
-    if (!app) throw new NotFoundException('Application not found');
+    if (!app) throw AppError.notFound('application.not.found');
     if (app.status !== ApplicationStatus.PENDING)
-      throw new BadRequestException('Invalid state');
+      throw AppError.badRequest('invalid.state');
 
     const project = await this.prisma.prisma().projects.findUnique({
       where: { id: app.project_id },
       select: { owner_id: true },
     });
-    if (!project) throw new NotFoundException('Project not found');
-    if (project.owner_id !== ownerId) throw new ForbiddenException('Not owner');
+    if (!project) throw AppError.notFound('project.not.found');
+    if (project.owner_id !== ownerId) throw AppError.forbidden('not.owner');
 
     if (positionId && app.position_id !== positionId)
-      throw new BadRequestException('Application not for this position');
+      throw AppError.badRequest('application.not.for.this.position');
 
     const txn = await this.prisma.$transaction([
       this.prisma.project_applications.update({
@@ -394,13 +388,13 @@ export class ProjectApplicationService {
 
     const applicant = await this.prisma.prisma().users.findUnique({
       where: { id: app.applicant_id },
-      select: { email: true, profiles: { select: { display_name: true } } },
+      select: { email: true, locale: true, profiles: { select: { display_name: true } } },
     });
 
     const updated = txn[0] as any;
 
     if (applicant?.email) {
-      await this.mail.sendTemplate(applicant?.email || "", 'application_decided', 'en', {
+      await this.mail.sendTemplate(applicant?.email || "", 'application_decided', applicant.locale ?? 'en', {
         applicant_name: applicant?.profiles?.display_name,
         project_name: updated.projects?.title ?? app.project_id,
         position_name: updated.project_positions?.title ?? null,
@@ -417,16 +411,16 @@ export class ProjectApplicationService {
     const app = await this.prisma.prisma().project_applications.findUnique({
       where: { id },
     });
-    if (!app) throw new NotFoundException('Application not found');
+    if (!app) throw AppError.notFound('application.not.found');
     if (app.status !== ApplicationStatus.PENDING)
-      throw new BadRequestException('Invalid state');
+      throw AppError.badRequest('invalid.state');
 
     const project = await this.prisma.prisma().projects.findUnique({
       where: { id: app.project_id },
       select: { owner_id: true },
     });
-    if (!project) throw new NotFoundException('Project not found');
-    if (project.owner_id !== ownerId) throw new ForbiddenException('Not owner');
+    if (!project) throw AppError.notFound('project.not.found');
+    if (project.owner_id !== ownerId) throw AppError.forbidden('not.owner');
 
     const updated = (await this.prisma.prisma().project_applications.update({
       where: { id },
@@ -444,11 +438,11 @@ export class ProjectApplicationService {
 
     const applicant = await this.prisma.prisma().users.findUnique({
       where: { id: app.applicant_id },
-      select: { email: true, profiles: { select: { display_name: true } } },
+      select: { email: true, locale:true, profiles: { select: { display_name: true } } },
     });
 
     if (applicant?.email) {
-      await this.mail.sendTemplate(applicant?.email || "", 'application_canceled', 'en', {
+      await this.mail.sendTemplate(applicant?.email || "", 'application_canceled', applicant.locale ?? 'en', {
         applicant_name: applicant?.profiles?.display_name,
         project_name: updated.projects?.title ?? app.project_id,
         position_name: updated.project_positions?.title ?? null,

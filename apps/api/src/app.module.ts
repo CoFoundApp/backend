@@ -8,11 +8,13 @@ import type { Request, Response } from 'express';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthResolver } from './health.resolver';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { RlsInterceptor } from './infra/prisma/rls.interceptor';
 import { ScheduleModule } from '@nestjs/schedule';
 
 import { envValidationSchema } from './config/env.validation';
+import { I18nModule } from './common/i18n/i18n.module';
+import { GlobalExceptionFilter } from './common/errors/global-exception.filter';
 
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { RedisModule } from './infra/redis/redis.module';
@@ -64,6 +66,8 @@ const allowGraphqlExplorer = (() => {
       introspection: allowGraphqlExplorer,
       context: ({ req, res }: { req: Request; res: Response }) => ({ req, res }),
     }),
+
+    I18nModule,
 
     HealthModule,
 
@@ -117,7 +121,8 @@ const allowGraphqlExplorer = (() => {
   providers: [
     AppService,
     HealthResolver,
-    { provide: APP_INTERCEPTOR, useClass: RlsInterceptor }
+    { provide: APP_INTERCEPTOR, useClass: RlsInterceptor },
+    { provide: APP_FILTER, useClass: GlobalExceptionFilter },
   ],
 })
 export class AppModule {}

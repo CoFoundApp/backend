@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CreateInterestInput } from './dto/create-interest.input';
 import { slugify } from '../../common/utils/slug.util';
@@ -6,6 +6,7 @@ import { ListArgs } from './dto/list.args';
 import { makeCursorPage } from '../../common/utils/pagination.util';
 import { toVectorLiteral } from '../../common/utils/vector.util';
 import { isUuid } from '../../common/utils/uuid.util';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Injectable()
 export class InterestsService {
@@ -22,7 +23,7 @@ export class InterestsService {
         select: { id: true, name: true, category: true, slug: true },
       });
     } catch (e: any) {
-      if (e?.code === 'P2002') throw new ConflictException('Interest with same name or slug already exists');
+      if (e?.code === 'P2002') throw AppError.conflict('interest.with.same.name.or.slug.already.exists');
       throw e;
     }
   }
@@ -71,11 +72,13 @@ export class InterestsService {
   async attachToUser(userId: string, addIds: string[] = [], removeIds: string[] = []) {
     const db = this.prisma.prisma();
 
-    if (!isUuid(userId)) throw new BadRequestException('Invalid userId (UUID required)');
+    if (!isUuid(userId)) throw AppError.badRequest('invalid.userid.uuid.required');
     const badAdd = addIds.filter(id => !isUuid(id));
     const badRem = removeIds.filter(id => !isUuid(id));
     if (badAdd.length || badRem.length) {
-      throw new BadRequestException(`Invalid interest UUID(s): ${[...badAdd, ...badRem].join(', ')}`);
+      throw AppError.badRequest('interests.invalidUuids', {
+        params: { ids: [...badAdd, ...badRem].join(', ') },
+      });
     }
 
     if (removeIds.length) {
@@ -132,7 +135,7 @@ export class InterestsService {
   /** Admin: set par slugs (insensible à la casse côté CITEXT). Les slugs inconnus sont ignorés. */
   async setBySlugs(userId: string, addSlugs: string[] = [], removeSlugs: string[] = []) {
     const db = this.prisma.prisma();
-    if (!isUuid(userId)) throw new BadRequestException('Invalid userId (UUID required)');
+    if (!isUuid(userId)) throw AppError.badRequest('invalid.userid.uuid.required');
 
     const [add, rem] = await Promise.all([
       addSlugs.length

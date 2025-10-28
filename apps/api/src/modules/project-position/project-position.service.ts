@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CreateProjectPositionInput } from './dto/create-project-position.input';
 import { TemplateMailerService } from '../../infra/email/template-mailer.service';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Injectable()
 export class ProjectPositionService {
@@ -17,8 +18,8 @@ export class ProjectPositionService {
       where: { id: input.project_id },
       select: { owner_id: true, title: true },
     });
-    if (!project) throw new NotFoundException('Project not found');
-    if (project.owner_id !== ownerId) throw new ForbiddenException('Not owner');
+    if (!project) throw AppError.notFound('project.not.found');
+    if (project.owner_id !== ownerId) throw AppError.forbidden('not.owner');
 
     const position = await this.prisma.prisma().project_positions.create({
       data: {
@@ -30,12 +31,12 @@ export class ProjectPositionService {
 
     const owner = await this.prisma.prisma().users.findUnique({
       where: { id: project?.owner_id || '' },
-      select: { email: true, profiles: { select: { display_name: true } } },
+      select: { email: true, locale:true, profiles: { select: { display_name: true } } },
     });
 
     // Notifier le OWNER (confirmation)
     if (owner?.email) {
-      await this.mail.sendTemplate(owner.email, 'owner_position_created', 'en', {
+      await this.mail.sendTemplate(owner.email, 'owner_position_created', owner.locale ?? 'en', {
         app_name: this.appName,
         project_title: project?.title ?? input.project_id,
         position_title: position.title,
@@ -52,7 +53,7 @@ export class ProjectPositionService {
       where: { id: projectId },
       select: { owner_id: true },
     });
-    if (!project) throw new NotFoundException('Project not found');
+    if (!project) throw AppError.notFound('project.not.found');
 
     return this.prisma.prisma().project_positions.findMany({ where: { project_id: projectId } });
   }
@@ -61,14 +62,14 @@ export class ProjectPositionService {
     const position = await this.prisma.prisma().project_positions.findUnique({
       where: { id },
     });
-    if (!position) throw new NotFoundException('Position not found');
+    if (!position) throw AppError.notFound('position.not.found');
 
     const project = await this.prisma.prisma().projects.findUnique({
       where: { id: position.project_id },
       select: { owner_id: true, title: true },
     });
-    if (!project) throw new NotFoundException('Project not found');
-    if (project.owner_id !== ownerId) throw new ForbiddenException('Not owner');
+    if (!project) throw AppError.notFound('project.not.found');
+    if (project.owner_id !== ownerId) throw AppError.forbidden('not.owner');
 
     const confirmation = await this.prisma.prisma().project_positions.update({
       where: { id },
@@ -77,12 +78,12 @@ export class ProjectPositionService {
 
     const owner = await this.prisma.prisma().users.findUnique({
       where: { id: project?.owner_id || '' },
-      select: { email: true, profiles: { select: { display_name: true } } },
+      select: { email: true, locale: true, profiles: { select: { display_name: true } } },
     });
 
     // Notifier le OWNER (confirmation)
     if (owner?.email) {
-      await this.mail.sendTemplate(owner.email, 'owner_position_closed', 'en', {
+      await this.mail.sendTemplate(owner.email, 'owner_position_closed', owner.locale ?? 'en', {
         app_name: this.appName,
         project_title: project?.title ?? position.project_id,
         position_title: position.title,
