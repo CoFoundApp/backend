@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { AppError } from '../../common/errors/app-error.factory';
+import { AppException } from '../../common/errors/app-exception';
 import { CounterMetric, GaugeMetric, HistogramMetric } from './metrics';
 
 type MatchingStatus = 'success' | 'error';
@@ -73,7 +75,14 @@ export class MonitoringService {
       return result;
     } catch (error) {
       status = 'error';
-      throw error;
+      if (error instanceof AppException) throw error;
+      throw AppError.internal('monitoring.matchingFailed', {
+        details: {
+          target,
+          mode: mode ?? undefined,
+          detailLevel: detailLevel ?? undefined,
+        },
+      });
     } finally {
       const durationSeconds = Number(process.hrtime.bigint() - started) / 1_000_000_000;
       const modeLabel = mode ?? 'unknown';
