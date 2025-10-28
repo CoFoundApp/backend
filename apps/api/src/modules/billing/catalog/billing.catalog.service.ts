@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { BillingPlanCode, BillingPlanDefinition, BillingPlanVariant, BillingInterval } from '../billing.types';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { plan_interval } from '@prisma/client';
+import { AppError } from '../../../common/errors/app-error.factory';
 
 interface PriceKeyMap {
   month: string;
@@ -87,7 +88,7 @@ export class BillingCatalogService implements OnModuleInit {
 
   getVariant(planCode: BillingPlanCode, interval: BillingInterval): BillingPlanVariant {
     const plan = PLAN_DEFINITIONS.find(p => p.code === planCode);
-    if (!plan) throw new Error(`Unknown plan ${planCode}`);
+    if (!plan) throw AppError.notFound('billing.planNotFound', { params: { plan: planCode } });
     const intervalKey: BillingInterval = interval;
     const price = intervalKey === 'month' ? plan.monthlyPriceCents : plan.annualPriceCents;
     const envKey = this.resolvePriceEnvKey(planCode, intervalKey);
@@ -150,7 +151,7 @@ export class BillingCatalogService implements OnModuleInit {
 
   private resolvePriceEnvKey(planCode: BillingPlanCode, interval: BillingInterval): string {
     const mapping = PRICE_ENV_MAP[planCode];
-    if (!mapping) throw new Error(`No price map for ${planCode}`);
+    if (!mapping) throw AppError.internal('billing.priceMapMissing', { params: { plan: planCode } });
     if (interval === 'year') {
       return mapping.year ?? mapping.month;
     }

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { URLSearchParams } from 'node:url';
 import { StripeCharge, StripeCheckoutSession, StripeCustomer, StripeEvent, StripeInvoice, StripePaymentIntent, StripeSubscription } from './stripe.types';
+import { AppError } from '../../../common/errors/app-error.factory';
 
 type HttpMethod = 'GET' | 'POST';
 
@@ -73,7 +74,9 @@ class StripeHttpClient {
     const payload = await response.json();
     if (!response.ok) {
       const message = payload?.error?.message ?? `Stripe API error ${response.status}`;
-      throw new Error(message);
+      throw AppError.serviceUnavailable('billing.stripeRequestFailed', {
+        details: { status: response.status, message },
+      });
     }
     return payload as T;
   }
@@ -117,7 +120,7 @@ class StripeHttpClient {
       });
       return;
     }
-    if (!prefix) throw new Error('Missing key for Stripe form encoding');
+    if (!prefix) throw AppError.internal('billing.missingFormKey');
     form.append(prefix, String(value));
   }
 }
@@ -132,7 +135,7 @@ export class StripeService {
   constructor(private readonly config: ConfigService) {
     this.apiKey = this.config.get<string>('STRIPE_SECRET_KEY') ?? '';
     if (!this.apiKey) {
-      throw new Error('STRIPE_SECRET_KEY is not configured');
+      throw AppError.internal('billing.stripeSecretMissing');
     }
     this.webhookSecret = this.config.get<string>('STRIPE_WEBHOOK_SECRET') ?? '';
     this.client = new StripeHttpClient(this.apiKey);
@@ -140,14 +143,14 @@ export class StripeService {
 
   constructWebhookEvent(body: Buffer | string, signature: string | string[] | undefined): StripeEvent {
     if (!signature || Array.isArray(signature)) {
-      throw new Error('Invalid Stripe signature header');
+      throw AppError.badRequest('billing.invalidStripeSignatureHeader');
     }
     const payload = typeof body === 'string' ? body : body.toString('utf8');
     const parts = signature.split(',');
     const timestampPart = parts.find(part => part.startsWith('t='));
     const signaturePart = parts.find(part => part.startsWith('v1='));
     if (!timestampPart || !signaturePart) {
-      throw new Error('Malformed Stripe signature header');
+      throw AppError.badRequest('billing.malformedStripeSignatureHeader');
     }
     const timestamp = timestampPart.split('=')[1];
     const expected = createHmac('sha256', this.webhookSecret)
@@ -155,7 +158,7 @@ export class StripeService {
       .digest();
     const received = Buffer.from(signaturePart.split('=')[1], 'hex');
     if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
-      throw new Error('Invalid Stripe signature');
+      throw AppError.badRequest('billing.invalidStripeSignature');
     }
     return JSON.parse(payload) as StripeEvent;
   }

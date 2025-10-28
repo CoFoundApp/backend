@@ -1,10 +1,11 @@
 import { Args, Context, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
-import { UnauthorizedException, UseGuards } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
 import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { ConsentService } from './consent.service';
 import { SetConsentInput } from './dto/consent.dto';
 import { ConsentCurrent, ConsentRecord } from './consent.types';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Resolver()
 export class ConsentResolver {
@@ -49,7 +50,7 @@ export class ConsentResolver {
     @Args('limit', { type: () => Int, nullable: true, defaultValue: 50 }) limit?: number,
   ) {
     if (!user) {
-      throw new UnauthorizedException('User missing in context');
+      throw AppError.unauthorized('user.missing.in.context');
     }
     return this.consents.getHistory(user.sub, consent_type ?? null, limit ?? 50);
   }
