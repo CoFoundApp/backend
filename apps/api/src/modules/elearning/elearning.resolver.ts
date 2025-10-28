@@ -1,5 +1,5 @@
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
-import { UseGuards, ForbiddenException } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
 import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { Role } from '../auth/role.enum';
@@ -10,6 +10,7 @@ import { CourseConnection, CourseStatsType, CourseType, LessonType, QuizAttemptT
 import { CourseFilterInput, CoursePaginationInput } from './dto/course-filter.input';
 import { CourseVisibility, PublishStatus } from './elearning.enums';
 import { JSONScalar } from '../../common/scalars/json.scalar';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Resolver()
 export class ElearningResolver {
@@ -23,13 +24,13 @@ export class ElearningResolver {
     const includeDraft = user?.role === Role.admin || user?.role === Role.creator;
     const course = await this.service.findCourseBySlug(slug, includeDraft);
     if (course.visibility === CourseVisibility.PRIVATE) {
-      if (!user) throw new ForbiddenException('Course is private');
+      if (!user) throw AppError.forbidden('course.is.private');
       if (user.role === Role.admin || user.role === Role.creator || course.authorId === user.sub) return course;
       const enrollment = await this.service.isUserEnrolled(user.sub, course.id);
-      if (!enrollment) throw new ForbiddenException('Course is private');
+      if (!enrollment) throw AppError.forbidden('course.is.private');
     }
     if (course.status !== PublishStatus.PUBLISHED && course.authorId !== user?.sub && user?.role !== Role.admin) {
-      throw new ForbiddenException('Course not published');
+      throw AppError.forbidden('course.not.published');
     }
     return course;
   }
@@ -57,14 +58,14 @@ export class ElearningResolver {
     const includeDraft = user?.role === Role.admin || user?.role === Role.creator;
     const lesson = await this.service.getLessonById(id, includeDraft);
     if (lesson.section.course.visibility === CourseVisibility.PRIVATE) {
-      if (!user) throw new ForbiddenException('Course is private');
+      if (!user) throw AppError.forbidden('course.is.private');
       if (user.role !== Role.admin && user.role !== Role.creator && lesson.section.course.authorId !== user.sub) {
         const enrollment = await this.service.isUserEnrolled(user.sub, lesson.section.courseId);
-        if (!enrollment) throw new ForbiddenException('Course is private');
+        if (!enrollment) throw AppError.forbidden('course.is.private');
       }
     }
     if (lesson.status !== PublishStatus.PUBLISHED && lesson.section.course.authorId !== user?.sub && user?.role !== Role.admin) {
-      throw new ForbiddenException('Lesson not published');
+      throw AppError.forbidden('lesson.not.published');
     }
     return lesson;
   }
@@ -79,11 +80,11 @@ export class ElearningResolver {
     if (lesson.section.course.visibility === CourseVisibility.PRIVATE) {
       if (lesson.section.course.authorId !== user.sub && user.role !== Role.admin && user.role !== Role.creator) {
         const enrollment = await this.service.isUserEnrolled(user.sub, lesson.section.courseId);
-        if (!enrollment) throw new ForbiddenException('Course is private');
+        if (!enrollment) throw AppError.forbidden('course.is.private');
       }
     }
     if (lesson.status !== PublishStatus.PUBLISHED && lesson.section.course.authorId !== user.sub && user.role !== Role.admin) {
-      throw new ForbiddenException('Lesson not published');
+      throw AppError.forbidden('lesson.not.published');
     }
     return this.service.getQuizByLessonId(lessonId);
   }
