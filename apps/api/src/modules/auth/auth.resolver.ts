@@ -24,6 +24,7 @@ import { OAuthService } from './oauth.service';
 import { CompleteOAuthInput } from './dto/complete-oauth.input';
 import { RequestPasswordResetInput } from './dto/request-password-reset.input';
 import { ResetPasswordInput } from './dto/reset-password.input';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Resolver()
 export class AuthResolver {
@@ -61,7 +62,7 @@ export class AuthResolver {
   async refresh(@CurrentUser() user: JwtUser, @Context() ctx: any): Promise<TokensOutput> {
     const sub = user?.sub;
     const jti = user?.jti;
-    if (!sub || !jti) throw new Error('Invalid refresh payload');
+    if (!sub || !jti) throw AppError.badRequest('bad.refresh.payload');
 
     const result = await this.auth.refresh(sub, jti, String(user.role ?? 'user'));
 

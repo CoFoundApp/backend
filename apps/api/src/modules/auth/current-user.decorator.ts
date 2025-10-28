@@ -5,6 +5,7 @@ export interface JwtUser {
   sub: string;
   role: string;
   jti?: string;
+  locale?: 'fr' | 'en';
 }
 
 export const CurrentUser = createParamDecorator(
