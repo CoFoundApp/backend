@@ -1,10 +1,11 @@
 import { Resolver, Mutation, Args, Query } from '@nestjs/graphql';
-import { UseGuards, UnauthorizedException } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
 import { SessionGuard } from '../auth/guards/session.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
 import { ProjectPosition } from './project-position.type';
 import { ProjectPositionService } from './project-position.service';
 import { CreateProjectPositionInput } from './dto/create-project-position.input';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Resolver(() => ProjectPosition)
 export class ProjectPositionResolver {
@@ -16,7 +17,7 @@ export class ProjectPositionResolver {
     @CurrentUser() user: JwtUser,
     @Args('input') input: CreateProjectPositionInput,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.positions.create(user.sub, input);
   }
 
@@ -26,7 +27,7 @@ export class ProjectPositionResolver {
     @CurrentUser() user: JwtUser,
     @Args('project_id', { type: () => String }) projectId: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.positions.list(user.sub, projectId);
   }
 
@@ -36,7 +37,7 @@ export class ProjectPositionResolver {
     @CurrentUser() user: JwtUser,
     @Args('id', { type: () => String }) id: string,
   ) {
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw AppError.unauthorized();
     return this.positions.close(user.sub, id);
   }
 }
