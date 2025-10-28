@@ -1,12 +1,8 @@
-import {
-  Controller,
-  Get,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Controller, Get, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type Redis from 'ioredis';
-import { Inject } from '@nestjs/common';
 import { REDIS } from '../redis/redis.module';
+import { AppError } from '../../common/errors/app-error.factory';
 
 @Controller()
 export class HealthController {
@@ -46,7 +42,9 @@ export class HealthController {
 
     const allOk = Object.values(checks).every((c) => c.ok);
     if (!allOk) {
-      throw new ServiceUnavailableException({ status: 'fail', checks });
+      throw AppError.serviceUnavailable('common.serviceUnavailable', {
+        details: { status: 'fail', checks },
+      });
     }
     return { status: 'ok', checks };
   }
