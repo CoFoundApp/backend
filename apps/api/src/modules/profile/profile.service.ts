@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { UpdateMyProfileInput } from './dto/update-my-profile.input';
 import { ProfileVisibility } from '../../common/enums/domain.enums';
@@ -12,6 +12,7 @@ import { WorkExperienceInput } from './dto/work-experience.input';
 import { EducationInput } from './dto/education.input';
 import { VolunteerExperienceInput } from './dto/volunteer-experience.input';
 import { AutoTaxonomyService } from '../taxonomy/auto-taxonomy.service';
+import { AppError } from '../../common/errors/app-error.factory';
 
 function normalizeVisibility(v?: string | null): 'public' | 'unlisted' | 'private' | undefined {
   if (!v) return undefined;
@@ -165,13 +166,13 @@ export class ProfileService {
     }
 
     // Récupérer l'email pour la notification
-    const userEmail = (await this.prisma.prisma().users.findUnique({
+    const user = (await this.prisma.prisma().users.findUnique({
       where: { id: userId },
-      select: { email: true },
-    }))?.email;
+      select: { email: true, locale: true },
+    }));
 
     // Envoyer l'email de notification
-    await this.mail.sendTemplate(userEmail || "", 'profile_update', 'en', {
+    await this.mail.sendTemplate(user?.email || "", 'profile_update', user?.locale ?? 'en', {
       display_name: input.display_name,
       headline: input.headline,
       bio: input.bio,
@@ -370,7 +371,7 @@ export class ProfileService {
   /** Optionnel : sécurité de cohérence (si besoin d’edit d’un autre profil) */
   async assertOwnershipOrAdmin(requesterId: string, targetUserId: string, isAdmin: boolean) {
     if (requesterId === targetUserId || isAdmin) return true;
-    throw new ForbiddenException('Not allowed');
+    throw AppError.forbidden('not.allowed');
   }
 
   async listWorkExperiences(userId: string) {
