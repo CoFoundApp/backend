@@ -61,32 +61,47 @@ export class MatchingResolver {
 
   @UseGuards(SessionGuard)
   @Query(() => ProjectMatchConnection, { description: 'Matcher des projets selon divers critères' })
-  async matchProjects(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
-    return this.matching.matchProjects(input);
+  async matchProjects(
+    @CurrentUser() user: JwtUser,
+    @Args('input') input: MatchProjectsInput,
+  ): Promise<ProjectMatchConnection> {
+    return this.matching.matchProjects(input, user?.sub);
   }
 
   @UseGuards(SessionGuard)
   @Query(() => ProjectMatchConnection, { description: 'Matching projet basique (scores + dimensions)' })
-  async getBasicProjectMatches(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
-    return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.BASIC });
+  async getBasicProjectMatches(
+    @CurrentUser() user: JwtUser,
+    @Args('input') input: MatchProjectsInput,
+  ): Promise<ProjectMatchConnection> {
+    return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.BASIC }, user?.sub);
   }
 
   @UseGuards(SessionGuard)
   @Query(() => ProjectMatchConnection, { description: 'Matching projet enrichi avec explications' })
-  async getEnrichedProjectMatches(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
-    return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.ENRICHED });
+  async getEnrichedProjectMatches(
+    @CurrentUser() user: JwtUser,
+    @Args('input') input: MatchProjectsInput,
+  ): Promise<ProjectMatchConnection> {
+    return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.ENRICHED }, user?.sub);
   }
 
   @UseGuards(SessionGuard)
   @Query(() => ProjectMatchConnection, { description: 'Matching projet avec analyse compétitive' })
-  async getCompetitiveProjectMatches(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
-    return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.COMPETITIVE });
+  async getCompetitiveProjectMatches(
+    @CurrentUser() user: JwtUser,
+    @Args('input') input: MatchProjectsInput,
+  ): Promise<ProjectMatchConnection> {
+    return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.COMPETITIVE }, user?.sub);
   }
 
   @UseGuards(SessionGuard)
   @Query(() => ProjectMatchConnection, { description: 'Matching projet bidirectionnel complet' })
-  async getBidirectionalProjectMatches(@Args('input') input: MatchProjectsInput): Promise<ProjectMatchConnection> {
-    return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.BIDIRECTIONAL });
+  async getBidirectionalProjectMatches(
+    @CurrentUser() user: JwtUser,
+    @Args('input') input: MatchProjectsInput,
+  ): Promise<ProjectMatchConnection> {
+    return this.matching.matchProjects({ ...input, detailLevel: MatchDetailLevel.BIDIRECTIONAL }, user?.sub);
   }
 
   @UseGuards(SessionGuard)
