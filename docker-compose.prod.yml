@@ -49,6 +49,8 @@ services:
       context: .
       dockerfile: Dockerfile.prod
     container_name: cofound_api
+    volumes:
+      - ./data/uploads:/app/uploads
     env_file:
       - .env
     environment:

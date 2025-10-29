@@ -14,10 +14,10 @@
       --card-foreground: oklch(0.141 0.005 285.823);
       --popover: oklch(1 0 0);
       --popover-foreground: oklch(0.141 0.005 285.823);
-      --primary: oklch(0.21 0.006 285.885);
+      --primary: #4A37F6;
       --primary-foreground: oklch(0.985 0 0);
-      --secondary: oklch(0.967 0.001 286.375);
-      --secondary-foreground: oklch(0.21 0.006 285.885);
+      --secondary: #FF00E2;
+      --secondary-foreground: oklch(0.967 0.001 286.375);
       --muted: oklch(0.967 0.001 286.375);
       --muted-foreground: oklch(0.552 0.016 285.938);
       --accent: oklch(0.967 0.001 286.375);
@@ -26,92 +26,192 @@
       --border: oklch(0.92 0.004 286.32);
       --input: oklch(0.92 0.004 286.32);
       --ring: oklch(0.705 0.015 286.067);
-      --chart-1: oklch(0.646 0.222 41.116);
-      --chart-2: oklch(0.6 0.118 184.704);
-      --chart-3: oklch(0.398 0.07 227.392);
-      --chart-4: oklch(0.828 0.189 84.429);
-      --chart-5: oklch(0.769 0.188 70.08);
-      --sidebar: oklch(0.985 0 0);
-      --sidebar-foreground: oklch(0.141 0.005 285.823);
-      --sidebar-primary: oklch(0.21 0.006 285.885);
-      --sidebar-primary-foreground: oklch(0.985 0 0);
-      --sidebar-accent: oklch(0.967 0.001 286.375);
-      --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-      --sidebar-border: oklch(0.92 0.004 286.32);
-      --sidebar-ring: oklch(0.705 0.015 286.067);
     }
+
     body {
-      background: var(--background);
+      background: var(--muted);
       color: var(--foreground);
-      font-family: 'Segoe UI', Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
       margin: 0;
       padding: 0;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
+
+    .email-wrapper {
+      width: 100%;
+      background: var(--muted);
+      padding: 40px 0;
+    }
+
     .container {
       border-radius: var(--radius);
       border: 1px solid var(--border);
-      max-width: 480px;
-      margin: 30px auto;
+      max-width: 600px;
+      margin: 0 auto;
       background: var(--background);
-      box-shadow: 0 2px 6px rgba(20,20,40,0.06);
+      box-shadow: 0 4px 12px rgba(20, 20, 40, 0.08);
       overflow: hidden;
     }
+
     .header {
       background: var(--primary);
       color: var(--primary-foreground);
-      padding: 20px 0;
+      padding: 32px 24px;
       text-align: center;
     }
+
     .logo {
-      height: 42px;
-      margin-bottom: 12px;
+      height: 48px;
+      margin-bottom: 16px;
+      display: inline-block;
     }
+
+    .header-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.3px;
+      color: var(--primary-foreground);
+    }
+
     .content {
-      padding: 30px 20px 18px;
+      padding: 36px 28px;
+      color: var(--foreground);
+      background: var(--background);
+    }
+
+    .content p {
+      margin: 0 0 16px 0;
+      font-size: 16px;
+      line-height: 1.7;
       color: var(--foreground);
     }
+
+    .content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .btn-wrapper {
+      text-align: center;
+      margin: 28px 0;
+    }
+
     .btn {
       display: inline-block;
-      margin-top: 22px;
-      padding: 12px 24px;
-      border-radius: 6px;
+      margin-top: 8px;
+      padding: 13px 28px;
+      border-radius: calc(var(--radius) - 2px);
       background: var(--secondary);
-      color: var(--secondary-foreground);
+      color: var(--primary-foreground);
       text-decoration: none;
       font-weight: 600;
+      font-size: 15px;
+      transition: opacity 0.2s ease;
     }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 24px 0;
+    }
+
     .footer {
-      background: var(--background);
+      background: var(--muted);
       border-top: 1px solid var(--border);
       color: var(--muted-foreground);
-      font-size: 0.82em;
-      padding: 18px 15px;
+      font-size: 13px;
+      padding: 24px 20px;
       text-align: center;
+      line-height: 1.6;
     }
+
+    .footer-brand {
+      font-weight: 600;
+      color: var(--foreground);
+      display: block;
+      margin-bottom: 4px;
+    }
+
     .footer a {
-      color: var(--muted-foreground);
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .footer a:hover {
       text-decoration: underline;
     }
-    @media (max-width: 560px) {
-      .container { width: 100%; max-width: 99vw; }
-      .content { padding: 18px 5vw 12px; }
+
+    @media (max-width: 640px) {
+      .email-wrapper {
+        padding: 20px 0;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 100%;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+      }
+
+      .header {
+        padding: 28px 20px;
+      }
+
+      .header-title {
+        font-size: 20px;
+      }
+
+      .content {
+        padding: 28px 20px;
+      }
+
+      .content p {
+        font-size: 15px;
+      }
+
+      .btn {
+        display: block;
+        width: 100%;
+        max-width: 320px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .footer {
+        padding: 20px 16px;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      {{#if brand_logo_url}}
-      <img src="{{brand_logo_url}}" alt="{{brand_name}}" class="logo" />
-      {{/if}}
-      <span><strong>{{subject}}</strong></span>
-    </div>
-    <div class="content">
-      {{> @partial-block }}
-    </div>
-    <div class="footer">
-      © {{year}} {{brand_name}}<br/>
-      {{#if unsubscribe_url}}<a href="{{unsubscribe_url}}">Unsubscribe</a>{{/if}}
+  <div class="email-wrapper">
+    <div class="container">
+      <div class="header">
+        {{#if brand_logo_url}}
+        <img src="{{brand_logo_url}}" alt="{{brand_name}}" class="logo" />
+        {{/if}}
+        <h1 class="header-title">{{subject}}</h1>
+      </div>
+
+      <div class="content">
+        {{> @partial-block }}
+      </div>
+
+      <div class="footer">
+        <span class="footer-brand">© {{year}} {{brand_name}}</span>
+        Tous droits réservés
+        {{#if unsubscribe_url}}
+        <br/>
+        <a href="{{unsubscribe_url}}">Se désabonner</a>
+        {{/if}}
+      </div>
     </div>
   </div>
 </body>
