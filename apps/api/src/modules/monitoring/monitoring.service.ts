@@ -46,6 +46,102 @@ export class MonitoringService {
     [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 15, 30, 60],
   );
 
+  private readonly userTotals = new GaugeMetric(
+    'cofound_kpi_users_total',
+    'Total number of user accounts',
+    [],
+  );
+
+  private readonly userVerifiedTotals = new GaugeMetric(
+    'cofound_kpi_users_verified_total',
+    'Total number of users with a verified email address',
+    [],
+  );
+
+  private readonly userStatusTotals = new GaugeMetric(
+    'cofound_kpi_users_by_status',
+    'Number of users by status',
+    ['status'],
+  );
+
+  private readonly profileTotals = new GaugeMetric(
+    'cofound_kpi_profiles_total',
+    'Total number of profiles',
+    [],
+  );
+
+  private readonly profileVisibilityTotals = new GaugeMetric(
+    'cofound_kpi_profiles_by_visibility',
+    'Number of profiles by visibility',
+    ['visibility'],
+  );
+
+  private readonly profileCompletedTotals = new GaugeMetric(
+    'cofound_kpi_profiles_completed_total',
+    'Number of profiles with display name, headline and bio filled',
+    [],
+  );
+
+  private readonly profileAvatarTotals = new GaugeMetric(
+    'cofound_kpi_profiles_with_avatar_total',
+    'Number of profiles that have an avatar set',
+    [],
+  );
+
+  private readonly profileBioTotals = new GaugeMetric(
+    'cofound_kpi_profiles_with_bio_total',
+    'Number of profiles that have a bio filled',
+    [],
+  );
+
+  private readonly projectTotals = new GaugeMetric(
+    'cofound_kpi_projects_total',
+    'Total number of projects',
+    [],
+  );
+
+  private readonly projectStatusTotals = new GaugeMetric(
+    'cofound_kpi_projects_by_status',
+    'Number of projects by status',
+    ['status'],
+  );
+
+  private readonly projectVisibilityTotals = new GaugeMetric(
+    'cofound_kpi_projects_by_visibility',
+    'Number of projects by visibility',
+    ['visibility'],
+  );
+
+  private readonly projectPositionTotals = new GaugeMetric(
+    'cofound_kpi_project_positions_by_status',
+    'Number of project positions by status',
+    ['status'],
+  );
+
+  private readonly projectMemberTotals = new GaugeMetric(
+    'cofound_kpi_project_members_total',
+    'Total number of project memberships',
+    [],
+  );
+
+  private readonly projectMemberStatusTotals = new GaugeMetric(
+    'cofound_kpi_project_members_by_status',
+    'Number of project memberships by status',
+    ['status'],
+  );
+
+  private readonly projectApplicationTotals = new GaugeMetric(
+    'cofound_kpi_project_applications_total',
+    'Total number of project applications',
+    [],
+  );
+
+  private readonly projectApplicationStatusTotals = new GaugeMetric(
+    'cofound_kpi_project_applications_by_status',
+    'Number of project applications by status',
+    ['status'],
+  );
+
   recordMatchingSuccess(
     target: string,
     mode: string,
@@ -128,6 +224,70 @@ export class MonitoringService {
     this.queueProcessed.inc({ queue, job: jobName, status: 'failed' });
   }
 
+  setUserTotal(value: number) {
+    this.userTotals.set({}, this.toNonNegative(value));
+  }
+
+  setVerifiedUserTotal(value: number) {
+    this.userVerifiedTotals.set({}, this.toNonNegative(value));
+  }
+
+  setUserStatusTotal(status: string, value: number) {
+    this.userStatusTotals.set({ status }, this.toNonNegative(value));
+  }
+
+  setProfileTotal(value: number) {
+    this.profileTotals.set({}, this.toNonNegative(value));
+  }
+
+  setProfileVisibilityTotal(visibility: string, value: number) {
+    this.profileVisibilityTotals.set({ visibility }, this.toNonNegative(value));
+  }
+
+  setProfileCompletedTotal(value: number) {
+    this.profileCompletedTotals.set({}, this.toNonNegative(value));
+  }
+
+  setProfileAvatarTotal(value: number) {
+    this.profileAvatarTotals.set({}, this.toNonNegative(value));
+  }
+
+  setProfileBioTotal(value: number) {
+    this.profileBioTotals.set({}, this.toNonNegative(value));
+  }
+
+  setProjectTotal(value: number) {
+    this.projectTotals.set({}, this.toNonNegative(value));
+  }
+
+  setProjectStatusTotal(status: string, value: number) {
+    this.projectStatusTotals.set({ status }, this.toNonNegative(value));
+  }
+
+  setProjectVisibilityTotal(visibility: string, value: number) {
+    this.projectVisibilityTotals.set({ visibility }, this.toNonNegative(value));
+  }
+
+  setProjectPositionStatusTotal(status: string, value: number) {
+    this.projectPositionTotals.set({ status }, this.toNonNegative(value));
+  }
+
+  setProjectMemberTotal(value: number) {
+    this.projectMemberTotals.set({}, this.toNonNegative(value));
+  }
+
+  setProjectMemberStatusTotal(status: string, value: number) {
+    this.projectMemberStatusTotals.set({ status }, this.toNonNegative(value));
+  }
+
+  setProjectApplicationTotal(value: number) {
+    this.projectApplicationTotals.set({}, this.toNonNegative(value));
+  }
+
+  setProjectApplicationStatusTotal(status: string, value: number) {
+    this.projectApplicationStatusTotals.set({ status }, this.toNonNegative(value));
+  }
+
   async snapshot(): Promise<string> {
     const metrics = [
       this.matchingRequests.toPrometheus(),
@@ -136,6 +296,22 @@ export class MonitoringService {
       this.queueSizes.toPrometheus(),
       this.queueProcessed.toPrometheus(),
       this.queueDurations.toPrometheus(),
+      this.userTotals.toPrometheus(),
+      this.userVerifiedTotals.toPrometheus(),
+      this.userStatusTotals.toPrometheus(),
+      this.profileTotals.toPrometheus(),
+      this.profileVisibilityTotals.toPrometheus(),
+      this.profileCompletedTotals.toPrometheus(),
+      this.profileAvatarTotals.toPrometheus(),
+      this.profileBioTotals.toPrometheus(),
+      this.projectTotals.toPrometheus(),
+      this.projectStatusTotals.toPrometheus(),
+      this.projectVisibilityTotals.toPrometheus(),
+      this.projectPositionTotals.toPrometheus(),
+      this.projectMemberTotals.toPrometheus(),
+      this.projectMemberStatusTotals.toPrometheus(),
+      this.projectApplicationTotals.toPrometheus(),
+      this.projectApplicationStatusTotals.toPrometheus(),
       this.buildProcessUptimeGauge(),
     ]
       .filter((block) => block)
@@ -151,5 +327,12 @@ export class MonitoringService {
       '# TYPE cofound_process_uptime_seconds gauge',
       `cofound_process_uptime_seconds ${uptime.toFixed(3)}`,
     ].join('\n');
+  }
+
+  private toNonNegative(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.round(value));
   }
 }

@@ -1135,7 +1135,7 @@ export class MatchingService {
     );
   }
 
-  async matchProjects(input: MatchProjectsInput): Promise<ProjectMatchConnection> {
+  async matchProjects(input: MatchProjectsInput, requestingUserId?: string): Promise<ProjectMatchConnection> {
     const { mode, text, profileId, k = 20, threshold, efSearch, filters, cursor } = input;
     const detailLevel = input.detailLevel ?? DEFAULT_DETAIL_LEVEL;
     const preselect = Math.max(k * 5, 100);
@@ -1192,6 +1192,10 @@ export class MatchingService {
         })
       : [];
     const profileInterestSet = new Set(profileInterests.map((i) => i.interest_id));
+
+    const excludedUserIds = new Set<string>();
+    if (requestingUserId) excludedUserIds.add(requestingUserId);
+    if (profile?.user_id) excludedUserIds.add(profile.user_id);
 
     return this.monitoring.trackMatching(
       'projects',
@@ -1281,6 +1285,32 @@ export class MatchingService {
         }
 
         if (!candidates.length) return EMPTY_PROJECT_CONN;
+
+        if (excludedUserIds.size) {
+          candidates = candidates.filter((candidate) => !excludedUserIds.has(candidate.owner_id));
+          if (!candidates.length) return EMPTY_PROJECT_CONN;
+
+          const candidateIds = candidates.map((candidate) => candidate.id);
+          if (candidateIds.length) {
+            const membershipUserIds = Array.from(excludedUserIds);
+            const memberships = await this.prisma
+              .prisma()
+              .project_members.findMany({
+                where: {
+                  project_id: { in: candidateIds },
+                  user_id: { in: membershipUserIds },
+                  status: 'active',
+                },
+                select: { project_id: true },
+              });
+
+            if (memberships.length) {
+              const excludedProjectIds = new Set(memberships.map((membership) => membership.project_id));
+              candidates = candidates.filter((candidate) => !excludedProjectIds.has(candidate.id));
+              if (!candidates.length) return EMPTY_PROJECT_CONN;
+            }
+          }
+        }
 
         const projectIds = candidates.map((c) => c.id);
 
