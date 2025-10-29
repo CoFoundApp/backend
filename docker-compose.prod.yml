@@ -93,15 +93,19 @@ services:
     image: grafana/grafana:11.0.0
     container_name: cofound_grafana
     environment:
-      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-contact@cofound-app.com}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-@CoFound31@}
+      GF_SERVER_ROOT_URL: https://metrics.cofounds.app
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+    expose:
+      - "3000"
     networks:
       - cofound_network
+      - nginx_proxy
     depends_on:
       prometheus:
         condition: service_started
