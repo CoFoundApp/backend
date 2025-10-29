@@ -91,7 +91,6 @@ export class UpdateMyProfileInput {
   @IsOptional()
   @IsInt()
   @Min(0)
-  @Max(40)
   availability_hours?: number | null;
 
   @Field(() => [String], { nullable: true })
