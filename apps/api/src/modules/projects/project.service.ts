@@ -339,24 +339,94 @@ export class ProjectService implements OnModuleDestroy{
   }
 
   private async executeProjectUpdate(
-    tx: Prisma.TransactionClient,
+    tx: Prisma.TransactionClient | PrismaService,
     id: string,
     input: UpdateProjectInput,
   ) {
-    const updated = await tx.projects.update({
+    await tx.projects.update({
       where: { id },
       data: {
-        title: input.title ?? undefined,
-        summary: input.summary ?? undefined,
-        description: input.description ?? undefined,
-        industry: input.industry ?? undefined,
-        tags: Array.isArray(input.tags) ? input.tags : undefined,
-        status: input.status ? mapProjectStatusToPrisma(input.status) : undefined,
-        stage: input.stage ? mapProjectStageToPrisma(input.stage) : undefined,
-        visibility: input.visibility ? mapVisibilityToPrisma(input.visibility as ProfileVisibility) : undefined,
-        attachment_urls: Array.isArray(input.attachment_urls) ? input.attachment_urls : undefined,
-        banner_url: input.banner_url ?? undefined,
-        avatar_url: input.avatar_url ?? undefined,
+        title: input.title === undefined ? undefined : input.title ?? undefined,
+        summary: input.summary === undefined ? undefined : input.summary,
+        description: input.description === undefined ? undefined : input.description,
+        industry: input.industry === undefined ? undefined : input.industry,
+        tags:
+          input.tags === undefined
+            ? undefined
+            : Array.isArray(input.tags)
+              ? input.tags
+              : [],
+        status:
+          input.status === undefined
+            ? undefined
+            : input.status === null
+              ? null
+              : mapProjectStatusToPrisma(input.status),
+        stage:
+          input.stage === undefined
+            ? undefined
+            : input.stage === null
+              ? null
+              : mapProjectStageToPrisma(input.stage),
+        visibility:
+          input.visibility === undefined
+            ? undefined
+            : input.visibility === null
+              ? null
+              : mapVisibilityToPrisma(input.visibility as ProfileVisibility),
+        attachment_urls:
+          input.attachment_urls === undefined
+            ? undefined
+            : Array.isArray(input.attachment_urls)
+              ? input.attachment_urls
+              : [],
+        banner_url: input.banner_url === undefined ? undefined : input.banner_url,
+        avatar_url: input.avatar_url === undefined ? undefined : input.avatar_url,
+        culture_work_styles:
+          input.culture_work_styles === undefined
+            ? undefined
+            : Array.isArray(input.culture_work_styles)
+              ? input.culture_work_styles
+              : [],
+        culture_values:
+          input.culture_values === undefined
+            ? undefined
+            : Array.isArray(input.culture_values)
+              ? input.culture_values
+              : [],
+        preferred_team_role:
+          input.preferred_team_role === undefined ? undefined : input.preferred_team_role ?? null,
+        preferred_team_size:
+          input.preferred_team_size === undefined ? undefined : input.preferred_team_size ?? null,
+        management_style:
+          input.management_style === undefined ? undefined : input.management_style ?? null,
+        environment: input.environment === undefined ? undefined : input.environment ?? null,
+        collaboration_mode:
+          input.collaboration_mode === undefined ? undefined : input.collaboration_mode ?? null,
+        communication_style:
+          input.communication_style === undefined ? undefined : input.communication_style ?? null,
+        communication_frequency:
+          input.communication_frequency === undefined
+            ? undefined
+            : input.communication_frequency ?? null,
+        timezone: input.timezone === undefined ? undefined : input.timezone,
+        required_hours_min:
+          input.required_hours_min === undefined ? undefined : input.required_hours_min ?? null,
+        required_hours_max:
+          input.required_hours_max === undefined ? undefined : input.required_hours_max ?? null,
+        critical_time_slots:
+          input.critical_time_slots === undefined
+            ? undefined
+            : input.critical_time_slots ?? Prisma.JsonNull,
+        remote_ratio_min:
+          input.remote_ratio_min === undefined ? undefined : input.remote_ratio_min ?? null,
+        remote_ratio_max:
+          input.remote_ratio_max === undefined ? undefined : input.remote_ratio_max ?? null,
+        duration_weeks_min:
+          input.duration_weeks_min === undefined ? undefined : input.duration_weeks_min ?? null,
+        duration_weeks_max:
+          input.duration_weeks_max === undefined ? undefined : input.duration_weeks_max ?? null,
+        urgency: input.urgency === undefined ? undefined : input.urgency ?? null,
         updated_at: new Date(),
       }
     });
@@ -398,8 +468,6 @@ export class ProjectService implements OnModuleDestroy{
         }
       }
     }
-
-    return updated;
   }
 
   private isPrismaClientWithTransaction(
@@ -415,10 +483,14 @@ export class ProjectService implements OnModuleDestroy{
     if (existing.owner_id !== ownerId) throw AppError.forbidden('not.owner');
 
     if (this.isPrismaClientWithTransaction(client)) {
-      return client.$transaction(tx => this.executeProjectUpdate(tx, id, input));
+      await client.$transaction((tx) => this.executeProjectUpdate(tx, id, input));
+    } else {
+      await this.executeProjectUpdate(client, id, input);
     }
 
-    return this.executeProjectUpdate(client, id, input);
+    const fullProject = await this.findById(id);
+    if (!fullProject) throw AppError.internal('project.refetchFailed');
+    return mapProjectRowToGql(fullProject);
   }
 
   async delete(id: string, ownerId: string) {
