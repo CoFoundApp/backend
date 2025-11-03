@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DimensionScoreResult } from '../interfaces/dimension-score.interface';
-import { weightedJaccard } from '../utils/score.utils';
+import { projectAlignedCandidateSkills, weightedJaccard } from '../utils/score.utils';
 
 export interface TechnicalScoreInput {
   projectSkills: Map<string, number>;
@@ -15,11 +15,7 @@ export class TechnicalScoreService {
   async evaluate(input: TechnicalScoreInput): Promise<DimensionScoreResult> {
     const { projectSkills, candidateSkills, semanticSimilarity, hasProjectSkills, intentTagAffinity } = input;
 
-    const filteredCandidateSkills = projectSkills.size
-      ? new Map(
-          Array.from(candidateSkills.entries()).filter(([skillId]) => projectSkills.has(skillId)),
-        )
-      : candidateSkills;
+    const filteredCandidateSkills = projectAlignedCandidateSkills(projectSkills, candidateSkills);
 
     const overlap = weightedJaccard(projectSkills, filteredCandidateSkills);
     const composite = hasProjectSkills ? 0.75 * overlap + 0.25 * semanticSimilarity : semanticSimilarity;

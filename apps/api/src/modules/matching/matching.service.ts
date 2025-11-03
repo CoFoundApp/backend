@@ -14,7 +14,7 @@ import { MatchRecommendation } from './types/match-recommendation.type';
 import { CompositeScoreService } from './services/composite-score.service';
 import { SuccessPredictionService } from './services/success-prediction.service';
 import { MatchDetailLevel } from './types/match-detail-level.enum';
-import { weightFor, weightedJaccard } from './utils/score.utils';
+import { projectAlignedCandidateSkills, weightFor, weightedJaccard } from './utils/score.utils';
 import { TimeSlotLike } from './interfaces/score.interface';
 import { DimensionScoreResult } from './interfaces/dimension-score.interface';
 import { ExplainabilityPayload } from './interfaces/explainability.interface';
@@ -993,7 +993,13 @@ export class MatchingService {
 
               const wArr = skillsByUser.get(candidate.user_id) ?? [];
               const candidateSkillMap = new Map(wArr.map((x) => [x.skill_id, x.weight]));
-              const skillOverlap = projSkillWeights.size ? weightedJaccard(projSkillWeights, candidateSkillMap) : 0;
+              const alignedCandidateSkills = projectAlignedCandidateSkills(
+                projSkillWeights,
+                candidateSkillMap,
+              );
+              const skillOverlap = projSkillWeights.size
+                ? weightedJaccard(projSkillWeights, alignedCandidateSkills)
+                : 0;
 
               const candInt = interestsByUser.get(candidate.user_id) ?? new Set<string>();
               let interI = 0;
@@ -1434,7 +1440,13 @@ export class MatchingService {
             const projectInterestSet = interestsByProject.get(project.id) ?? new Set<string>();
             const resolvedRoleNeed = roleNeedByProject.get(project.id) ?? null;
 
-            const skillOverlap = profile ? weightedJaccard(projectSkillMap, profileSkillMap) : 0;
+            const alignedProfileSkills = projectAlignedCandidateSkills(
+              projectSkillMap,
+              profileSkillMap,
+            );
+            const skillOverlap = profile
+              ? weightedJaccard(projectSkillMap, alignedProfileSkills)
+              : 0;
 
             let interI = 0;
             let uniI = 0;

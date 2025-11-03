@@ -17,6 +17,24 @@ export const weightedJaccard = (a: Map<string, number>, b: Map<string, number>) 
   return uni === 0 ? 0 : inter / uni;
 };
 
+export const projectAlignedCandidateSkills = (
+  projectSkills: Map<string, number>,
+  candidateSkills: Map<string, number>,
+) => {
+  if (!projectSkills.size) {
+    return candidateSkills;
+  }
+
+  return new Map(
+    Array.from(candidateSkills.entries())
+      .filter(([skillId]) => projectSkills.has(skillId))
+      .map(([skillId, weight]) => {
+        const projectWeight = projectSkills.get(skillId) ?? 0;
+        return [skillId, Math.min(weight, projectWeight)] as const;
+      }),
+  );
+};
+
 export const ratio = (num: number, den: number): number => {
   if (den <= 0) return 0;
   if (num <= 0) return 0;
