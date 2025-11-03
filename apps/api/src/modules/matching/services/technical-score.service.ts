@@ -15,7 +15,13 @@ export class TechnicalScoreService {
   async evaluate(input: TechnicalScoreInput): Promise<DimensionScoreResult> {
     const { projectSkills, candidateSkills, semanticSimilarity, hasProjectSkills, intentTagAffinity } = input;
 
-    const overlap = weightedJaccard(projectSkills, candidateSkills);
+    const filteredCandidateSkills = projectSkills.size
+      ? new Map(
+          Array.from(candidateSkills.entries()).filter(([skillId]) => projectSkills.has(skillId)),
+        )
+      : candidateSkills;
+
+    const overlap = weightedJaccard(projectSkills, filteredCandidateSkills);
     const composite = hasProjectSkills ? 0.75 * overlap + 0.25 * semanticSimilarity : semanticSimilarity;
     const strengths: string[] = [];
     const gaps: string[] = [];

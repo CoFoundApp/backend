@@ -86,7 +86,7 @@ export class SkillsService {
     }
     if (addIds.length) {
       await db.user_skills.createMany({
-        data: addIds.map(skill_id => ({ user_id: userId, skill_id })),
+        data: addIds.map(skill_id => ({ user_id: userId, skill_id, level: 5 })),
         skipDuplicates: true,
       });
     }

@@ -333,7 +333,8 @@ export class ProfileService {
         await this.prisma.prisma().user_skills.createMany({
           data: skillIds.map((skill_id: string) => ({
             user_id: userId,
-            skill_id
+            skill_id,
+            level: 5,
           })),
           skipDuplicates: true
         });
