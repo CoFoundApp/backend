@@ -4,7 +4,7 @@ import { SessionGuard } from '../auth/guards/session.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser, JwtUser } from '../auth/current-user.decorator';
-import { Education, Profile, VolunteerExperience, WorkExperience  } from './profile.type';
+import { Education, Profile, ProfileSearchResult, VolunteerExperience, WorkExperience } from './profile.type';
 import { ProfileService } from './profile.service';
 import { UpdateMyProfileInput } from './dto/update-my-profile.input';
 import { User } from '../user/user.type';
@@ -20,6 +20,7 @@ import { JobsService } from '../../queue/jobs.service';
 import { Logger } from '@nestjs/common';
 import { UploadService } from '../upload/upload.service';
 import { AppError } from '../../common/errors/app-error.factory';
+import { SearchProfilesArgs } from './dto/search-profiles.args';
 
 @Resolver(() => Profile)
 export class ProfileResolver {
@@ -39,6 +40,14 @@ export class ProfileResolver {
   @Query(() => Profile, { nullable: true, description: 'Lecture d’un profil public par id' })
   async profileById(@Args('id', { type: () => String }) id: string) {
     return this.profiles.getPublicProfileById(id);
+  }
+
+  /** Public: recherche de profils avec filtrage et cursor */
+  @Query(() => ProfileSearchResult, {
+    description: 'Recherche de profils publics via texte libre, filtres et pagination cursor',
+  })
+  async searchProfiles(@Args() args: SearchProfilesArgs) {
+    return this.profiles.searchProfiles(args);
   }
 
   /** Admin: listing des profils */

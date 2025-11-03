@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { UpdateMyProfileInput } from './dto/update-my-profile.input';
 import { ProfileVisibility } from '../../common/enums/domain.enums';
@@ -13,6 +13,10 @@ import { EducationInput } from './dto/education.input';
 import { VolunteerExperienceInput } from './dto/volunteer-experience.input';
 import { AutoTaxonomyService } from '../taxonomy/auto-taxonomy.service';
 import { AppError } from '../../common/errors/app-error.factory';
+import { CursorPage } from '../../common/utils/pagination.util';
+import { SearchProfilesArgs } from './dto/search-profiles.args';
+import { EMBEDDING_DIM, EMBEDDING_PORT, EmbeddingPort } from '../embedding/embedding.port';
+import { toVectorLiteral } from '../../common/utils/vector.util';
 
 function normalizeVisibility(v?: string | null): 'public' | 'unlisted' | 'private' | undefined {
   if (!v) return undefined;
@@ -27,13 +31,47 @@ function normalizeVisibility(v?: string | null): 'public' | 'unlisted' | 'privat
 @Injectable()
 export class ProfileService {
   private readonly appName = process.env.APP_NAME ?? process.env.BRAND_NAME ?? 'CoFound';
+  private readonly logger = new Logger(ProfileService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: TemplateMailerService,
     private readonly jobs: JobsService,
     private readonly taxonomy: AutoTaxonomyService,
+    @Inject(EMBEDDING_PORT) private readonly embedder: EmbeddingPort,
   ) {}
+
+  private encodeVectorCursor(distance: number, id: string) {
+    return Buffer.from(`v::${distance}::${id}`).toString('base64');
+  }
+
+  private decodeVectorCursor(cursor: string) {
+    try {
+      const [prefix, distanceStr, id] = Buffer.from(cursor, 'base64').toString('utf8').split('::');
+      if (prefix !== 'v') throw new Error('invalid.prefix');
+      const distance = Number(distanceStr);
+      if (!Number.isFinite(distance) || !isUuid(id)) throw new Error('invalid.payload');
+      return { distance, id };
+    } catch {
+      throw AppError.badRequest('profiles.invalidCursor');
+    }
+  }
+
+  private encodeTimeCursor(date: Date, id: string) {
+    return Buffer.from(`t::${date.toISOString()}::${id}`).toString('base64');
+  }
+
+  private decodeTimeCursor(cursor: string) {
+    try {
+      const [prefix, iso, id] = Buffer.from(cursor, 'base64').toString('utf8').split('::');
+      if (prefix !== 't') throw new Error('invalid.prefix');
+      const createdAt = new Date(iso);
+      if (!iso || Number.isNaN(createdAt.getTime()) || !isUuid(id)) throw new Error('invalid.payload');
+      return { createdAt, id };
+    } catch {
+      throw AppError.badRequest('profiles.invalidCursor');
+    }
+  }
 
   /** Renvoie un profil public/unlisted. */
   async getPublicProfileById(id: string) {
@@ -44,6 +82,229 @@ export class ProfileService {
         visibility: { in: [mapVisibilityToPrisma(ProfileVisibility.PUBLIC), mapVisibilityToPrisma(ProfileVisibility.UNLISTED)] },
       },
     });
+  }
+
+  async searchProfiles({ q, filter, limit, cursor }: SearchProfilesArgs): Promise<CursorPage<any>> {
+    const query = q?.trim() ?? '';
+    const take = Math.max(1, Math.min(limit ?? 20, 50));
+    const filters = filter ?? undefined;
+    const skillTerms =
+      filters?.skillsAny
+        ?.map(term => (typeof term === 'string' ? term.trim() : ''))
+        .filter((term): term is string => Boolean(term)) ?? [];
+
+    let vectorLiteral: string | null = null;
+    if (query) {
+      try {
+        const embedding = await this.embedder.embedText(query);
+        if (Array.isArray(embedding) && embedding.length === EMBEDDING_DIM) {
+          vectorLiteral = toVectorLiteral(embedding, EMBEDDING_DIM);
+        }
+      } catch (error) {
+        this.logger.warn(`Profil search embedding failed: ${(error as Error).message}`);
+      }
+    }
+
+    if (vectorLiteral) {
+      const params: any[] = [take];
+      const pushParam = (value: any) => {
+        const idx = params.push(value);
+        return `$${idx}`;
+      };
+
+      const where: string[] = ["embedding IS NOT NULL"];
+      where.push(
+        filters?.includeUnlisted
+          ? "visibility IN ('public','unlisted')"
+          : "visibility = 'public'",
+      );
+
+      if (filters?.languages?.length) {
+        const placeholder = pushParam(filters.languages);
+        where.push(`languages && ${placeholder}::text[]`);
+      }
+      if (typeof filters?.minAvailabilityHours === 'number') {
+        const placeholder = pushParam(filters.minAvailabilityHours);
+        where.push(`availability_hours >= ${placeholder}::int`);
+      }
+      if (filters?.remote != null) {
+        if (filters.remote) {
+          where.push(`COALESCE(remote_preference_percent, 0) >= 70`);
+        } else {
+          where.push(`COALESCE(remote_preference_percent, 100) <= 30`);
+        }
+      }
+      if (filters?.tagsAny?.length) {
+        const placeholder = pushParam(filters.tagsAny);
+        where.push(`tags && ${placeholder}::text[]`);
+      }
+      if (skillTerms.length) {
+        const slugPlaceholder = pushParam(skillTerms.map(term => term.toLowerCase()));
+        const namePlaceholder = pushParam(skillTerms.map(term => `%${term}%`));
+        where.push(`EXISTS (
+          SELECT 1
+          FROM user_skills us
+          JOIN skills sk ON sk.id = us.skill_id
+          WHERE us.user_id = profiles.user_id
+            AND (
+              LOWER(sk.slug) = ANY(${slugPlaceholder}::text[])
+              OR sk.name ILIKE ANY(${namePlaceholder}::text[])
+            )
+        )`);
+      }
+
+      const vectorPlaceholder = pushParam(vectorLiteral);
+
+      if (cursor) {
+        const { distance, id } = this.decodeVectorCursor(cursor);
+        const distancePlaceholder = pushParam(distance);
+        const idPlaceholder = pushParam(id);
+        where.push(
+          `((embedding <=> ${vectorPlaceholder}::halfvec), id) > (${distancePlaceholder}::float, ${idPlaceholder}::uuid)`,
+        );
+      }
+
+      const sql = `
+        SELECT id, (embedding <=> ${vectorPlaceholder}::halfvec) AS distance
+        FROM profiles
+        WHERE ${where.join(' AND ')}
+        ORDER BY (embedding <=> ${vectorPlaceholder}::halfvec) ASC, id ASC
+        LIMIT $1::int
+      `;
+
+      const rows = await this.prisma
+        .prisma()
+        .$queryRawUnsafe<Array<{ id: string; distance: number }>>(sql, ...params);
+
+      if (!rows.length) {
+        return { items: [], nextCursor: null };
+      }
+
+      const ids = rows.map(row => row.id);
+      const profiles = await this.prisma.prisma().profiles.findMany({
+        where: { id: { in: ids } },
+      });
+
+      const map = new Map(profiles.map(profile => [profile.id, profile]));
+      const items = rows
+        .map(row => map.get(row.id))
+        .filter((profile): profile is NonNullable<typeof profile> => Boolean(profile));
+
+      const last = rows[rows.length - 1];
+      const lastDistance = Number(last?.distance);
+      const nextCursor =
+        rows.length === take && Number.isFinite(lastDistance)
+          ? this.encodeVectorCursor(lastDistance, last.id)
+          : null;
+
+      return { items, nextCursor };
+    }
+
+    const params: any[] = [take];
+    const pushParam = (value: any) => {
+      const idx = params.push(value);
+      return `$${idx}`;
+    };
+
+    const where: string[] = [
+      filters?.includeUnlisted
+        ? "visibility IN ('public','unlisted')"
+        : "visibility = 'public'",
+    ];
+
+    if (query) {
+      const placeholder = pushParam(`%${query}%`);
+      where.push(
+        `(
+          display_name ILIKE ${placeholder}
+          OR headline ILIKE ${placeholder}
+          OR bio ILIKE ${placeholder}
+        )`,
+      );
+    }
+
+    if (filters?.languages?.length) {
+      const placeholder = pushParam(filters.languages);
+      where.push(`languages && ${placeholder}::text[]`);
+    }
+    if (typeof filters?.minAvailabilityHours === 'number') {
+      const placeholder = pushParam(filters.minAvailabilityHours);
+      where.push(`availability_hours >= ${placeholder}::int`);
+    }
+    if (filters?.remote != null) {
+      if (filters.remote) {
+        where.push(`COALESCE(remote_preference_percent, 0) >= 70`);
+      } else {
+        where.push(`COALESCE(remote_preference_percent, 100) <= 30`);
+      }
+    }
+    if (filters?.tagsAny?.length) {
+      const placeholder = pushParam(filters.tagsAny);
+      where.push(`tags && ${placeholder}::text[]`);
+    }
+    if (skillTerms.length) {
+      const slugPlaceholder = pushParam(skillTerms.map(term => term.toLowerCase()));
+      const namePlaceholder = pushParam(skillTerms.map(term => `%${term}%`));
+      where.push(`EXISTS (
+        SELECT 1
+        FROM user_skills us
+        JOIN skills sk ON sk.id = us.skill_id
+        WHERE us.user_id = profiles.user_id
+          AND (
+            LOWER(sk.slug) = ANY(${slugPlaceholder}::text[])
+            OR sk.name ILIKE ANY(${namePlaceholder}::text[])
+          )
+      )`);
+    }
+
+    if (cursor) {
+      const { createdAt, id } = this.decodeTimeCursor(cursor);
+      const createdAtPlaceholder = pushParam(createdAt);
+      if (id) {
+        const idPlaceholder = pushParam(id);
+        where.push(
+          `((created_at < ${createdAtPlaceholder}::timestamptz) OR (created_at = ${createdAtPlaceholder}::timestamptz AND id < ${idPlaceholder}::uuid))`,
+        );
+      } else {
+        where.push(`created_at < ${createdAtPlaceholder}::timestamptz`);
+      }
+    }
+
+    const sql = `
+      SELECT id, created_at
+      FROM profiles
+      WHERE ${where.join(' AND ')}
+      ORDER BY created_at DESC, id DESC
+      LIMIT $1::int
+    `;
+
+    const rows = await this.prisma
+      .prisma()
+      .$queryRawUnsafe<Array<{ id: string; created_at: Date }>>(sql, ...params);
+
+    if (!rows.length) {
+      return { items: [], nextCursor: null };
+    }
+
+    const ids = rows.map(row => row.id);
+    const profiles = await this.prisma.prisma().profiles.findMany({
+      where: { id: { in: ids } },
+    });
+
+    const map = new Map(profiles.map(profile => [profile.id, profile]));
+    const items = rows
+      .map(row => map.get(row.id))
+      .filter((profile): profile is NonNullable<typeof profile> => Boolean(profile));
+
+    const last = rows[rows.length - 1];
+    const createdAt =
+      last?.created_at instanceof Date ? last.created_at : new Date(last?.created_at as any);
+    const nextCursor =
+      rows.length === take && createdAt && !Number.isNaN(createdAt.getTime())
+        ? this.encodeTimeCursor(createdAt, last.id)
+        : null;
+
+    return { items, nextCursor };
   }
 
   /** lire mon profil (créé s'il n'existe pas) */

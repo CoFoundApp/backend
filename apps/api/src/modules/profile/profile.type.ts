@@ -243,3 +243,12 @@ export class Profile {
   @Field(() => [VolunteerExperience], { description: 'Expériences de bénévolat associées au profil' })
   volunteerExperiences!: VolunteerExperience[];
 }
+
+@ObjectType()
+export class ProfileSearchResult {
+  @Field(() => [Profile])
+  items!: Profile[];
+
+  @Field(() => String, { nullable: true })
+  nextCursor?: string | null;
+}
