@@ -156,7 +156,7 @@ export class Profile {
   @Field(() => Number, { nullable: true })
   availability_hours?: number | null;
 
-  @Field(() => [String])
+  @Field(() => [String], {nullable: true})
   tags!: string[];
 
   @Field(() => ProfileVisibility)
