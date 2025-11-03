@@ -14,7 +14,12 @@ import { MatchRecommendation } from './types/match-recommendation.type';
 import { CompositeScoreService } from './services/composite-score.service';
 import { SuccessPredictionService } from './services/success-prediction.service';
 import { MatchDetailLevel } from './types/match-detail-level.enum';
-import { projectAlignedCandidateSkills, weightFor, weightedJaccard } from './utils/score.utils';
+import {
+  SkillMetadata,
+  projectAlignedCandidateSkills,
+  weightFor,
+  weightedJaccard,
+} from './utils/score.utils';
 import { TimeSlotLike } from './interfaces/score.interface';
 import { DimensionScoreResult } from './interfaces/dimension-score.interface';
 import { ExplainabilityPayload } from './interfaces/explainability.interface';
@@ -902,7 +907,13 @@ export class MatchingService {
 
           const candSkillsPromise = this.prisma.prisma().user_skills.findMany({
             where: { user_id: { in: userIds } },
-            select: { user_id: true, skill_id: true, level: true, years: true },
+            select: {
+              user_id: true,
+              skill_id: true,
+              level: true,
+              years: true,
+              skills: { select: { slug: true, name: true, category: true } },
+            },
           });
 
           const candInterestsPromise = this.prisma.prisma().user_interests.findMany({
@@ -913,9 +924,17 @@ export class MatchingService {
           const projectSkillsPromise = projectId
             ? this.prisma.prisma().project_skills.findMany({
                 where: { project_id: projectId },
-                select: { skill_id: true, importance: true },
+                select: {
+                  skill_id: true,
+                  importance: true,
+                  skills: { select: { slug: true, name: true, category: true } },
+                },
               })
-            : Promise.resolve([] as Array<{ skill_id: string; importance: number | null }>);
+            : Promise.resolve([] as Array<{
+                skill_id: string;
+                importance: number | null;
+                skills?: { slug: string | null; name: string; category: string | null } | null;
+              }>);
 
           const projectInterestsPromise = projectId
             ? this.prisma.prisma().project_interests.findMany({
@@ -956,8 +975,18 @@ export class MatchingService {
             : null;
 
           const hasRealProjectSkills = projSkills.length > 0;
+          const projectSkillMeta = new Map<string, SkillMetadata>();
           const projSkillWeights = new Map(
-            projSkills.map((s) => [s.skill_id, weightFor(s.importance ?? 0, null)]),
+            projSkills.map((s) => {
+              const meta: SkillMetadata = {
+                id: s.skill_id,
+                slug: s.skills?.slug ?? null,
+                name: s.skills?.name ?? null,
+                category: s.skills?.category ?? null,
+              };
+              projectSkillMeta.set(s.skill_id, meta);
+              return [s.skill_id, weightFor(s.importance ?? 0, null)] as const;
+            }),
           );
           if (!projectId && applyIntentToScore && queryIntent?.skillWeights.size) {
             const synthetic = buildIntentSkillWeights(queryIntent);
@@ -970,10 +999,21 @@ export class MatchingService {
           const projInterestSet = new Set(projInterests.map((i) => i.interest_id));
 
           const skillsByUser = new Map<string, { skill_id: string; weight: number }[]>();
+          const candidateSkillMetaByUser = new Map<string, Map<string, SkillMetadata>>();
           for (const r of candSkills) {
             const arr = skillsByUser.get(r.user_id) ?? [];
             arr.push({ skill_id: r.skill_id, weight: weightFor(r.level, r.years) });
             skillsByUser.set(r.user_id, arr);
+
+            const metaMap = candidateSkillMetaByUser.get(r.user_id) ?? new Map<string, SkillMetadata>();
+            const meta: SkillMetadata = {
+              id: r.skill_id,
+              slug: r.skills?.slug ?? null,
+              name: r.skills?.name ?? null,
+              category: r.skills?.category ?? null,
+            };
+            metaMap.set(r.skill_id, meta);
+            candidateSkillMetaByUser.set(r.user_id, metaMap);
           }
 
           const interestsByUser = new Map<string, Set<string>>();
@@ -993,9 +1033,14 @@ export class MatchingService {
 
               const wArr = skillsByUser.get(candidate.user_id) ?? [];
               const candidateSkillMap = new Map(wArr.map((x) => [x.skill_id, x.weight]));
+              const candidateMeta = candidateSkillMetaByUser.get(candidate.user_id);
               const alignedCandidateSkills = projectAlignedCandidateSkills(
                 projSkillWeights,
                 candidateSkillMap,
+                {
+                  projectMeta: projectSkillMeta,
+                  candidateMeta,
+                },
               );
               const skillOverlap = projSkillWeights.size
                 ? weightedJaccard(projSkillWeights, alignedCandidateSkills)
@@ -1034,6 +1079,8 @@ export class MatchingService {
                   semanticSimilarity: semanticWithIntent,
                   hasProjectSkills: hasRealProjectSkills,
                   intentTagAffinity: intentSkillAffinity,
+                  projectSkillMeta,
+                  candidateSkillMeta: candidateMeta,
                 },
                 culture: {
                   profileValues: profile.core_values ?? [],
@@ -1185,11 +1232,27 @@ export class MatchingService {
     const profileSkills = profile
       ? await this.prisma.prisma().user_skills.findMany({
           where: { user_id: profile.user_id },
-          select: { skill_id: true, level: true, years: true },
+          select: {
+            skill_id: true,
+            level: true,
+            years: true,
+            skills: { select: { slug: true, name: true, category: true } },
+          },
         })
       : [];
 
-    const profileSkillMap = new Map(profileSkills.map((s) => [s.skill_id, weightFor(s.level, s.years)]));
+    const profileSkillMeta = new Map<string, SkillMetadata>();
+    const profileSkillMap = new Map(
+      profileSkills.map((s) => {
+        profileSkillMeta.set(s.skill_id, {
+          id: s.skill_id,
+          slug: s.skills?.slug ?? null,
+          name: s.skills?.name ?? null,
+          category: s.skills?.category ?? null,
+        });
+        return [s.skill_id, weightFor(s.level, s.years)] as const;
+      }),
+    );
 
     const profileInterests = profile
       ? await this.prisma.prisma().user_interests.findMany({
@@ -1372,7 +1435,12 @@ export class MatchingService {
 
         const projectSkillsPromise = this.prisma.prisma().project_skills.findMany({
           where: { project_id: { in: projectIds } },
-          select: { project_id: true, skill_id: true, importance: true },
+          select: {
+            project_id: true,
+            skill_id: true,
+            importance: true,
+            skills: { select: { slug: true, name: true, category: true } },
+          },
         });
 
         const projectInterestsPromise = this.prisma.prisma().project_interests.findMany({
@@ -1415,10 +1483,20 @@ export class MatchingService {
         }
 
         const skillsByProject = new Map<string, Map<string, number>>();
+        const projectSkillMetaByProject = new Map<string, Map<string, SkillMetadata>>();
         for (const skill of projectSkills) {
           const map = skillsByProject.get(skill.project_id) ?? new Map<string, number>();
           map.set(skill.skill_id, weightFor(skill.importance ?? 0, null));
           skillsByProject.set(skill.project_id, map);
+
+          const metaMap = projectSkillMetaByProject.get(skill.project_id) ?? new Map<string, SkillMetadata>();
+          metaMap.set(skill.skill_id, {
+            id: skill.skill_id,
+            slug: skill.skills?.slug ?? null,
+            name: skill.skills?.name ?? null,
+            category: skill.skills?.category ?? null,
+          });
+          projectSkillMetaByProject.set(skill.project_id, metaMap);
         }
 
         const interestsByProject = new Map<string, Set<string>>();
@@ -1440,9 +1518,14 @@ export class MatchingService {
             const projectInterestSet = interestsByProject.get(project.id) ?? new Set<string>();
             const resolvedRoleNeed = roleNeedByProject.get(project.id) ?? null;
 
+            const projectSkillMeta = projectSkillMetaByProject.get(project.id);
             const alignedProfileSkills = projectAlignedCandidateSkills(
               projectSkillMap,
               profileSkillMap,
+              {
+                projectMeta: projectSkillMeta,
+                candidateMeta: profileSkillMeta,
+              },
             );
             const skillOverlap = profile
               ? weightedJaccard(projectSkillMap, alignedProfileSkills)
@@ -1483,6 +1566,8 @@ export class MatchingService {
                 candidateSkills: profileSkillMap,
                 semanticSimilarity: semanticSim,
                 hasProjectSkills: projectSkillMap.size > 0,
+                projectSkillMeta,
+                candidateSkillMeta: profileSkillMeta,
               },
               culture: {
                 profileValues: profile?.core_values ?? [],

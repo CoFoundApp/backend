@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { DimensionScoreResult } from '../interfaces/dimension-score.interface';
-import { projectAlignedCandidateSkills, weightedJaccard } from '../utils/score.utils';
+import {
+  SkillMetadata,
+  projectAlignedCandidateSkills,
+  weightedJaccard,
+} from '../utils/score.utils';
 
 export interface TechnicalScoreInput {
   projectSkills: Map<string, number>;
@@ -8,14 +12,27 @@ export interface TechnicalScoreInput {
   semanticSimilarity: number;
   hasProjectSkills: boolean;
   intentTagAffinity?: number;
+  projectSkillMeta?: Map<string, SkillMetadata>;
+  candidateSkillMeta?: Map<string, SkillMetadata>;
 }
 
 @Injectable()
 export class TechnicalScoreService {
   async evaluate(input: TechnicalScoreInput): Promise<DimensionScoreResult> {
-    const { projectSkills, candidateSkills, semanticSimilarity, hasProjectSkills, intentTagAffinity } = input;
+    const {
+      projectSkills,
+      candidateSkills,
+      semanticSimilarity,
+      hasProjectSkills,
+      intentTagAffinity,
+      projectSkillMeta,
+      candidateSkillMeta,
+    } = input;
 
-    const filteredCandidateSkills = projectAlignedCandidateSkills(projectSkills, candidateSkills);
+    const filteredCandidateSkills = projectAlignedCandidateSkills(projectSkills, candidateSkills, {
+      projectMeta: projectSkillMeta,
+      candidateMeta: candidateSkillMeta,
+    });
 
     const overlap = weightedJaccard(projectSkills, filteredCandidateSkills);
     const composite = hasProjectSkills ? 0.75 * overlap + 0.25 * semanticSimilarity : semanticSimilarity;
