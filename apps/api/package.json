@@ -13,6 +13,7 @@
     "prisma:studio": "prisma studio --schema ./prisma/schema.prisma",
     "prisma:migrate": "prisma migrate deploy --schema ./prisma/schema.prisma",
     "seed:admin": "node ./dist/scripts/seed-admin.js",
+    "seed:elearning": "node ./dist/scripts/seed-elearning.js",
     "test": "cross-env NODE_ENV=test jest --passWithNoTests",
     "test:watch": "cross-env NODE_ENV=test jest --watch",
     "test:e2e": "pnpm run prisma:generate && cross-env NODE_ENV=test jest --config ./jest-e2e.json"
