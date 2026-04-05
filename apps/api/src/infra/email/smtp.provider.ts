@@ -11,11 +11,11 @@ export class SmtpEmailProvider implements EmailProvider {
       host: process.env.SMTP_HOST || 'pro3.mail.ovh.net',
       port: Number(process.env.SMTP_PORT || 587),
       secure: false,
-      requireTLS: true,
-      auth: {
-        user: process.env.SMTP_USER!,
-        pass: process.env.SMTP_PASS!,
-      },
+      requireTLS: false,
+      // auth: {
+      //   user: process.env.SMTP_USER!,
+      //   pass: process.env.SMTP_PASS!,
+      // },
       connectionTimeout: 15000,
       greetingTimeout: 10000,
       socketTimeout: 20000,

@@ -40,7 +40,9 @@ export const envValidationSchema = Joi.object({
   EMBEDDING_DIMS: Joi.number().integer().min(1).default(1024),
   OPENAI_EMBEDDING_MODEL: Joi.string().default('text-embedding-ada-002'),
   MISTRAL_EMBEDDING_MODEL: Joi.string().default('mistral-7b'),
+  MISTRAL_API_KEY: Joi.string().allow('').default(''),
   EMBEDDING_PROVIDER: Joi.string().default('mistral'),
+  PROJECT_ASSISTANT_MODEL: Joi.string().default('mistral-small-latest'),
 
   BULLMQ_PREFIX: Joi.string().default('cofound'),
   EMBEDDING_RATE_MAX: Joi.number().integer().min(1).default(100),

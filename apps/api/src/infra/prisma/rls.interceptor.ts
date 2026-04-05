@@ -4,7 +4,7 @@ import { PrismaService } from './prisma.service';
 import { RequestContext } from './request-context.service';
 import { GqlExecutionContext } from '@nestjs/graphql';
 
-const RLS_TRANSACTION_TIMEOUT_MS = 1000 * 20;
+const RLS_TRANSACTION_TIMEOUT_MS = 1000 * 90;
 
 function extractUser(ctx: ExecutionContext) {
   const type = ctx.getType<'http'|'graphql'|'ws'>();

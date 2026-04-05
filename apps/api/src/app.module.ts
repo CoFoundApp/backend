@@ -40,6 +40,7 @@ import { UploadModule } from './modules/upload/upload.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { ElearningModule } from './modules/elearning/elearning.module';
+import { AssistantModule } from './modules/assistant/assistant.module';
 
 const allowGraphqlExplorer = (() => {
   const raw = process.env.GRAPHQL_PLAYGROUND_ENABLED;
@@ -116,6 +117,8 @@ const allowGraphqlExplorer = (() => {
     MonitoringModule,
 
     ElearningModule,
+
+    AssistantModule,
   ],
   controllers: [AppController],
   providers: [
